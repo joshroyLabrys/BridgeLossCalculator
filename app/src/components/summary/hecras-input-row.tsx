@@ -1,13 +1,10 @@
 'use client';
 
 import { Input } from '@/components/ui/input';
+import { TableCell, TableRow } from '@/components/ui/table';
 import { useProjectStore } from '@/store/project-store';
 import { HecRasComparison } from '@/engine/types';
 
-/**
- * Generic HEC-RAS gold input row. Pass the `field` to control which
- * HecRasComparison property is editable (upstreamWsel, headLoss, pierFLC, superFLC).
- */
 export function HecRasInputRow({ profileNames, field }: {
   profileNames: string[];
   field: 'upstreamWsel' | 'headLoss' | 'pierFLC' | 'superFLC';
@@ -33,22 +30,22 @@ export function HecRasInputRow({ profileNames, field }: {
   }
 
   return (
-    <tr className="bg-yellow-900/20 border-y border-yellow-700/30">
-      <td className="p-2 text-sm font-medium text-yellow-400">HEC-RAS</td>
+    <TableRow className="bg-amber-500/5 border-y border-amber-500/20 hover:bg-amber-500/10">
+      <TableCell className="text-sm font-semibold text-amber-400">HEC-RAS</TableCell>
       {profileNames.map((name) => {
         const entry = getEntry(name);
         return (
-          <td key={name} className="p-1">
+          <TableCell key={name} className="px-1">
             <Input
               type="number"
               value={entry[field] ?? ''}
               onChange={(e) => setField(name, e.target.value)}
-              className="h-7 text-sm w-20"
+              className="h-7 text-sm font-mono w-20"
               placeholder="—"
             />
-          </td>
+          </TableCell>
         );
       })}
-    </tr>
+    </TableRow>
   );
 }

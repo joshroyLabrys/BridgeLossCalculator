@@ -5,14 +5,36 @@ import { Input } from '@/components/ui/input';
 import { useProjectStore } from '@/store/project-store';
 import { HecRasInputRow } from './hecras-input-row';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MethodResult, HecRasComparison } from '@/engine/types';
-import { toDisplay, unitLabel } from '@/lib/units';
+import { Calculator } from 'lucide-react';
+
+const METHOD_COLORS: Record<string, string> = {
+  energy: 'bg-blue-500',
+  momentum: 'bg-emerald-500',
+  yarnell: 'bg-amber-500',
+  wspro: 'bg-purple-500',
+};
+
+function MethodName({ method }: { method: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`h-2 w-2 rounded-full ${METHOD_COLORS[method]}`} />
+      <span>{method === 'wspro' ? 'WSPRO' : method.charAt(0).toUpperCase() + method.slice(1)}</span>
+    </div>
+  );
+}
 
 function pctDiffBadge(pct: number | null) {
   if (pct === null) return <span className="text-muted-foreground">—</span>;
   const abs = Math.abs(pct);
-  const color = abs < 5 ? 'bg-green-900/50 text-green-300' : abs < 10 ? 'bg-yellow-900/50 text-yellow-300' : 'bg-red-900/50 text-red-300';
-  return <Badge className={`text-xs ${color}`}>{pct.toFixed(1)}%</Badge>;
+  const color = abs < 5
+    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+    : abs < 10
+    ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+    : 'bg-red-500/15 text-red-400 border-red-500/30';
+  return <Badge variant="outline" className={`text-xs font-mono ${color}`}>{pct.toFixed(1)}%</Badge>;
 }
 
 export function ComparisonTables() {
@@ -20,14 +42,15 @@ export function ComparisonTables() {
   const comparison = useProjectStore((s) => s.hecRasComparison);
   const updateHecRas = useProjectStore((s) => s.updateHecRasComparison);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
-  const us = useProjectStore((s) => s.unitSystem);
-
-  const lenUnit = unitLabel('length', us);
-  const velUnit = unitLabel('velocity', us);
-  const areaUnit = unitLabel('area', us);
 
   if (!results) {
-    return <p className="text-muted-foreground">Run calculations to see comparisons.</p>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <Calculator className="h-10 w-10 mb-3 opacity-40" />
+        <p className="text-sm">No results yet</p>
+        <p className="text-xs mt-1">Run calculations to see comparisons</p>
+      </div>
+    );
   }
 
   function updateHecRasField(profileName: string, field: keyof HecRasComparison, value: string) {
@@ -49,127 +72,148 @@ export function ComparisonTables() {
 
   return (
     <div className="space-y-6">
-      {/* Upstream WSEL table */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">Upstream WSEL Comparison ({lenUnit})</h3>
-        <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-2 text-left">Method</th>
-                {profileNames.map((n) => <th key={n} className="p-2 text-right">{n}</th>)}
-              </tr>
-            </thead>
-            <tbody>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upstream WSEL Comparison</CardTitle>
+          <CardDescription>Upstream water surface elevation (ft) across all methods</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead className="text-xs">Method</TableHead>
+                {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {methods.map((method) => (
-                <tr key={method} className="border-t">
-                  <td className="p-2 capitalize">{method === 'wspro' ? 'WSPRO' : method}</td>
+                <TableRow key={method} className="even:bg-muted/20">
+                  <TableCell><MethodName method={method} /></TableCell>
                   {results[method].map((r, i) => (
-                    <td key={i} className="p-2 text-right">
-                      {r.error ? <span className="text-destructive">ERR</span> : toDisplay(r.upstreamWsel, 'length', us).toFixed(2)}
-                    </td>
+                    <TableCell key={i} className="text-right font-mono tabular-nums">
+                      {r.error ? <span className="text-destructive">ERR</span> : r.upstreamWsel.toFixed(2)}
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))}
               <HecRasInputRow profileNames={profileNames} field="upstreamWsel" />
-              {/* % difference row */}
-              <tr className="border-t bg-muted/20">
-                <td className="p-2 text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</td>
+              <TableRow className="bg-muted/10">
+                <TableCell className="text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</TableCell>
                 {profileNames.map((name, i) => {
                   const hecEntry = comparison.find((c) => c.profileName === name);
                   const energyResult = results.energy[i];
                   if (!hecEntry?.headLoss || !energyResult || energyResult.error) {
-                    return <td key={name} className="p-2 text-right">—</td>;
+                    return <TableCell key={name} className="text-right">—</TableCell>;
                   }
                   const pct = hecEntry.headLoss !== 0
                     ? ((energyResult.totalHeadLoss - hecEntry.headLoss) / hecEntry.headLoss) * 100
                     : null;
-                  return <td key={name} className="p-2 text-right">{pctDiffBadge(pct)}</td>;
+                  return <TableCell key={name} className="text-right">{pctDiffBadge(pct)}</TableCell>;
                 })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-      {/* Head loss table */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">Head Loss Comparison ({lenUnit})</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Head Loss Comparison</CardTitle>
+          <CardDescription>Total head loss (ft) across all methods</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.totalHeadLoss.toFixed(3)} />
+        </CardContent>
+      </Card>
 
-      {/* Velocity comparison table */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">Approach Velocity Comparison ({velUnit})</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => toDisplay(r.approachVelocity, 'velocity', us).toFixed(2)} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Approach Velocity</CardTitle>
+          <CardDescription>Approach velocity (ft/s) across all methods</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.approachVelocity.toFixed(2)} />
+        </CardContent>
+      </Card>
 
-      {/* Froude number comparison table */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">Froude Number Comparison</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.froudeApproach.toFixed(3)} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Froude Number</CardTitle>
+          <CardDescription>Approach Froude number across all methods</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.froudeApproach.toFixed(3)} />
+        </CardContent>
+      </Card>
 
-      {/* Bridge opening ratio — from input echo */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">Bridge Opening Area ({areaUnit})</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => toDisplay(r.inputEcho.bridgeOpeningArea, 'area', us).toFixed(1)} />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Bridge Opening Area</CardTitle>
+          <CardDescription>Net bridge opening area (ft²) across all methods</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.inputEcho.bridgeOpeningArea.toFixed(1)} />
+        </CardContent>
+      </Card>
 
-      {/* TUFLOW FLC table */}
-      <div>
-        <h3 className="text-sm font-medium mb-2">TUFLOW Form Loss Coefficients</h3>
-        <div className="rounded-lg border overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="p-2 text-left">Method</th>
-                {profileNames.map((n) => <th key={n} className="p-2 text-center" colSpan={2}>{n}</th>)}
-              </tr>
-              <tr>
-                <th className="p-2"></th>
+      <Card>
+        <CardHeader>
+          <CardTitle>TUFLOW Form Loss Coefficients</CardTitle>
+          <CardDescription>Pier and superstructure FLCs for TUFLOW modelling</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/30 hover:bg-muted/30">
+                <TableHead className="text-xs">Method</TableHead>
+                {profileNames.map((n) => <TableHead key={n} className="text-xs text-center" colSpan={2}>{n}</TableHead>)}
+              </TableRow>
+              <TableRow className="bg-muted/20 hover:bg-muted/20">
+                <TableHead></TableHead>
                 {profileNames.map((n) => (
                   <React.Fragment key={n}>
-                    <th className="p-2 text-right text-xs text-muted-foreground">Pier</th>
-                    <th className="p-2 text-right text-xs text-muted-foreground">Super</th>
+                    <TableHead className="text-right text-xs text-muted-foreground">Pier</TableHead>
+                    <TableHead className="text-right text-xs text-muted-foreground">Super</TableHead>
                   </React.Fragment>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {methods.map((method) => (
-                <tr key={method} className="border-t">
-                  <td className="p-2 capitalize">{method === 'wspro' ? 'WSPRO' : method}</td>
+                <TableRow key={method} className="even:bg-muted/20">
+                  <TableCell><MethodName method={method} /></TableCell>
                   {results[method].map((r, i) => (
                     <React.Fragment key={i}>
-                      <td className="p-2 text-right">{r.error ? 'ERR' : r.tuflowPierFLC.toFixed(3)}</td>
-                      <td className="p-2 text-right">{r.error ? 'ERR' : (r.tuflowSuperFLC !== null ? r.tuflowSuperFLC.toFixed(3) : 'N/A')}</td>
+                      <TableCell className="text-right font-mono tabular-nums text-sm">{r.error ? 'ERR' : r.tuflowPierFLC.toFixed(3)}</TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-sm">{r.error ? 'ERR' : (r.tuflowSuperFLC !== null ? r.tuflowSuperFLC.toFixed(3) : 'N/A')}</TableCell>
                     </React.Fragment>
                   ))}
-                </tr>
+                </TableRow>
               ))}
-              {/* Gold HEC-RAS FLC row */}
-              <tr className="bg-yellow-900/20 border-y border-yellow-700/30">
-                <td className="p-2 text-sm font-medium text-yellow-400">HEC-RAS</td>
+              <TableRow className="bg-amber-500/5 border-y border-amber-500/20">
+                <TableCell className="text-sm font-semibold text-amber-400">HEC-RAS</TableCell>
                 {profileNames.map((name) => {
                   const entry = comparison.find((c) => c.profileName === name);
                   return (
                     <React.Fragment key={name}>
-                      <td className="p-1"><Input type="number" value={entry?.pierFLC ?? ''} onChange={(e) => updateHecRasField(name, 'pierFLC', e.target.value)} className="h-7 text-sm w-16" placeholder="—" /></td>
-                      <td className="p-1"><Input type="number" value={entry?.superFLC ?? ''} onChange={(e) => updateHecRasField(name, 'superFLC', e.target.value)} className="h-7 text-sm w-16" placeholder="—" /></td>
+                      <TableCell className="px-1">
+                        <Input type="number" value={entry?.pierFLC ?? ''} onChange={(e) => updateHecRasField(name, 'pierFLC', e.target.value)} className="h-7 text-sm font-mono w-16" placeholder="—" />
+                      </TableCell>
+                      <TableCell className="px-1">
+                        <Input type="number" value={entry?.superFLC ?? ''} onChange={(e) => updateHecRasField(name, 'superFLC', e.target.value)} className="h-7 text-sm font-mono w-16" placeholder="—" />
+                      </TableCell>
                     </React.Fragment>
                   );
                 })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-/** Reusable simple method × profile table */
 function SimpleMethodTable({ profileNames, methods, results, getValue }: {
   profileNames: string[];
   methods: readonly ('energy' | 'momentum' | 'yarnell' | 'wspro')[];
@@ -177,27 +221,25 @@ function SimpleMethodTable({ profileNames, methods, results, getValue }: {
   getValue: (r: MethodResult) => string;
 }) {
   return (
-    <div className="rounded-lg border overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50">
-          <tr>
-            <th className="p-2 text-left">Method</th>
-            {profileNames.map((n) => <th key={n} className="p-2 text-right">{n}</th>)}
-          </tr>
-        </thead>
-        <tbody>
-          {methods.map((method) => (
-            <tr key={method} className="border-t">
-              <td className="p-2 capitalize">{method === 'wspro' ? 'WSPRO' : method}</td>
-              {results[method].map((r, i) => (
-                <td key={i} className="p-2 text-right">
-                  {r.error ? <span className="text-destructive">ERR</span> : getValue(r)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-muted/30 hover:bg-muted/30">
+          <TableHead className="text-xs">Method</TableHead>
+          {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {methods.map((method) => (
+          <TableRow key={method} className="even:bg-muted/20">
+            <TableCell><MethodName method={method} /></TableCell>
+            {results[method].map((r, i) => (
+              <TableCell key={i} className="text-right font-mono tabular-nums">
+                {r.error ? <span className="text-destructive">ERR</span> : getValue(r)}
+              </TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

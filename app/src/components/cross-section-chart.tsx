@@ -99,7 +99,7 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
         <XAxis dataKey="station" label={{ value: `Station (${lenUnit})`, position: 'bottom', offset: -5 }} stroke="#71717a" fontSize={12} />
         <YAxis domain={[minElev, maxElev]} label={{ value: `Elevation (${lenUnit})`, angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
-        <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '6px' }} />
+        <Tooltip contentStyle={{ backgroundColor: 'oklch(0.17 0.01 230)', border: '1px solid oklch(0.26 0.02 230)', borderRadius: '8px' }} />
         <Line type="linear" dataKey="elevation" stroke="#71717a" strokeWidth={2} dot={{ fill: '#a1a1aa', r: 3 }} name="Ground" />
         {bridge && (
           <>

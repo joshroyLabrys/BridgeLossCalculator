@@ -6,7 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useProjectStore } from '@/store/project-store';
-import { toDisplay, unitLabel } from '@/lib/units';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const COLORS = {
   energy: '#3b82f6',
@@ -16,75 +16,85 @@ const COLORS = {
   hecras: '#ef4444',
 };
 
+const tooltipStyle = {
+  backgroundColor: 'oklch(0.17 0.01 230)',
+  border: '1px solid oklch(0.26 0.02 230)',
+  borderRadius: '8px',
+};
+
 export function SummaryCharts() {
   const results = useProjectStore((s) => s.results);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
-  const us = useProjectStore((s) => s.unitSystem);
 
   if (!results) return null;
 
-  const lenUnit = unitLabel('length', us);
-  const dischargeUnit = unitLabel('discharge', us);
-
   const methods = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
 
-  // Head loss bar chart data
   const headLossData = flowProfiles.map((p, i) => {
     const row: Record<string, string | number> = { name: p.name };
     for (const m of methods) {
       const r = results[m][i];
-      if (r && !r.error) row[m] = parseFloat(toDisplay(r.totalHeadLoss, 'length', us).toFixed(3));
+      if (r && !r.error) row[m] = parseFloat(r.totalHeadLoss.toFixed(3));
     }
     return row;
   });
 
-  // WSEL line chart data
   const wselData = flowProfiles.map((p, i) => {
-    const row: Record<string, string | number> = { Q: toDisplay(p.discharge, 'discharge', us) };
+    const row: Record<string, string | number> = { Q: p.discharge };
     for (const m of methods) {
       const r = results[m][i];
-      if (r && !r.error) row[m] = parseFloat(toDisplay(r.upstreamWsel, 'length', us).toFixed(2));
+      if (r && !r.error) row[m] = parseFloat(r.upstreamWsel.toFixed(2));
     }
     return row;
   });
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h3 className="text-sm font-medium mb-3">Head Loss Comparison</h3>
-        <div className="h-[300px] rounded-lg border p-4 bg-card">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={headLossData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="name" stroke="#71717a" fontSize={12} />
-              <YAxis label={{ value: `Head Loss (${lenUnit})`, angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
-              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '6px' }} />
-              <Legend />
-              {methods.map((m) => (
-                <Bar key={m} dataKey={m} fill={COLORS[m]} name={m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1)} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Head Loss Comparison</CardTitle>
+          <CardDescription>Total head loss by method across all flow profiles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={headLossData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 230)" />
+                <XAxis dataKey="name" stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <YAxis label={{ value: 'Head Loss (ft)', angle: -90, position: 'insideLeft' }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend />
+                {methods.map((m) => (
+                  <Bar key={m} dataKey={m} fill={COLORS[m]} name={m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1)} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div>
-        <h3 className="text-sm font-medium mb-3">Upstream WSEL vs Discharge</h3>
-        <div className="h-[300px] rounded-lg border p-4 bg-card">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={wselData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="Q" label={{ value: `Discharge (${dischargeUnit})`, position: 'bottom', offset: -5 }} stroke="#71717a" fontSize={12} />
-              <YAxis label={{ value: `US WSEL (${lenUnit})`, angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
-              <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '6px' }} />
-              <Legend />
-              {methods.map((m) => (
-                <Line key={m} type="monotone" dataKey={m} stroke={COLORS[m]} name={m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1)} dot={{ r: 4 }} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Upstream WSEL vs Discharge</CardTitle>
+          <CardDescription>Water surface elevation trend across discharge scenarios</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={wselData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 230)" />
+                <XAxis dataKey="Q" label={{ value: 'Discharge (cfs)', position: 'bottom', offset: -5 }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <YAxis label={{ value: 'US WSEL (ft)', angle: -90, position: 'insideLeft' }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Legend />
+                {methods.map((m) => (
+                  <Line key={m} type="monotone" dataKey={m} stroke={COLORS[m]} name={m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1)} dot={{ r: 4 }} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -2,11 +2,20 @@
 
 import { useProjectStore } from '@/store/project-store';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+const METHOD_COLORS: Record<string, string> = {
+  energy: 'bg-blue-500',
+  momentum: 'bg-emerald-500',
+  yarnell: 'bg-amber-500',
+  wspro: 'bg-purple-500',
+};
 
 const regimeStyle = {
-  'free-surface': { label: 'F', className: 'bg-blue-900/50 text-blue-300' },
-  'pressure': { label: 'P', className: 'bg-orange-900/50 text-orange-300' },
-  'overtopping': { label: 'O', className: 'bg-purple-900/50 text-purple-300' },
+  'free-surface': { label: 'F', full: 'Free Surface', className: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+  'pressure': { label: 'P', full: 'Pressure', className: 'bg-orange-500/15 text-orange-400 border-orange-500/30' },
+  'overtopping': { label: 'O', full: 'Overtopping', className: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
 };
 
 export function RegimeMatrix() {
@@ -19,33 +28,43 @@ export function RegimeMatrix() {
   const profileNames = flowProfiles.map((p) => p.name);
 
   return (
-    <div>
-      <h3 className="text-sm font-medium mb-2">Flow Regime Matrix</h3>
-      <div className="rounded-lg border overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr>
-              <th className="p-2 text-left">Method</th>
-              {profileNames.map((n) => <th key={n} className="p-2 text-center">{n}</th>)}
-            </tr>
-          </thead>
-          <tbody>
+    <Card>
+      <CardHeader>
+        <CardTitle>Flow Regime Matrix</CardTitle>
+        <CardDescription>
+          F = Free Surface, P = Pressure, O = Overtopping
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="text-xs">Method</TableHead>
+              {profileNames.map((n) => <TableHead key={n} className="text-xs text-center">{n}</TableHead>)}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {methods.map((method) => (
-              <tr key={method} className="border-t">
-                <td className="p-2 capitalize">{method === 'wspro' ? 'WSPRO' : method}</td>
+              <TableRow key={method} className="even:bg-muted/20">
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${METHOD_COLORS[method]}`} />
+                    <span>{method === 'wspro' ? 'WSPRO' : method.charAt(0).toUpperCase() + method.slice(1)}</span>
+                  </div>
+                </TableCell>
                 {results[method].map((r, i) => {
                   const style = regimeStyle[r.flowRegime];
                   return (
-                    <td key={i} className="p-2 text-center">
-                      <Badge className={`text-xs ${style.className}`}>{style.label}</Badge>
-                    </td>
+                    <TableCell key={i} className="text-center">
+                      <Badge variant="outline" className={`text-xs ${style.className}`} title={style.full}>{style.label}</Badge>
+                    </TableCell>
                   );
                 })}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
