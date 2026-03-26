@@ -71,6 +71,30 @@ export function CoefficientsForm() {
           </div>
         </div>
         <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Debris Blockage</div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Opening Blockage (%)</Label>
+            <Input type="number" value={coefficients.debrisBlockagePct} onChange={(e) => setField('debrisBlockagePct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))} className="h-8 text-sm font-mono w-32" step="5" min="0" max="100" placeholder="0" />
+          </div>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Manning's n Sensitivity</div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox checked={coefficients.manningsNSensitivity} onCheckedChange={() => update({ ...coefficients, manningsNSensitivity: !coefficients.manningsNSensitivity })} />
+              <Label className="text-sm">Run sensitivity analysis</Label>
+            </div>
+            {coefficients.manningsNSensitivity && (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Variation (±%)</Label>
+                <Input type="number" value={coefficients.manningsNSensitivityPct} onChange={(e) => setField('manningsNSensitivityPct', Math.max(1, parseFloat(e.target.value) || 20))} className="h-8 text-sm font-mono w-24" step="5" min="1" max="100" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div>
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Methods to Run</div>
           <div className="flex gap-6">
             {(['energy', 'momentum', 'yarnell', 'wspro'] as const).map((method) => (

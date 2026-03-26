@@ -21,13 +21,13 @@ export function FlowProfilesForm() {
   function removeProfile(index: number) { update(profiles.filter((_, i) => i !== index)); }
 
   const fieldUnitType: Record<string, UnitType | null> = {
-    name: null, discharge: 'discharge', dsWsel: 'length',
+    name: null, ari: null, discharge: 'discharge', dsWsel: 'length',
     channelSlope: 'slope', contractionLength: 'length', expansionLength: 'length',
   };
 
   function updateProfile(index: number, field: keyof FlowProfile, value: string) {
     const updated = [...profiles];
-    if (field === 'name') { updated[index] = { ...updated[index], name: value }; }
+    if (field === 'name' || field === 'ari') { updated[index] = { ...updated[index], [field]: value }; }
     else {
       const ut = fieldUnitType[field];
       const raw = parseFloat(value) || 0;
@@ -38,6 +38,7 @@ export function FlowProfilesForm() {
 
   const columns = [
     { key: 'name', label: 'Name', type: 'text', unitType: null as UnitType | null },
+    { key: 'ari', label: 'ARI/AEP', type: 'text', unitType: null as UnitType | null },
     { key: 'discharge', label: `Q (${unitLabel('discharge', us)})`, type: 'number', unitType: 'discharge' as UnitType | null },
     { key: 'dsWsel', label: `DS WSEL (${unitLabel('length', us)})`, type: 'number', unitType: 'length' as UnitType | null },
     { key: 'channelSlope', label: `Slope (${unitLabel('slope', us)})`, type: 'number', unitType: null as UnitType | null },
