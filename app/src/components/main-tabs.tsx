@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
+import { Toaster } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { CrossSectionForm } from '@/components/input/cross-section-form';
@@ -14,7 +15,7 @@ import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { FreeboardCheck } from '@/components/summary/freeboard-check';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { useProjectStore } from '@/store/project-store';
-import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3 } from 'lucide-react';
+import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText } from 'lucide-react';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -22,6 +23,12 @@ export function MainTabs() {
   const importProject = useProjectStore((s) => s.importProject);
   const unitSystem = useProjectStore((s) => s.unitSystem);
   const setUnitSystem = useProjectStore((s) => s.setUnitSystem);
+  const activeMainTab = useProjectStore((s) => s.activeMainTab);
+  const setActiveMainTab = useProjectStore((s) => s.setActiveMainTab);
+
+  const handleTabChange = useCallback((value: string | number | null) => {
+    if (typeof value === 'string') setActiveMainTab(value);
+  }, [setActiveMainTab]);
 
   function handleExport() {
     const json = exportProject();
@@ -59,17 +66,19 @@ export function MainTabs() {
             <h1 className="text-lg font-semibold tracking-tight text-foreground">Bridge Loss Calculator</h1>
           </div>
 
-          <div className="inline-flex rounded-lg border border-border/40 bg-muted/30 p-0.5">
-            <TabsList className="w-fit gap-0.5 bg-transparent p-0">
-              <TabsTrigger value="input" className="rounded-md px-3 py-1.5 text-xs">
+          <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
+            <TabsList className="w-fit gap-0 bg-transparent p-0">
+              <TabsTrigger value="input" className="rounded-md px-3.5 py-1.5 text-xs">
                 <Settings2 className="h-3.5 w-3.5" />
                 Input
               </TabsTrigger>
-              <TabsTrigger value="results" className="rounded-md px-3 py-1.5 text-xs">
+              <div className="h-4 w-px bg-border/50" aria-hidden="true" />
+              <TabsTrigger value="results" className="rounded-md px-3.5 py-1.5 text-xs">
                 <FlaskConical className="h-3.5 w-3.5" />
                 Method Results
               </TabsTrigger>
-              <TabsTrigger value="summary" className="rounded-md px-3 py-1.5 text-xs">
+              <div className="h-4 w-px bg-border/50" aria-hidden="true" />
+              <TabsTrigger value="summary" className="rounded-md px-3.5 py-1.5 text-xs">
                 <BarChart3 className="h-3.5 w-3.5" />
                 Summary
               </TabsTrigger>
@@ -110,18 +119,22 @@ export function MainTabs() {
               <Download className="h-4 w-4 mr-1.5" />
               Export
             </Button>
+            <Button variant="outline" size="sm" onClick={() => window.print()}>
+              <FileText className="h-4 w-4 mr-1.5" />
+              PDF
+            </Button>
           </div>
         </div>
       </header>
 
       <TabsContent value="input" className="flex-1 px-6 py-5">
         <Tabs defaultValue="cross-section">
-          <div className="nav-pill mb-4 inline-flex rounded-lg border border-border/40 bg-card/60 p-0.5 backdrop-blur-sm" style={{ animationDelay: '60ms' }}>
-            <TabsList className="w-fit gap-0.5 bg-transparent p-0">
-              <TabsTrigger value="cross-section" className="rounded-md px-3 py-1.5 text-xs">Cross-Section</TabsTrigger>
-              <TabsTrigger value="bridge" className="rounded-md px-3 py-1.5 text-xs">Bridge Geometry</TabsTrigger>
-              <TabsTrigger value="profiles" className="rounded-md px-3 py-1.5 text-xs">Flow Profiles</TabsTrigger>
-              <TabsTrigger value="coefficients" className="rounded-md px-3 py-1.5 text-xs">Coefficients</TabsTrigger>
+          <div className="mb-5 border-b border-border/40">
+            <TabsList variant="line" className="w-fit gap-0 bg-transparent p-0">
+              <TabsTrigger value="cross-section" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Cross-Section</TabsTrigger>
+              <TabsTrigger value="bridge" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Bridge Geometry</TabsTrigger>
+              <TabsTrigger value="profiles" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Flow Profiles</TabsTrigger>
+              <TabsTrigger value="coefficients" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Coefficients</TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="cross-section"><CrossSectionForm /></TabsContent>
