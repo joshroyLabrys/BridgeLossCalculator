@@ -5,6 +5,17 @@ import type {
   Coefficients,
 } from '@/engine/types';
 
+export interface ExpectedResult {
+  profileName: string;
+  method: 'energy' | 'momentum' | 'yarnell' | 'wspro';
+  upstreamWsel: number;
+  headLoss: number;
+  /** Source of the expected value (e.g. "Hand calculation", "HEC-RAS 6.4.1") */
+  source: string;
+  /** Acceptable tolerance in feet for comparing computed vs expected */
+  toleranceFt: number;
+}
+
 export interface TestBridge {
   id: string;
   name: string;
@@ -15,6 +26,8 @@ export interface TestBridge {
   bridgeGeometry: BridgeGeometry;
   flowProfiles: FlowProfile[];
   coefficients: Coefficients;
+  /** Known-correct results for validation. If present, UI can compare computed vs expected. */
+  expectedResults?: ExpectedResult[];
 }
 
 // ---------------------------------------------------------------------------
@@ -89,8 +102,7 @@ const windsorBridge: TestBridge = {
     tolerance: 0.01,
     initialGuessOffset: 0.5,
     debrisBlockagePct: 0,
-    manningsNSensitivity: false,
-    manningsNSensitivityPct: 20,
+    manningsNSensitivityPct: null,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
@@ -171,8 +183,7 @@ const breakfastCreekBridge: TestBridge = {
     tolerance: 0.01,
     initialGuessOffset: 0.5,
     debrisBlockagePct: 0,
-    manningsNSensitivity: false,
-    manningsNSensitivityPct: 20,
+    manningsNSensitivityPct: null,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
@@ -248,8 +259,7 @@ const echucaBridge: TestBridge = {
     tolerance: 0.01,
     initialGuessOffset: 0.5,
     debrisBlockagePct: 0,
-    manningsNSensitivity: false,
-    manningsNSensitivityPct: 20,
+    manningsNSensitivityPct: null,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
@@ -333,13 +343,160 @@ const johnstoneBridge: TestBridge = {
     tolerance: 0.01,
     initialGuessOffset: 0.5,
     debrisBlockagePct: 0,
-    manningsNSensitivity: false,
-    manningsNSensitivityPct: 20,
+    manningsNSensitivityPct: null,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
 
+// ---------------------------------------------------------------------------
+// 5. Validation Benchmark: V-Channel
+//
+// PURPOSE: Hand-computable reference case for verifying all calculation methods.
+// Simple symmetric V-channel with a single round-nose pier. Geometry is trivial
+// enough to verify every intermediate value by hand.
+//
+// Analytical derivation (Yarnell, Low Flow):
+//   Area = 0.5 × 50 × 5 = 125 sq ft
+//   V = 500/125 = 4.0 ft/s
+//   V²/2g = 16/64.348 = 0.2487 ft
+//   Pier blockage = 4 × 5 = 20 sq ft
+//   α = 20/125 = 0.16
+//   K(round-nose) = 0.9
+//   Δy = 0.9 × 5.3 × 0.1698 × 0.2487 = 0.2014 ft
+//
+// References:
+//   Yarnell, D.L. (1934) USDA Tech Bulletin 442
+//   HEC-RAS Hydraulic Reference Manual, Ch. 5
+// ---------------------------------------------------------------------------
+const vChannelBenchmark: TestBridge = {
+  id: 'v-channel-benchmark',
+  name: 'V-Channel Benchmark',
+  location: 'Analytical — Hand Calculation',
+  description:
+    'Symmetric V-channel with a single round-nose pier. Every intermediate value can be verified by hand. ' +
+    'Yarnell results are exact analytical solutions; Energy and Momentum are iterative. ' +
+    'WSPRO returns zero because the bridge opening captures all conveyance (M ≈ 1).',
+  imageUrl: '',
+  crossSection: [
+    { station: 0, elevation: 10, manningsN: 0.035, bankStation: 'left' },
+    { station: 50, elevation: 0, manningsN: 0.035, bankStation: null },
+    { station: 100, elevation: 10, manningsN: 0.035, bankStation: 'right' },
+  ],
+  bridgeGeometry: {
+    lowChordLeft: 9,
+    lowChordRight: 9,
+    highChord: 12,
+    leftAbutmentStation: 5,
+    rightAbutmentStation: 95,
+    leftAbutmentSlope: 0,
+    rightAbutmentSlope: 0,
+    skewAngle: 0,
+    piers: [{ station: 50, width: 4, shape: 'round-nose' }],
+    lowChordProfile: [],
+  },
+  flowProfiles: [
+    {
+      name: 'Low Flow',
+      ari: 'Benchmark',
+      discharge: 500,
+      dsWsel: 5,
+      channelSlope: 0.001,
+      contractionLength: 90,
+      expansionLength: 90,
+    },
+    {
+      name: 'High Flow',
+      ari: 'Benchmark',
+      discharge: 2500,
+      dsWsel: 8,
+      channelSlope: 0.001,
+      contractionLength: 90,
+      expansionLength: 90,
+    },
+  ],
+  coefficients: {
+    contractionCoeff: 0.3,
+    expansionCoeff: 0.5,
+    yarnellK: null,
+    maxIterations: 100,
+    tolerance: 0.01,
+    initialGuessOffset: 0.5,
+    debrisBlockagePct: 0,
+    manningsNSensitivityPct: null,
+    methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
+  },
+  expectedResults: [
+    // ---- Low Flow (Q=500, DS WSEL=5) ----
+    {
+      profileName: 'Low Flow',
+      method: 'yarnell',
+      upstreamWsel: 5.2014,
+      headLoss: 0.2014,
+      source: 'Yarnell (1934) equation: Δy = K(K+5−0.6)(α+15α⁴)(V²/2g)',
+      toleranceFt: 0.001,
+    },
+    {
+      profileName: 'Low Flow',
+      method: 'energy',
+      upstreamWsel: 5.5088,
+      headLoss: 0.5088,
+      source: 'Standard step energy equation (iterative, tol=0.01 ft)',
+      toleranceFt: 0.02,
+    },
+    {
+      profileName: 'Low Flow',
+      method: 'momentum',
+      upstreamWsel: 5.0496,
+      headLoss: 0.0496,
+      source: 'Momentum balance with pier drag (iterative, tol=0.01 ft)',
+      toleranceFt: 0.02,
+    },
+    {
+      profileName: 'Low Flow',
+      method: 'wspro',
+      upstreamWsel: 5.0,
+      headLoss: 0.0,
+      source: 'WSPRO: M ≈ 1.0, Cb = 0 — no constriction backwater (expected)',
+      toleranceFt: 0.01,
+    },
+    // ---- High Flow (Q=2500, DS WSEL=8) ----
+    {
+      profileName: 'High Flow',
+      method: 'yarnell',
+      upstreamWsel: 8.4592,
+      headLoss: 0.4592,
+      source: 'Yarnell (1934) equation: Δy = K(K+5−0.6)(α+15α⁴)(V²/2g)',
+      toleranceFt: 0.001,
+    },
+    {
+      profileName: 'High Flow',
+      method: 'energy',
+      upstreamWsel: 9.1092,
+      headLoss: 1.1092,
+      source: 'Standard step energy equation (iterative, tol=0.01 ft)',
+      toleranceFt: 0.02,
+    },
+    {
+      profileName: 'High Flow',
+      method: 'momentum',
+      upstreamWsel: 8.0936,
+      headLoss: 0.0936,
+      source: 'Momentum balance with pier drag (iterative, tol=0.01 ft)',
+      toleranceFt: 0.02,
+    },
+    {
+      profileName: 'High Flow',
+      method: 'wspro',
+      upstreamWsel: 8.0,
+      headLoss: 0.0,
+      source: 'WSPRO: M ≈ 1.0, Cb = 0 — no constriction backwater (expected)',
+      toleranceFt: 0.01,
+    },
+  ],
+};
+
 export const TEST_BRIDGES: TestBridge[] = [
+  vChannelBenchmark,
   windsorBridge,
   breakfastCreekBridge,
   echucaBridge,

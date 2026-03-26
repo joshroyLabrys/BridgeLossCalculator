@@ -21,6 +21,7 @@ interface ProjectStore {
   unitSystem: UnitSystem;
   sensitivityResults: SensitivityResults | null;
   projectName: string;
+  activeMainTab: string;
 
   updateCrossSection: (points: CrossSectionPoint[]) => void;
   updateBridgeGeometry: (geom: BridgeGeometry) => void;
@@ -32,6 +33,7 @@ interface ProjectStore {
   setUnitSystem: (system: UnitSystem) => void;
   setSensitivityResults: (results: SensitivityResults | null) => void;
   setProjectName: (name: string) => void;
+  setActiveMainTab: (tab: string) => void;
   exportProject: () => string;
   importProject: (json: string) => void;
   reset: () => void;
@@ -58,8 +60,7 @@ const defaultCoefficients: Coefficients = {
   tolerance: 0.01,
   initialGuessOffset: 0.5,
   debrisBlockagePct: 0,
-  manningsNSensitivity: false,
-  manningsNSensitivityPct: 20,
+  manningsNSensitivityPct: null,
   methodsToRun: {
     energy: true,
     momentum: true,
@@ -78,6 +79,7 @@ const initialState = {
   unitSystem: 'metric' as UnitSystem,
   sensitivityResults: null as SensitivityResults | null,
   projectName: '' as string,
+  activeMainTab: 'input' as string,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -93,6 +95,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setUnitSystem: (system) => set({ unitSystem: system }),
   setSensitivityResults: (results) => set({ sensitivityResults: results }),
   setProjectName: (name) => set({ projectName: name }),
+  setActiveMainTab: (tab) => set({ activeMainTab: tab }),
 
   exportProject: () => {
     const state = get();

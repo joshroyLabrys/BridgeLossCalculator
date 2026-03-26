@@ -47,8 +47,7 @@ export interface Coefficients {
   tolerance: number;
   initialGuessOffset: number;
   debrisBlockagePct: number;       // 0-100, default 0
-  manningsNSensitivity: boolean;   // default false
-  manningsNSensitivityPct: number; // default 20 (meaning ±20%)
+  manningsNSensitivityPct: number | null; // null or 0 = off, e.g. 20 means ±20%
   methodsToRun: {
     energy: boolean;
     momentum: boolean;
