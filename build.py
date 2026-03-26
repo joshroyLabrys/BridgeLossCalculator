@@ -370,11 +370,19 @@ def add_buttons(wb):
         ("Plot Cross-Section","PlotCrossSection",  400, 5, 130, 28),
     ]
 
+    # msoShapeRoundedRectangle = 5
     for label, macro, left, top, width, height in buttons:
-        btn = ws.Buttons.Add(left, top, width, height)
-        btn.OnAction = macro
-        btn.Characters.Text = label
-        btn.Font.Bold = True
+        shp = ws.Shapes.AddShape(5, float(left), float(top), float(width), float(height))
+        shp.TextFrame.Characters().Text = label
+        shp.TextFrame.Characters().Font.Bold = True
+        shp.TextFrame.Characters().Font.Size = 9
+        shp.TextFrame.HorizontalAlignment = -4108  # xlCenter
+        shp.TextFrame.VerticalAlignment = -4108     # xlCenter
+        shp.OnAction = macro
+        # Style: dark fill, white text
+        shp.Fill.ForeColor.RGB = _rgb(44, 62, 80)
+        shp.TextFrame.Characters().Font.Color = _rgb(255, 255, 255)
+        shp.Line.Visible = False
 
 
 def build():
