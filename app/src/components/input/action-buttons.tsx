@@ -3,22 +3,25 @@
 import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 import { useProjectStore } from '@/store/project-store';
-import { runAllMethods } from '@/engine/index';
+import { runAllMethods, runWithSensitivity } from '@/engine/index';
 import { validateInputs } from '@/lib/validation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Play, RotateCcw, AlertTriangle, FlaskConical } from 'lucide-react';
+import { Play, RotateCcw, AlertTriangle, FlaskConical, Loader2, CheckCircle2 } from 'lucide-react';
 import { TEST_BRIDGES, type TestBridge } from '@/lib/test-bridges';
 import { toImperial } from '@/lib/units';
 
 export function ActionButtons() {
   const [testOpen, setTestOpen] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const crossSection = useProjectStore((s) => s.crossSection);
   const bridgeGeometry = useProjectStore((s) => s.bridgeGeometry);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
   const coefficients = useProjectStore((s) => s.coefficients);
   const setResults = useProjectStore((s) => s.setResults);
   const clearResults = useProjectStore((s) => s.clearResults);
+  const setSensitivityResults = useProjectStore((s) => s.setSensitivityResults);
   const updateCrossSection = useProjectStore((s) => s.updateCrossSection);
   const updateBridgeGeometry = useProjectStore((s) => s.updateBridgeGeometry);
   const updateFlowProfiles = useProjectStore((s) => s.updateFlowProfiles);
@@ -69,12 +72,33 @@ export function ActionButtons() {
     const validationErrors = validateInputs(crossSection, bridgeGeometry, flowProfiles);
     if (validationErrors.length > 0) { setErrors(validationErrors.map((e) => e.message)); return; }
     setErrors([]);
-    const calcResults = runAllMethods(crossSection, bridgeGeometry, flowProfiles, coefficients);
-    setResults(calcResults);
+    setShowSuccess(false);
+    setIsProcessing(true);
+
+    // Defer computation so the UI can paint the loading state
+    setTimeout(() => {
+      const calcResults = runAllMethods(crossSection, bridgeGeometry, flowProfiles, coefficients);
+      setResults(calcResults);
+      if (coefficients.manningsNSensitivity) {
+        const sensResults = runWithSensitivity(crossSection, bridgeGeometry, flowProfiles, coefficients);
+        setSensitivityResults(sensResults);
+      } else {
+        setSensitivityResults(null);
+      }
+      setIsProcessing(false);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    }, 50);
   }
 
   return (
     <>
+      {showSuccess && (
+        <div className="mt-4 rounded-lg border border-emerald-500/50 bg-emerald-500/10 p-3 flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in slide-in-from-top-1 duration-300">
+          <CheckCircle2 className="h-4 w-4" />
+          Processing complete — results are ready.
+        </div>
+      )}
       {errors.length > 0 && (
         <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
           <div className="flex items-center gap-2 text-sm font-medium text-destructive mb-1">
@@ -89,9 +113,13 @@ export function ActionButtons() {
       <div className="sticky bottom-0 flex items-center pt-4 pb-3 mt-4 border-t backdrop-blur-sm bg-background/80 -mx-6 px-6">
         <Button variant="outline" size="sm" onClick={() => setTestOpen(true)}><FlaskConical className="h-4 w-4 mr-1.5" />Load Test Bridge</Button>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => { clearResults(); setErrors([]); }}><RotateCcw className="h-4 w-4 mr-1.5" />Clear</Button>
+        <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => { clearResults(); setSensitivityResults(null); setErrors([]); }}><RotateCcw className="h-4 w-4 mr-1.5" />Clear</Button>
         <div className="w-6" />
-        <Button onClick={handleRunAll}><Play className="h-4 w-4 mr-1.5" />Run All Methods</Button>
+        <Button onClick={handleRunAll} disabled={isProcessing}>
+          {isProcessing
+            ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Processing…</>
+            : <><Play className="h-4 w-4 mr-1.5" />Run All Methods</>}
+        </Button>
       </div>
 
       <Dialog open={testOpen} onOpenChange={setTestOpen}>
