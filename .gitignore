@@ -1,0 +1,5 @@
+.superpowers/
+.claude/
+__pycache__/
+*.pyc
+BridgeLossCalculator.xlsm
