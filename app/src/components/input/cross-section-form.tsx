@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useProjectStore } from '@/store/project-store';
 import { CrossSectionPoint } from '@/engine/types';
 import { CrossSectionChart } from '@/components/cross-section-chart';
-import { Plus, Trash2, Landmark } from 'lucide-react';
+import { Plus, Trash2, Landmark, Upload } from 'lucide-react';
+import { useRef } from 'react';
 
 export function CrossSectionForm() {
   const crossSection = useProjectStore((s) => s.crossSection);
@@ -16,6 +17,32 @@ export function CrossSectionForm() {
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
   const results = useProjectStore((s) => s.results);
   const updateCrossSection = useProjectStore((s) => s.updateCrossSection);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result as string;
+      const lines = text.trim().split(/\r?\n/);
+      const points: CrossSectionPoint[] = [];
+      for (const line of lines) {
+        const cols = line.split(/[,\t]/);
+        if (cols.length < 2) continue;
+        const station = parseFloat(cols[0]);
+        const elevation = parseFloat(cols[1]);
+        if (isNaN(station) || isNaN(elevation)) continue;
+        const manningsN = cols[2] ? parseFloat(cols[2]) : 0.035;
+        const bankRaw = cols[3]?.trim().toLowerCase();
+        const bankStation = bankRaw === 'left' ? 'left' as const : bankRaw === 'right' ? 'right' as const : null;
+        points.push({ station, elevation, manningsN: isNaN(manningsN) ? 0.035 : manningsN, bankStation });
+      }
+      if (points.length > 0) updateCrossSection(points);
+    };
+    reader.readAsText(file);
+    if (csvInputRef.current) csvInputRef.current.value = '';
+  }
 
   function addRow() {
     updateCrossSection([
@@ -92,10 +119,15 @@ export function CrossSectionForm() {
                 </TableBody>
               </Table>
             </div>
-            <div className="p-2 border-t">
-              <Button variant="outline" size="sm" onClick={addRow} className="w-full">
+            <div className="p-2 border-t flex gap-2">
+              <Button variant="outline" size="sm" onClick={addRow} className="flex-1">
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 Add Row
+              </Button>
+              <input ref={csvInputRef} type="file" accept=".csv,.txt,.tsv" onChange={handleCsvImport} className="hidden" />
+              <Button variant="outline" size="sm" onClick={() => csvInputRef.current?.click()} className="flex-1">
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Import CSV
               </Button>
             </div>
           </div>
