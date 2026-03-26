@@ -2,6 +2,8 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { CrossSectionPoint, BridgeGeometry } from '@/engine/types';
+import { useProjectStore } from '@/store/project-store';
+import { unitLabel } from '@/lib/units';
 
 interface CrossSectionChartProps {
   crossSection: CrossSectionPoint[];
@@ -12,6 +14,9 @@ interface CrossSectionChartProps {
 }
 
 export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: CrossSectionChartProps) {
+  const us = useProjectStore((s) => s.unitSystem);
+  const lenUnit = unitLabel('length', us);
+
   if (crossSection.length < 2) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -92,8 +97,8 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
     <ResponsiveContainer width="100%" height="100%">
       <LineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-        <XAxis dataKey="station" label={{ value: 'Station (ft)', position: 'bottom', offset: -5 }} stroke="#71717a" fontSize={12} />
-        <YAxis domain={[minElev, maxElev]} label={{ value: 'Elevation (ft)', angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
+        <XAxis dataKey="station" label={{ value: `Station (${lenUnit})`, position: 'bottom', offset: -5 }} stroke="#71717a" fontSize={12} />
+        <YAxis domain={[minElev, maxElev]} label={{ value: `Elevation (${lenUnit})`, angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
         <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '6px' }} />
         <Line type="linear" dataKey="elevation" stroke="#71717a" strokeWidth={2} dot={{ fill: '#a1a1aa', r: 3 }} name="Ground" />
         {bridge && (

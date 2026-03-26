@@ -1,7 +1,9 @@
 import { ProjectState } from '@/engine/types';
+import { UnitSystem } from '@/lib/units';
 
 interface ExportData {
   version: number;
+  unitSystem?: UnitSystem;
   crossSection: ProjectState['crossSection'];
   bridgeGeometry: ProjectState['bridgeGeometry'];
   flowProfiles: ProjectState['flowProfiles'];
@@ -10,10 +12,11 @@ interface ExportData {
 }
 
 export function serializeProject(
-  state: Omit<ProjectState, 'results'>
+  state: Omit<ProjectState, 'results'> & { unitSystem?: UnitSystem }
 ): string {
   const data: ExportData = {
     version: 1,
+    unitSystem: state.unitSystem,
     crossSection: state.crossSection,
     bridgeGeometry: state.bridgeGeometry,
     flowProfiles: state.flowProfiles,
@@ -23,7 +26,7 @@ export function serializeProject(
   return JSON.stringify(data, null, 2);
 }
 
-export function parseProjectJson(json: string): Omit<ProjectState, 'results'> {
+export function parseProjectJson(json: string): Omit<ProjectState, 'results'> & { unitSystem: UnitSystem } {
   let data: ExportData;
   try {
     data = JSON.parse(json);
@@ -41,5 +44,6 @@ export function parseProjectJson(json: string): Omit<ProjectState, 'results'> {
     flowProfiles: data.flowProfiles ?? [],
     coefficients: data.coefficients,
     hecRasComparison: data.hecRasComparison ?? [],
+    unitSystem: data.unitSystem ?? 'imperial',
   };
 }

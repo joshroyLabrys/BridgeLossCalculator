@@ -6,6 +6,7 @@ import { useProjectStore } from '@/store/project-store';
 import { HecRasInputRow } from './hecras-input-row';
 import { Badge } from '@/components/ui/badge';
 import { MethodResult, HecRasComparison } from '@/engine/types';
+import { toDisplay, unitLabel } from '@/lib/units';
 
 function pctDiffBadge(pct: number | null) {
   if (pct === null) return <span className="text-muted-foreground">—</span>;
@@ -19,6 +20,11 @@ export function ComparisonTables() {
   const comparison = useProjectStore((s) => s.hecRasComparison);
   const updateHecRas = useProjectStore((s) => s.updateHecRasComparison);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
+  const us = useProjectStore((s) => s.unitSystem);
+
+  const lenUnit = unitLabel('length', us);
+  const velUnit = unitLabel('velocity', us);
+  const areaUnit = unitLabel('area', us);
 
   if (!results) {
     return <p className="text-muted-foreground">Run calculations to see comparisons.</p>;
@@ -45,7 +51,7 @@ export function ComparisonTables() {
     <div className="space-y-6">
       {/* Upstream WSEL table */}
       <div>
-        <h3 className="text-sm font-medium mb-2">Upstream WSEL Comparison (ft)</h3>
+        <h3 className="text-sm font-medium mb-2">Upstream WSEL Comparison ({lenUnit})</h3>
         <div className="rounded-lg border overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
@@ -60,7 +66,7 @@ export function ComparisonTables() {
                   <td className="p-2 capitalize">{method === 'wspro' ? 'WSPRO' : method}</td>
                   {results[method].map((r, i) => (
                     <td key={i} className="p-2 text-right">
-                      {r.error ? <span className="text-destructive">ERR</span> : r.upstreamWsel.toFixed(2)}
+                      {r.error ? <span className="text-destructive">ERR</span> : toDisplay(r.upstreamWsel, 'length', us).toFixed(2)}
                     </td>
                   ))}
                 </tr>
@@ -88,14 +94,14 @@ export function ComparisonTables() {
 
       {/* Head loss table */}
       <div>
-        <h3 className="text-sm font-medium mb-2">Head Loss Comparison (ft)</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.totalHeadLoss.toFixed(3)} />
+        <h3 className="text-sm font-medium mb-2">Head Loss Comparison ({lenUnit})</h3>
+        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} />
       </div>
 
       {/* Velocity comparison table */}
       <div>
-        <h3 className="text-sm font-medium mb-2">Approach Velocity Comparison (ft/s)</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.approachVelocity.toFixed(2)} />
+        <h3 className="text-sm font-medium mb-2">Approach Velocity Comparison ({velUnit})</h3>
+        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => toDisplay(r.approachVelocity, 'velocity', us).toFixed(2)} />
       </div>
 
       {/* Froude number comparison table */}
@@ -106,8 +112,8 @@ export function ComparisonTables() {
 
       {/* Bridge opening ratio — from input echo */}
       <div>
-        <h3 className="text-sm font-medium mb-2">Bridge Opening Area (ft²)</h3>
-        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.inputEcho.bridgeOpeningArea.toFixed(1)} />
+        <h3 className="text-sm font-medium mb-2">Bridge Opening Area ({areaUnit})</h3>
+        <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => toDisplay(r.inputEcho.bridgeOpeningArea, 'area', us).toFixed(1)} />
       </div>
 
       {/* TUFLOW FLC table */}

@@ -8,6 +8,7 @@ import {
   HecRasComparison,
 } from '@/engine/types';
 import { serializeProject, parseProjectJson } from '@/lib/json-io';
+import { UnitSystem } from '@/lib/units';
 
 interface ProjectStore {
   crossSection: CrossSectionPoint[];
@@ -16,6 +17,7 @@ interface ProjectStore {
   coefficients: Coefficients;
   results: CalculationResults | null;
   hecRasComparison: HecRasComparison[];
+  unitSystem: UnitSystem;
 
   updateCrossSection: (points: CrossSectionPoint[]) => void;
   updateBridgeGeometry: (geom: BridgeGeometry) => void;
@@ -24,6 +26,7 @@ interface ProjectStore {
   setResults: (results: CalculationResults) => void;
   clearResults: () => void;
   updateHecRasComparison: (data: HecRasComparison[]) => void;
+  setUnitSystem: (system: UnitSystem) => void;
   exportProject: () => string;
   importProject: (json: string) => void;
   reset: () => void;
@@ -64,6 +67,7 @@ const initialState = {
   coefficients: defaultCoefficients,
   results: null as CalculationResults | null,
   hecRasComparison: [] as HecRasComparison[],
+  unitSystem: 'imperial' as UnitSystem,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -76,6 +80,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setResults: (results) => set({ results }),
   clearResults: () => set({ results: null }),
   updateHecRasComparison: (data) => set({ hecRasComparison: data }),
+  setUnitSystem: (system) => set({ unitSystem: system }),
 
   exportProject: () => {
     const state = get();
@@ -85,6 +90,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       flowProfiles: state.flowProfiles,
       coefficients: state.coefficients,
       hecRasComparison: state.hecRasComparison,
+      unitSystem: state.unitSystem,
     });
   },
 

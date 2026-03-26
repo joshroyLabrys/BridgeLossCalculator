@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useProjectStore } from '@/store/project-store';
+import { toDisplay, unitLabel } from '@/lib/units';
 
 const COLORS = {
   energy: '#3b82f6',
@@ -18,8 +19,12 @@ const COLORS = {
 export function SummaryCharts() {
   const results = useProjectStore((s) => s.results);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
+  const us = useProjectStore((s) => s.unitSystem);
 
   if (!results) return null;
+
+  const lenUnit = unitLabel('length', us);
+  const dischargeUnit = unitLabel('discharge', us);
 
   const methods = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
 
@@ -28,17 +33,17 @@ export function SummaryCharts() {
     const row: Record<string, string | number> = { name: p.name };
     for (const m of methods) {
       const r = results[m][i];
-      if (r && !r.error) row[m] = parseFloat(r.totalHeadLoss.toFixed(3));
+      if (r && !r.error) row[m] = parseFloat(toDisplay(r.totalHeadLoss, 'length', us).toFixed(3));
     }
     return row;
   });
 
   // WSEL line chart data
   const wselData = flowProfiles.map((p, i) => {
-    const row: Record<string, string | number> = { Q: p.discharge };
+    const row: Record<string, string | number> = { Q: toDisplay(p.discharge, 'discharge', us) };
     for (const m of methods) {
       const r = results[m][i];
-      if (r && !r.error) row[m] = parseFloat(r.upstreamWsel.toFixed(2));
+      if (r && !r.error) row[m] = parseFloat(toDisplay(r.upstreamWsel, 'length', us).toFixed(2));
     }
     return row;
   });
@@ -52,7 +57,7 @@ export function SummaryCharts() {
             <BarChart data={headLossData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
               <XAxis dataKey="name" stroke="#71717a" fontSize={12} />
-              <YAxis label={{ value: 'Head Loss (ft)', angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
+              <YAxis label={{ value: `Head Loss (${lenUnit})`, angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
               <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '6px' }} />
               <Legend />
               {methods.map((m) => (
@@ -69,8 +74,8 @@ export function SummaryCharts() {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={wselData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-              <XAxis dataKey="Q" label={{ value: 'Discharge (cfs)', position: 'bottom', offset: -5 }} stroke="#71717a" fontSize={12} />
-              <YAxis label={{ value: 'US WSEL (ft)', angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
+              <XAxis dataKey="Q" label={{ value: `Discharge (${dischargeUnit})`, position: 'bottom', offset: -5 }} stroke="#71717a" fontSize={12} />
+              <YAxis label={{ value: `US WSEL (${lenUnit})`, angle: -90, position: 'insideLeft' }} stroke="#71717a" fontSize={12} />
               <Tooltip contentStyle={{ backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: '6px' }} />
               <Legend />
               {methods.map((m) => (

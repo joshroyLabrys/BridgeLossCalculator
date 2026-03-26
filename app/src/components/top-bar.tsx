@@ -8,6 +8,8 @@ export function TopBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportProject = useProjectStore((s) => s.exportProject);
   const importProject = useProjectStore((s) => s.importProject);
+  const unitSystem = useProjectStore((s) => s.unitSystem);
+  const setUnitSystem = useProjectStore((s) => s.setUnitSystem);
 
   function handleExport() {
     const json = exportProject();
@@ -39,7 +41,26 @@ export function TopBar() {
   return (
     <header className="flex items-center justify-between px-6 py-3 border-b">
       <h1 className="text-lg font-semibold">Bridge Loss Calculator</h1>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1 rounded-md border p-0.5">
+          <Button
+            variant={unitSystem === 'imperial' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setUnitSystem('imperial')}
+          >
+            Imperial
+          </Button>
+          <Button
+            variant={unitSystem === 'metric' ? 'default' : 'ghost'}
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => setUnitSystem('metric')}
+          >
+            Metric
+          </Button>
+        </div>
+        <div className="flex gap-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -53,6 +74,7 @@ export function TopBar() {
         <Button variant="outline" size="sm" onClick={handleExport}>
           Export JSON
         </Button>
+        </div>
       </div>
     </header>
   );
