@@ -4,6 +4,7 @@ import {
   FlowProfile,
   Coefficients,
   CalculationResults,
+  SensitivityResults,
 } from './types';
 import { runEnergy } from './methods/energy';
 import { runMomentum } from './methods/momentum';
@@ -47,4 +48,28 @@ export function runAllMethods(
   }
 
   return results;
+}
+
+export function runWithSensitivity(
+  crossSection: CrossSectionPoint[],
+  bridge: BridgeGeometry,
+  profiles: FlowProfile[],
+  coefficients: Coefficients
+): SensitivityResults {
+  const pct = coefficients.manningsNSensitivityPct / 100;
+
+  const scaledLow = crossSection.map(p => ({
+    ...p,
+    manningsN: p.manningsN * (1 - pct),
+  }));
+
+  const scaledHigh = crossSection.map(p => ({
+    ...p,
+    manningsN: p.manningsN * (1 + pct),
+  }));
+
+  return {
+    low: runAllMethods(scaledLow, bridge, profiles, coefficients),
+    high: runAllMethods(scaledHigh, bridge, profiles, coefficients),
+  };
 }

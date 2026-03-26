@@ -73,7 +73,7 @@ export function runEnergy(
   const regime = detectFlowRegime(dsWsel, lowChord, bridge.highChord);
 
   // Bridge section properties at DS WSEL
-  const bridgeArea = calcNetBridgeArea(bridge, crossSection, dsWsel);
+  const bridgeArea = calcNetBridgeArea(bridge, crossSection, dsWsel, coefficients.debrisBlockagePct);
   const bridgeVelocity = calcVelocity(Q, bridgeArea);
   const bridgeVh = calcVelocityHead(bridgeVelocity);
 

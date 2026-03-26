@@ -236,7 +236,7 @@ export function runWSPRO(
     inputEcho: {
       flowArea: dsArea,
       hydraulicRadius: calcHydraulicRadius(crossSection, dsWsel),
-      bridgeOpeningArea: calcNetBridgeArea(bridge, crossSection, dsWsel),
+      bridgeOpeningArea: calcNetBridgeArea(bridge, crossSection, dsWsel, coefficients.debrisBlockagePct),
       pierBlockage,
     },
     error: null,

@@ -161,7 +161,7 @@ export function runMomentum(
 
   const froudeDs = calcFroudeNumber(dsVelocity, dsArea, dsTopWidth);
   const froudeUs = calcFroudeNumber(usVelocity, usArea, usTopWidth);
-  const bridgeArea = calcNetBridgeArea(bridge, crossSection, dsWsel);
+  const bridgeArea = calcNetBridgeArea(bridge, crossSection, dsWsel, coefficients.debrisBlockagePct);
   const bridgeVelocity = calcVelocity(Q, bridgeArea);
 
   return {

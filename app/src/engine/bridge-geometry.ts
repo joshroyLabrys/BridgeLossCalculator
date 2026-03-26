@@ -162,16 +162,22 @@ function interpolateManningsN(
 
 /**
  * Computes net bridge opening area = gross area - pier blockage.
- * Applies skew angle correction: net area = net area * cos(skew).
+ * Applies debris blockage to remaining area, then skew angle correction.
  */
 export function calcNetBridgeArea(
   bridge: BridgeGeometry,
   crossSection: CrossSectionPoint[],
-  wsel: number
+  wsel: number,
+  debrisBlockagePct: number = 0
 ): number {
   const gross = calcBridgeOpeningArea(bridge, crossSection, wsel);
   const pierBlock = calcPierBlockage(bridge.piers, crossSection, wsel);
   let net = gross - pierBlock;
+
+  // Apply debris blockage to remaining (non-pier) area
+  if (debrisBlockagePct > 0) {
+    net *= (1 - debrisBlockagePct / 100);
+  }
 
   // Skew correction
   if (bridge.skewAngle !== 0) {
