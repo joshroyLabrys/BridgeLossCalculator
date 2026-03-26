@@ -13,33 +13,83 @@ Option Explicit
 
 ' -----------------------------------------------------------------------------
 ' Row layout constants
+' (mirrors build.py dashboard layout — col A is visual spacer, data in B+)
+'
+' Row  1 : Title bar
+' Row  2 : Subtitle
+' Row  3 : Buttons
+' Row  4 : Spacer
+' Row  5 : Zone 1 banner (RIVER CROSS-SECTION)
+' Row  6 : XS column headers          XS_HEADER_ROW
+' Rows 7-56 : XS data (50 rows)       XS_FIRST_DATA
+' Row 57 : Spacer
+' Row 58 : Zone 2 banner (BRIDGE GEOMETRY)
+' Row 59 : Sub-header "Opening Dimensions"
+' Rows 60-67 : Bridge geometry        BRIDGE_START_ROW
+'   60 = low chord left   (col C = 3)
+'   61 = low chord right  (col C = 3)
+'   62 = high chord       (col C = 3)
+'   63 = (spacer row)
+'   64 = bridge left sta  (col C = 3)
+'   65 = bridge right sta (col C = 3)
+'   66 = abutment slope   (col C = 3)
+'   67 = skew angle       (col C = 3)
+' Row 68 : Spacer
+' Row 69 : Sub-header "Pier Data"
+' Row 70 : Pier column headers        PIER_HEADER_ROW
+' Rows 71-80 : Pier data (10 rows)    PIER_FIRST_DATA
+' Row 81 : Spacer
+' Row 82 : Zone 3 banner (FLOW PROFILES)
+' Row 83 : Flow column headers        FLOW_HEADER_ROW
+' Rows 84-93 : Flow data (10 rows)    FLOW_FIRST_DATA
+' Row 94 : Spacer
+' Row 95 : Zone 4 banner (COEFFICIENTS & SETTINGS)
+' Row 96 : Sub-header "Energy Method" COEFF_START_ROW
+' Row 97 : Cc                         COEFF_START_ROW + 1
+' Row 98 : Ce                         COEFF_START_ROW + 2
+' Row 99 : Spacer                     COEFF_START_ROW + 3
+' Row 100: Sub-header "Yarnell"       COEFF_START_ROW + 4
+' Row 101: K override                 COEFF_START_ROW + 5
+' Row 102: Spacer                     COEFF_START_ROW + 6
+' Row 103: Sub-header "Iteration"     COEFF_START_ROW + 7
+' Row 104: Max iterations             COEFF_START_ROW + 8
+' Row 105: Tolerance                  COEFF_START_ROW + 9
+' Row 106: Initial guess offset       COEFF_START_ROW + 10
+' Row 107: Spacer                     COEFF_START_ROW + 11
+' Row 108: Methods to Run labels      COEFF_START_ROW + 12
+' Row 109: Methods to Run toggles     COEFF_START_ROW + 13
 ' -----------------------------------------------------------------------------
-Private Const XS_HEADER_ROW     As Long = 4
-Private Const XS_FIRST_DATA     As Long = 5
+Private Const XS_HEADER_ROW     As Long = 6
+Private Const XS_FIRST_DATA     As Long = 7
 Private Const XS_MAX_ROWS       As Long = 50
 
-Private Const BRIDGE_START_ROW  As Long = 29
+Private Const BRIDGE_START_ROW  As Long = 60
 
-Private Const PIER_HEADER_ROW   As Long = 40
-Private Const PIER_FIRST_DATA   As Long = 41
+Private Const PIER_HEADER_ROW   As Long = 70
+Private Const PIER_FIRST_DATA   As Long = 71
 Private Const PIER_MAX_ROWS     As Long = 10
 
-Private Const LOW_CHORD_HEADER_ROW As Long = 52
-
-Private Const FLOW_HEADER_ROW   As Long = 59
-Private Const FLOW_FIRST_DATA   As Long = 60
+Private Const FLOW_HEADER_ROW   As Long = 83
+Private Const FLOW_FIRST_DATA   As Long = 84
 Private Const FLOW_MAX_ROWS     As Long = 10
 
-Private Const COEFF_START_ROW   As Long = 76
+Private Const COEFF_START_ROW   As Long = 96
 
 ' -----------------------------------------------------------------------------
-' Column constants (cross-section table)
+' Column constants
+' Col A (1) = visual spacer strip — never contains data
+' Col B (2) = Point # / Pier # / Profile Name / Labels
+' Col C (3) = Station / Value (for label-value pairs)
+' Col D (4) = Elevation / Pier Width / DS WSEL
+' Col E (5) = Manning's n / Pier Shape / Energy Slope
+' Col F (6) = Bank Station label / Contraction reach
+' Col G (7) = Expansion reach
 ' -----------------------------------------------------------------------------
-Private Const COL_XS_POINT      As Long = 1   ' Point #
-Private Const COL_XS_STATION    As Long = 2   ' Station (ft)
-Private Const COL_XS_ELEV       As Long = 3   ' Elevation (ft)
-Private Const COL_XS_MANN       As Long = 4   ' Manning's n
-Private Const COL_XS_BANK       As Long = 5   ' Bank Station? label
+Private Const COL_XS_POINT      As Long = 2   ' B — Point #
+Private Const COL_XS_STATION    As Long = 3   ' C — Station (ft)
+Private Const COL_XS_ELEV       As Long = 4   ' D — Elevation (ft)
+Private Const COL_XS_MANN       As Long = 5   ' E — Manning's n
+Private Const COL_XS_BANK       As Long = 6   ' F — Bank Station label
 
 ' =============================================================================
 ' ReadCrossSection
@@ -147,13 +197,15 @@ End Sub
 ' Reads the bridge deck and geometry parameters from the fixed rows in the
 ' BRIDGE_START_ROW block (column 2 throughout).
 '
-' Cell mapping:
-'   Row 29, col 2 -> lowChordLeft   (ft)
-'   Row 30, col 2 -> lowChordRight  (ft)
-'   Row 31, col 2 -> highChord      (ft)
-'   Row 33, col 2 -> bridgeLeftSta  (ft)
-'   Row 34, col 2 -> bridgeRightSta (ft)
-'   Row 36, col 2 -> skewAngle      (degrees; default 0)
+' Cell mapping (BRIDGE_START_ROW = 60, values in col C = 3):
+'   Row 60, col 3 -> lowChordLeft   (ft)
+'   Row 61, col 3 -> lowChordRight  (ft)
+'   Row 62, col 3 -> highChord      (ft)
+'   Row 63 is a spacer — skipped
+'   Row 64, col 3 -> bridgeLeftSta  (ft)
+'   Row 65, col 3 -> bridgeRightSta (ft)
+'   Row 66, col 3 -> abutment slope (not read here)
+'   Row 67, col 3 -> skewAngle      (degrees; default 0)
 '
 ' Parameters: all ByRef output Doubles
 ' =============================================================================
@@ -165,14 +217,17 @@ Public Sub ReadBridgeGeometry(ws As Object, _
                               ByRef highChord      As Double, _
                               ByRef skewAngle      As Double)
 
-    lowChordLeft   = CDbl(ws.Cells(29, 2).Value)
-    lowChordRight  = CDbl(ws.Cells(30, 2).Value)
-    highChord      = CDbl(ws.Cells(31, 2).Value)
-    bridgeLeftSta  = CDbl(ws.Cells(33, 2).Value)
-    bridgeRightSta = CDbl(ws.Cells(34, 2).Value)
+    Const COL_VAL As Long = 3   ' col C — value column for label-value pairs
+
+    lowChordLeft   = CDbl(ws.Cells(BRIDGE_START_ROW,     COL_VAL).Value)
+    lowChordRight  = CDbl(ws.Cells(BRIDGE_START_ROW + 1, COL_VAL).Value)
+    highChord      = CDbl(ws.Cells(BRIDGE_START_ROW + 2, COL_VAL).Value)
+    ' Row BRIDGE_START_ROW + 3 is a spacer — skip
+    bridgeLeftSta  = CDbl(ws.Cells(BRIDGE_START_ROW + 4, COL_VAL).Value)
+    bridgeRightSta = CDbl(ws.Cells(BRIDGE_START_ROW + 5, COL_VAL).Value)
 
     Dim cellSkew As Object
-    Set cellSkew = ws.Cells(36, 2)
+    Set cellSkew = ws.Cells(BRIDGE_START_ROW + 7, COL_VAL)
     If IsEmpty(cellSkew.Value) Or cellSkew.Value = "" Then
         skewAngle = 0#
     Else
@@ -184,9 +239,10 @@ End Sub
 ' ReadPierData
 '
 ' Reads the pier table beginning at PIER_FIRST_DATA.
-'   Col 2 = pier station (ft)
-'   Col 3 = pier width   (ft)
-'   Col 4 = pier shape   (text; default "Round-nose")
+'   Col B (2) = Pier # (display only — not read)
+'   Col C (3) = pier station (ft)
+'   Col D (4) = pier width   (ft)
+'   Col E (5) = pier shape   (text; default "Round-nose")
 '
 ' Scanning stops at first empty Station cell or after PIER_MAX_ROWS rows.
 '
@@ -209,18 +265,22 @@ Public Sub ReadPierData(ws As Object, _
 
     nPiers = 0
 
+    Const COL_PIER_STA   As Long = 3   ' C
+    Const COL_PIER_WIDTH As Long = 4   ' D
+    Const COL_PIER_SHAPE As Long = 5   ' E
+
     Dim r As Long
     For r = PIER_FIRST_DATA To PIER_FIRST_DATA + PIER_MAX_ROWS - 1
         Dim cellSta As Object
-        Set cellSta = ws.Cells(r, 2)
+        Set cellSta = ws.Cells(r, COL_PIER_STA)
         If IsEmpty(cellSta.Value) Or cellSta.Value = "" Then Exit For
 
         nPiers = nPiers + 1
         pierStations(nPiers) = CDbl(cellSta.Value)
-        pierWidths(nPiers)   = CDbl(ws.Cells(r, 3).Value)
+        pierWidths(nPiers)   = CDbl(ws.Cells(r, COL_PIER_WIDTH).Value)
 
         Dim cellShape As Object
-        Set cellShape = ws.Cells(r, 4)
+        Set cellShape = ws.Cells(r, COL_PIER_SHAPE)
         If IsEmpty(cellShape.Value) Or cellShape.Value = "" Then
             pierShapes(nPiers) = "Round-nose"
         Else
@@ -239,9 +299,9 @@ End Sub
 ' ReadFlowProfiles
 '
 ' Reads the flow profile table beginning at FLOW_FIRST_DATA.
-'   Col 1 = profile name  (text)
-'   Col 2 = discharge Q   (cfs)
-'   Col 3 = DS WSEL       (ft)
+'   Col B (2) = profile name  (text)
+'   Col C (3) = discharge Q   (cfs)
+'   Col D (4) = DS WSEL       (ft)
 '
 ' Scanning stops at first empty Name cell or after FLOW_MAX_ROWS rows.
 '
@@ -264,16 +324,20 @@ Public Sub ReadFlowProfiles(ws As Object, _
 
     nProfiles = 0
 
+    Const COL_FLOW_NAME  As Long = 2   ' B
+    Const COL_FLOW_Q     As Long = 3   ' C
+    Const COL_FLOW_WSEL  As Long = 4   ' D
+
     Dim r As Long
     For r = FLOW_FIRST_DATA To FLOW_FIRST_DATA + FLOW_MAX_ROWS - 1
         Dim cellName As Object
-        Set cellName = ws.Cells(r, 1)
+        Set cellName = ws.Cells(r, COL_FLOW_NAME)
         If IsEmpty(cellName.Value) Or cellName.Value = "" Then Exit For
 
         nProfiles = nProfiles + 1
         profileNames(nProfiles)  = CStr(cellName.Value)
-        profileQ(nProfiles)      = CDbl(ws.Cells(r, 2).Value)
-        profileDSWSEL(nProfiles) = CDbl(ws.Cells(r, 3).Value)
+        profileQ(nProfiles)      = CDbl(ws.Cells(r, COL_FLOW_Q).Value)
+        profileDSWSEL(nProfiles) = CDbl(ws.Cells(r, COL_FLOW_WSEL).Value)
     Next r
 
     If nProfiles > 0 Then
@@ -288,9 +352,9 @@ End Sub
 '
 ' Reads reach-length and slope data from the flow profile table.
 ' Same row block as ReadFlowProfiles (FLOW_FIRST_DATA), additional columns:
-'   Col 4 = energy slope   (ft/ft; default 0.002)
-'   Col 5 = contraction length (ft; default 80)
-'   Col 6 = expansion length   (ft; default 80)
+'   Col E (5) = energy slope       (ft/ft; default 0.002)
+'   Col F (6) = contraction length (ft;    default 80)
+'   Col G (7) = expansion length   (ft;    default 80)
 '
 ' Parameters:
 '   ws             — Input worksheet object
@@ -315,27 +379,27 @@ Public Sub ReadReachLengths(ws As Object, _
         Dim r As Long
         r = FLOW_FIRST_DATA + i - 1
 
-        ' Slope (col 4)
+        ' Slope (col E = 5)
         Dim cellSlope As Object
-        Set cellSlope = ws.Cells(r, 4)
+        Set cellSlope = ws.Cells(r, 5)
         If IsEmpty(cellSlope.Value) Or cellSlope.Value = "" Then
             slope(i) = 0.002
         Else
             slope(i) = CDbl(cellSlope.Value)
         End If
 
-        ' Contraction length (col 5)
+        ' Contraction length (col F = 6)
         Dim cellContr As Object
-        Set cellContr = ws.Cells(r, 5)
+        Set cellContr = ws.Cells(r, 6)
         If IsEmpty(cellContr.Value) Or cellContr.Value = "" Then
             contrLen(i) = 80#
         Else
             contrLen(i) = CDbl(cellContr.Value)
         End If
 
-        ' Expansion length (col 6)
+        ' Expansion length (col G = 7)
         Dim cellExp As Object
-        Set cellExp = ws.Cells(r, 6)
+        Set cellExp = ws.Cells(r, 7)
         If IsEmpty(cellExp.Value) Or cellExp.Value = "" Then
             expLen(i) = 80#
         Else
@@ -348,8 +412,8 @@ End Sub
 ' ReadEnergyCoeffs
 '
 ' Reads the contraction (Cc) and expansion (Ce) loss coefficients.
-'   COEFF_START_ROW + 1, col 2 -> Cc  (default 0.3)
-'   COEFF_START_ROW + 2, col 2 -> Ce  (default 0.5)
+'   COEFF_START_ROW + 1, col C (3) -> Cc  (default 0.3)
+'   COEFF_START_ROW + 2, col C (3) -> Ce  (default 0.5)
 '
 ' Parameters:
 '   ws  — Input worksheet object
@@ -360,8 +424,10 @@ Public Sub ReadEnergyCoeffs(ws As Object, _
                             ByRef Cc As Double, _
                             ByRef Ce As Double)
 
+    Const COL_VAL As Long = 3   ' col C — value column
+
     Dim cellCc As Object
-    Set cellCc = ws.Cells(COEFF_START_ROW + 1, 2)
+    Set cellCc = ws.Cells(COEFF_START_ROW + 1, COL_VAL)
     If IsEmpty(cellCc.Value) Or cellCc.Value = "" Then
         Cc = 0.3
     Else
@@ -369,7 +435,7 @@ Public Sub ReadEnergyCoeffs(ws As Object, _
     End If
 
     Dim cellCe As Object
-    Set cellCe = ws.Cells(COEFF_START_ROW + 2, 2)
+    Set cellCe = ws.Cells(COEFF_START_ROW + 2, COL_VAL)
     If IsEmpty(cellCe.Value) Or cellCe.Value = "" Then
         Ce = 0.5
     Else
@@ -381,14 +447,14 @@ End Sub
 ' ReadYarnellKOverride
 '
 ' Reads an optional manual override for Yarnell's K pier shape coefficient.
-'   COEFF_START_ROW + 5, col 2
+'   COEFF_START_ROW + 5, col C (3)
 '
 ' Returns 0 if the cell is blank, which callers interpret as "use automatic
 ' K lookup from pier shape string via GetYarnellK".
 ' =============================================================================
 Public Function ReadYarnellKOverride(ws As Object) As Double
     Dim cellK As Object
-    Set cellK = ws.Cells(COEFF_START_ROW + 5, 2)
+    Set cellK = ws.Cells(COEFF_START_ROW + 5, 3)
     If IsEmpty(cellK.Value) Or cellK.Value = "" Then
         ReadYarnellKOverride = 0#
     Else
@@ -400,9 +466,9 @@ End Function
 ' ReadIterationSettings
 '
 ' Reads the solver iteration control parameters.
-'   COEFF_START_ROW + 8,  col 2 -> maxIter         (default 100)
-'   COEFF_START_ROW + 9,  col 2 -> tolerance        (default 0.01)
-'   COEFF_START_ROW + 10, col 2 -> initGuessOffset  (default 0.5)
+'   COEFF_START_ROW + 8,  col C (3) -> maxIter         (default 100)
+'   COEFF_START_ROW + 9,  col C (3) -> tolerance        (default 0.01)
+'   COEFF_START_ROW + 10, col C (3) -> initGuessOffset  (default 0.5)
 '
 ' Parameters:
 '   ws               — Input worksheet object
@@ -415,8 +481,10 @@ Public Sub ReadIterationSettings(ws As Object, _
                                  ByRef tolerance       As Double, _
                                  ByRef initGuessOffset As Double)
 
+    Const COL_VAL As Long = 3   ' col C — value column
+
     Dim cellMax As Object
-    Set cellMax = ws.Cells(COEFF_START_ROW + 8, 2)
+    Set cellMax = ws.Cells(COEFF_START_ROW + 8, COL_VAL)
     If IsEmpty(cellMax.Value) Or cellMax.Value = "" Then
         maxIter = 100
     Else
@@ -424,7 +492,7 @@ Public Sub ReadIterationSettings(ws As Object, _
     End If
 
     Dim cellTol As Object
-    Set cellTol = ws.Cells(COEFF_START_ROW + 9, 2)
+    Set cellTol = ws.Cells(COEFF_START_ROW + 9, COL_VAL)
     If IsEmpty(cellTol.Value) Or cellTol.Value = "" Then
         tolerance = 0.01
     Else
@@ -432,7 +500,7 @@ Public Sub ReadIterationSettings(ws As Object, _
     End If
 
     Dim cellOffset As Object
-    Set cellOffset = ws.Cells(COEFF_START_ROW + 10, 2)
+    Set cellOffset = ws.Cells(COEFF_START_ROW + 10, COL_VAL)
     If IsEmpty(cellOffset.Value) Or cellOffset.Value = "" Then
         initGuessOffset = 0.5
     Else
@@ -448,7 +516,7 @@ End Sub
 '
 ' Checks performed:
 '   1. Cross-section has at least 3 points.
-'   2. Low chord left elevation cell (row 29, col 2) is not blank.
+'   2. Low chord left elevation cell (BRIDGE_START_ROW, col C = 3) is not blank.
 '   3. At least 1 flow profile is defined.
 '
 ' Returns:
@@ -478,20 +546,23 @@ Public Function ValidateInputs(ws As Object) As String
 
     ' ------------------------------------------------------------------
     ' Check 2: low chord left elevation is filled
+    ' (BRIDGE_START_ROW = 60, value in col C = 3)
     ' ------------------------------------------------------------------
     Dim cellLC As Object
-    Set cellLC = ws.Cells(29, 2)
+    Set cellLC = ws.Cells(BRIDGE_START_ROW, 3)
     If IsEmpty(cellLC.Value) Or cellLC.Value = "" Then
-        msgs = msgs & "Low chord elevation (left) is required (row 29, column B)." & vbLf
+        msgs = msgs & "Low chord elevation (left) is required (row " & _
+               BRIDGE_START_ROW & ", column C)." & vbLf
     End If
 
     ' ------------------------------------------------------------------
     ' Check 3: at least 1 flow profile
+    ' (profile name in col B = 2)
     ' ------------------------------------------------------------------
     Dim nProfiles As Long
     nProfiles = 0
     For r = FLOW_FIRST_DATA To FLOW_FIRST_DATA + FLOW_MAX_ROWS - 1
-        If IsEmpty(ws.Cells(r, 1).Value) Or ws.Cells(r, 1).Value = "" Then Exit For
+        If IsEmpty(ws.Cells(r, 2).Value) Or ws.Cells(r, 2).Value = "" Then Exit For
         nProfiles = nProfiles + 1
     Next r
 
