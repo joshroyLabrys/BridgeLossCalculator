@@ -371,12 +371,11 @@ const johnstoneBridge: TestBridge = {
 const vChannelBenchmark: TestBridge = {
   id: 'v-channel-benchmark',
   name: 'V-Channel Benchmark',
-  location: 'Analytical — Hand Calculation',
+  location: 'Validation Reference',
   description:
-    'Symmetric V-channel with a single round-nose pier. Every intermediate value can be verified by hand. ' +
-    'Yarnell results are exact analytical solutions; Energy and Momentum are iterative. ' +
-    'WSPRO returns zero because the bridge opening captures all conveyance (M ≈ 1).',
-  imageUrl: '',
+    'Simple symmetric channel with known analytical results. Use to verify all calculations match expected values.',
+  imageUrl:
+    'https://lh3.googleusercontent.com/aida-public/AB6AXuBYD8J20Atreww31PevBB-Svv6aIxYGoZK8V63Qt0YQjynmpQ5Cxdvz_GsaS2iVEgPMkW34ukSzBJMoeMgMhDE6zVs_wLJORYsdE9dFPlvFTZ6FyLGkl-yxmzhRLAddIWqbEfaki7aUbC6dBJiXOSafhXy1Oi4gGy1eBYq9AMcIlUh5RihzTgfZJGjdy7cckAyyxD9nY4SvvUMiA0MaYPPdc1aOTjd-BvnVGw_udQkz29ATYQ-TLZIL0XAS3CKK5ao-tU0rkMzxpg',
   crossSection: [
     { station: 0, elevation: 10, manningsN: 0.035, bankStation: 'left' },
     { station: 50, elevation: 0, manningsN: 0.035, bankStation: null },

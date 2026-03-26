@@ -16,9 +16,9 @@ const regimeBadge = {
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-sm font-mono tabular-nums mt-0.5">{value}</div>
+    <div className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2.5">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="text-sm font-mono tabular-nums mt-1 text-foreground">{value}</div>
     </div>
   );
 }

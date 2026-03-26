@@ -6,7 +6,8 @@ import { useProjectStore } from '@/store/project-store';
 import { runAllMethods, runWithSensitivity } from '@/engine/index';
 import { validateInputs } from '@/lib/validation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Play, RotateCcw, AlertTriangle, FlaskConical, Loader2, CheckCircle2 } from 'lucide-react';
+import { Play, RotateCcw, AlertTriangle, FlaskConical, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { TEST_BRIDGES, type TestBridge } from '@/lib/test-bridges';
 import { toImperial } from '@/lib/units';
 
@@ -14,7 +15,6 @@ export function ActionButtons() {
   const [testOpen, setTestOpen] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const crossSection = useProjectStore((s) => s.crossSection);
   const bridgeGeometry = useProjectStore((s) => s.bridgeGeometry);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
@@ -22,6 +22,7 @@ export function ActionButtons() {
   const setResults = useProjectStore((s) => s.setResults);
   const clearResults = useProjectStore((s) => s.clearResults);
   const setSensitivityResults = useProjectStore((s) => s.setSensitivityResults);
+  const setActiveMainTab = useProjectStore((s) => s.setActiveMainTab);
   const updateCrossSection = useProjectStore((s) => s.updateCrossSection);
   const updateBridgeGeometry = useProjectStore((s) => s.updateBridgeGeometry);
   const updateFlowProfiles = useProjectStore((s) => s.updateFlowProfiles);
@@ -72,33 +73,28 @@ export function ActionButtons() {
     const validationErrors = validateInputs(crossSection, bridgeGeometry, flowProfiles);
     if (validationErrors.length > 0) { setErrors(validationErrors.map((e) => e.message)); return; }
     setErrors([]);
-    setShowSuccess(false);
     setIsProcessing(true);
 
     // Defer computation so the UI can paint the loading state
     setTimeout(() => {
       const calcResults = runAllMethods(crossSection, bridgeGeometry, flowProfiles, coefficients);
       setResults(calcResults);
-      if (coefficients.manningsNSensitivity) {
+      if (coefficients.manningsNSensitivityPct != null) {
         const sensResults = runWithSensitivity(crossSection, bridgeGeometry, flowProfiles, coefficients);
         setSensitivityResults(sensResults);
       } else {
         setSensitivityResults(null);
       }
       setIsProcessing(false);
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
+      setActiveMainTab('summary');
+      toast.success('Processing complete', {
+        description: 'All methods have been calculated. Viewing summary.',
+      });
     }, 50);
   }
 
   return (
     <>
-      {showSuccess && (
-        <div className="mt-4 rounded-lg border border-emerald-500/50 bg-emerald-500/10 p-3 flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400 animate-in fade-in slide-in-from-top-1 duration-300">
-          <CheckCircle2 className="h-4 w-4" />
-          Processing complete — results are ready.
-        </div>
-      )}
       {errors.length > 0 && (
         <div className="mt-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3">
           <div className="flex items-center gap-2 text-sm font-medium text-destructive mb-1">
@@ -123,30 +119,30 @@ export function ActionButtons() {
       </div>
 
       <Dialog open={testOpen} onOpenChange={setTestOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Load Test Bridge</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Select an Australian bridge to auto-populate all input fields.
+            Select a bridge to auto-populate all input fields.
           </p>
-          <div className="grid gap-3 max-h-[60vh] overflow-y-auto">
+          <div className="grid gap-3 max-h-[70vh] overflow-y-auto pr-1">
             {TEST_BRIDGES.map((bridge) => (
               <button
                 key={bridge.id}
                 onClick={() => handleLoadTestBridge(bridge)}
-                className="text-left rounded-lg border overflow-hidden hover:ring-2 hover:ring-ring transition-all"
+                className="group text-left rounded-lg border overflow-hidden bg-muted/30 hover:bg-muted/60 hover:ring-2 hover:ring-ring transition-all"
               >
-                <div className="flex gap-3">
+                <div className="flex gap-4">
                   <img
                     src={bridge.imageUrl}
                     alt={bridge.name}
-                    className="w-24 h-24 object-cover shrink-0"
+                    className="w-32 h-32 object-cover shrink-0 grayscale group-hover:grayscale-[20%] transition-all duration-300"
                   />
-                  <div className="py-2 pr-3">
+                  <div className="py-3 pr-4 min-w-0">
                     <div className="font-medium">{bridge.name}</div>
                     <div className="text-sm text-muted-foreground">{bridge.location}</div>
-                    <div className="text-xs text-muted-foreground mt-1">{bridge.description}</div>
+                    <div className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">{bridge.description}</div>
                   </div>
                 </div>
               </button>

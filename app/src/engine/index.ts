@@ -56,7 +56,7 @@ export function runWithSensitivity(
   profiles: FlowProfile[],
   coefficients: Coefficients
 ): SensitivityResults {
-  const pct = coefficients.manningsNSensitivityPct / 100;
+  const pct = (coefficients.manningsNSensitivityPct ?? 20) / 100;
 
   const scaledLow = crossSection.map(p => ({
     ...p,

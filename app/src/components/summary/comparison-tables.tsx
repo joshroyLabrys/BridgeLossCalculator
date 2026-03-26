@@ -40,9 +40,9 @@ function pctDiffBadge(pct: number | null) {
 
 function SectionDivider({ label, colSpan }: { label: string; colSpan: number }) {
   return (
-    <TableRow className="bg-muted/20 hover:bg-muted/20">
-      <TableCell colSpan={colSpan} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground py-1.5">
-        {label}
+    <TableRow className="border-t-2 border-border/60 hover:bg-transparent">
+      <TableCell colSpan={colSpan} className="pt-5 pb-1.5 px-2">
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-primary/80">{label}</span>
       </TableCell>
     </TableRow>
   );
@@ -119,7 +119,7 @@ export function ComparisonTables() {
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="text-xs w-[180px]">Method</TableHead>
-              {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
+              {profileNames.map((n) => <TableHead key={n} className="text-xs text-right min-w-[100px]">{n}</TableHead>)}
             </TableRow>
           </TableHeader>
           <TableBody>

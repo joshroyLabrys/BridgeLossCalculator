@@ -40,13 +40,13 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-3 border-b border-border/50 backdrop-blur-sm bg-background/80">
+    <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-3 border-b border-border/40 bg-card/80 backdrop-blur-xl shadow-sm">
       <div className="flex items-center gap-2.5">
         <Waves className="h-5 w-5 text-primary" />
-        <h1 className="text-xl font-semibold text-primary">Bridge Loss Calculator</h1>
+        <h1 className="text-lg font-semibold tracking-tight text-foreground">Bridge Loss Calculator</h1>
       </div>
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 rounded-full border border-border/50 bg-muted/30 px-1 py-0.5">
+        <div className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/40 px-1 py-0.5">
           <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-2" />
           <button
             onClick={() => setUnitSystem('metric')}

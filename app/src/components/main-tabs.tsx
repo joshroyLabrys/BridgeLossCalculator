@@ -15,7 +15,7 @@ import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { FreeboardCheck } from '@/components/summary/freeboard-check';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { useProjectStore } from '@/store/project-store';
-import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText } from 'lucide-react';
+import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal } from 'lucide-react';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,7 +57,19 @@ export function MainTabs() {
   }
 
   return (
-    <Tabs defaultValue="input" className="flex-1 flex flex-col">
+    <Tabs value={activeMainTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
+      <Toaster
+        position="top-center"
+        theme="dark"
+        toastOptions={{
+          classNames: {
+            toast: '!bg-card !border-border/50 !text-foreground !shadow-lg !shadow-black/20 !backdrop-blur-xl',
+            title: '!text-foreground !font-medium',
+            description: '!text-muted-foreground',
+            success: '!text-emerald-400 [&_[data-icon]]:!text-emerald-400',
+          },
+        }}
+      />
       <header className="sticky top-0 z-50 border-b border-border/40 bg-card/80 backdrop-blur-xl shadow-sm">
         <div className="flex items-center gap-6 px-6 py-3">
           {/* Left: brand + main nav inline */}
@@ -129,12 +141,27 @@ export function MainTabs() {
 
       <TabsContent value="input" className="flex-1 px-6 py-5">
         <Tabs defaultValue="cross-section">
-          <div className="mb-5 border-b border-border/40">
-            <TabsList variant="line" className="w-fit gap-0 bg-transparent p-0">
-              <TabsTrigger value="cross-section" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Cross-Section</TabsTrigger>
-              <TabsTrigger value="bridge" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Bridge Geometry</TabsTrigger>
-              <TabsTrigger value="profiles" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Flow Profiles</TabsTrigger>
-              <TabsTrigger value="coefficients" className="rounded-none border-b-2 border-transparent px-4 py-2.5 text-[13px] after:hidden data-active:border-b-primary">Coefficients</TabsTrigger>
+          <div className="mb-5 inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
+            <TabsList className="w-fit gap-0 bg-transparent p-0">
+              <TabsTrigger value="cross-section" className="rounded-md px-3.5 py-1.5 text-xs">
+                <Layers className="h-3.5 w-3.5" />
+                Cross-Section
+              </TabsTrigger>
+              <div className="h-4 w-px bg-border/40" aria-hidden="true" />
+              <TabsTrigger value="bridge" className="rounded-md px-3.5 py-1.5 text-xs">
+                <Landmark className="h-3.5 w-3.5" />
+                Bridge Geometry
+              </TabsTrigger>
+              <div className="h-4 w-px bg-border/40" aria-hidden="true" />
+              <TabsTrigger value="profiles" className="rounded-md px-3.5 py-1.5 text-xs">
+                <Activity className="h-3.5 w-3.5" />
+                Flow Profiles
+              </TabsTrigger>
+              <div className="h-4 w-px bg-border/40" aria-hidden="true" />
+              <TabsTrigger value="coefficients" className="rounded-md px-3.5 py-1.5 text-xs">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Coefficients
+              </TabsTrigger>
             </TabsList>
           </div>
           <TabsContent value="cross-section"><CrossSectionForm /></TabsContent>

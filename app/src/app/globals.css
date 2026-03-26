@@ -149,6 +149,16 @@ input[type="number"] {
   animation: nav-fade-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Tab panel enter transition */
+@keyframes tab-panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+[data-slot="tabs-content"]:not([hidden]) {
+  animation: tab-panel-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 /* Grid background with mid-to-dark blue gradient */
 .dark body {
   background:
