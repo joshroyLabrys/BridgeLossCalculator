@@ -23,7 +23,7 @@ Private Const SHEET_ENERGY   As String = "Energy Method"
 Private Const SHEET_MOMENTUM As String = "Momentum Method"
 Private Const SHEET_YARNELL  As String = "Yarnell"
 Private Const SHEET_WSPRO    As String = "WSPRO"
-Private Const SHEET_SUMMARY  As String = "Summary"
+Private Const SHEET_SUMMARY  As String = "Summary & Charts"
 Private Const SHEET_INPUT    As String = "Input"
 
 ' Results block layout (shared by all method modules, rows 77-86)
