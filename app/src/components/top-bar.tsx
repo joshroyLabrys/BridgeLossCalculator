@@ -3,13 +3,12 @@
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useProjectStore } from '@/store/project-store';
+import { Waves, Upload, Download } from 'lucide-react';
 
 export function TopBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportProject = useProjectStore((s) => s.exportProject);
   const importProject = useProjectStore((s) => s.importProject);
-  const unitSystem = useProjectStore((s) => s.unitSystem);
-  const setUnitSystem = useProjectStore((s) => s.setUnitSystem);
 
   function handleExport() {
     const json = exportProject();
@@ -34,33 +33,16 @@ export function TopBar() {
       }
     };
     reader.readAsText(file);
-    // Reset input so the same file can be re-imported
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
   return (
-    <header className="flex items-center justify-between px-6 py-3 border-b">
-      <h1 className="text-lg font-semibold">Bridge Loss Calculator</h1>
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-1 rounded-md border p-0.5">
-          <Button
-            variant={unitSystem === 'imperial' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setUnitSystem('imperial')}
-          >
-            Imperial
-          </Button>
-          <Button
-            variant={unitSystem === 'metric' ? 'default' : 'ghost'}
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => setUnitSystem('metric')}
-          >
-            Metric
-          </Button>
-        </div>
-        <div className="flex gap-2">
+    <header className="sticky top-0 z-50 flex items-center justify-between px-6 py-3 border-b border-border/50 backdrop-blur-sm bg-background/80">
+      <div className="flex items-center gap-2.5">
+        <Waves className="h-5 w-5 text-primary" />
+        <h1 className="text-xl font-semibold text-primary">Bridge Loss Calculator</h1>
+      </div>
+      <div className="flex gap-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -69,12 +51,13 @@ export function TopBar() {
           className="hidden"
         />
         <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-          Import JSON
+          <Upload className="h-4 w-4 mr-1.5" />
+          Import
         </Button>
         <Button variant="outline" size="sm" onClick={handleExport}>
-          Export JSON
+          <Download className="h-4 w-4 mr-1.5" />
+          Export
         </Button>
-        </div>
       </div>
     </header>
   );

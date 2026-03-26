@@ -2,94 +2,75 @@
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useProjectStore } from '@/store/project-store';
 import { FlowProfile } from '@/engine/types';
-import { toImperial, toDisplay, unitLabel } from '@/lib/units';
+import { Plus, Trash2 } from 'lucide-react';
 
 export function FlowProfilesForm() {
   const profiles = useProjectStore((s) => s.flowProfiles);
   const update = useProjectStore((s) => s.updateFlowProfiles);
-  const us = useProjectStore((s) => s.unitSystem);
-
-  const lengthUnit = unitLabel('length', us);
-  const dischargeUnit = unitLabel('discharge', us);
 
   function addProfile() {
-    update([
-      ...profiles,
-      { name: '', discharge: 0, dsWsel: 0, channelSlope: 0.001, contractionLength: 0, expansionLength: 0 },
-    ]);
+    update([...profiles, { name: '', discharge: 0, dsWsel: 0, channelSlope: 0.001, contractionLength: 0, expansionLength: 0 }]);
   }
 
-  function removeProfile(index: number) {
-    update(profiles.filter((_, i) => i !== index));
-  }
+  function removeProfile(index: number) { update(profiles.filter((_, i) => i !== index)); }
 
   function updateProfile(index: number, field: keyof FlowProfile, value: string) {
     const updated = [...profiles];
-    if (field === 'name') {
-      updated[index] = { ...updated[index], name: value };
-    } else if (field === 'discharge') {
-      updated[index] = { ...updated[index], discharge: toImperial(parseFloat(value) || 0, 'discharge', us) };
-    } else if (field === 'dsWsel' || field === 'contractionLength' || field === 'expansionLength') {
-      updated[index] = { ...updated[index], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
-    } else {
-      // channelSlope — dimensionless, store as-is
-      updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 };
-    }
+    if (field === 'name') { updated[index] = { ...updated[index], name: value }; }
+    else { updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 }; }
     update(updated);
   }
 
-  function displayValue(profile: FlowProfile, key: keyof FlowProfile): string | number {
-    const raw = profile[key];
-    if (key === 'name') return raw as string;
-    if (key === 'discharge') return toDisplay(raw as number, 'discharge', us);
-    if (key === 'dsWsel' || key === 'contractionLength' || key === 'expansionLength') {
-      return toDisplay(raw as number, 'length', us);
-    }
-    return raw as number;
-  }
-
   const columns = [
-    { key: 'name' as keyof FlowProfile, label: 'Profile Name', type: 'text' },
-    { key: 'discharge' as keyof FlowProfile, label: `Q (${dischargeUnit})`, type: 'number' },
-    { key: 'dsWsel' as keyof FlowProfile, label: `DS WSEL (${lengthUnit})`, type: 'number' },
-    { key: 'channelSlope' as keyof FlowProfile, label: 'Slope (ft/ft)', type: 'number' },
-    { key: 'contractionLength' as keyof FlowProfile, label: `Contraction L (${lengthUnit})`, type: 'number' },
-    { key: 'expansionLength' as keyof FlowProfile, label: `Expansion L (${lengthUnit})`, type: 'number' },
-  ];
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'discharge', label: 'Q (cfs)', type: 'number' },
+    { key: 'dsWsel', label: 'DS WSEL (ft)', type: 'number' },
+    { key: 'channelSlope', label: 'Slope (ft/ft)', type: 'number' },
+    { key: 'contractionLength', label: 'Contr. L (ft)', type: 'number' },
+    { key: 'expansionLength', label: 'Expan. L (ft)', type: 'number' },
+  ] as const;
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium">Flow Profiles (up to 10)</h3>
-      <div className="rounded-lg border overflow-x-auto">
-        <div className="grid grid-cols-[40px_repeat(6,1fr)_40px] gap-1 p-2 text-xs text-muted-foreground border-b min-w-[700px]">
-          <div>#</div>
-          {columns.map((c) => <div key={c.key as string}>{c.label}</div>)}
-          <div></div>
-        </div>
-        {profiles.map((profile, i) => (
-          <div key={i} className="grid grid-cols-[40px_repeat(6,1fr)_40px] gap-1 p-1 items-center min-w-[700px]">
-            <span className="text-xs text-muted-foreground pl-1">{i + 1}</span>
-            {columns.map((c) => (
-              <Input
-                key={c.key as string}
-                type={c.type}
-                value={displayValue(profile, c.key)}
-                onChange={(e) => updateProfile(i, c.key, e.target.value)}
-                className="h-8 text-sm"
-                step={c.key === 'channelSlope' ? '0.0001' : undefined}
-              />
-            ))}
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => removeProfile(i)}>×</Button>
+    <Card>
+      <CardHeader>
+        <CardTitle>Flow Profiles</CardTitle>
+        <CardDescription>Define up to 10 discharge scenarios with downstream boundary conditions</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-lg border overflow-hidden">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="w-10 text-xs">#</TableHead>
+                  {columns.map((c) => <TableHead key={c.key} className="text-xs">{c.label}</TableHead>)}
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {profiles.map((profile, i) => (
+                  <TableRow key={i} className="even:bg-muted/20">
+                    <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
+                    {columns.map((c) => (
+                      <TableCell key={c.key}>
+                        <Input type={c.type} value={(profile as unknown as Record<string, string | number>)[c.key]} onChange={(e) => updateProfile(i, c.key as keyof FlowProfile, e.target.value)} className={`h-8 text-sm ${c.type === 'number' ? 'font-mono' : ''}`} step={c.key === 'channelSlope' ? '0.0001' : undefined} />
+                      </TableCell>
+                    ))}
+                    <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => removeProfile(i)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
-        ))}
-        <div className="p-2 border-t">
-          <Button variant="outline" size="sm" onClick={addProfile} className="w-full" disabled={profiles.length >= 10}>
-            + Add Profile
-          </Button>
+          <div className="p-2 border-t">
+            <Button variant="outline" size="sm" onClick={addProfile} className="w-full" disabled={profiles.length >= 10}><Plus className="h-3.5 w-3.5 mr-1.5" />Add Profile</Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

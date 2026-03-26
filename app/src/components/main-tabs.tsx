@@ -10,17 +10,27 @@ import { MethodTabs } from '@/components/results/method-tabs';
 import { ComparisonTables } from '@/components/summary/comparison-tables';
 import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { SummaryCharts } from '@/components/summary/charts';
+import { Settings2, FlaskConical, BarChart3 } from 'lucide-react';
 
 export function MainTabs() {
   return (
     <Tabs defaultValue="input" className="flex-1 flex flex-col">
       <TabsList className="mx-6 mt-4 w-fit">
-        <TabsTrigger value="input">Input</TabsTrigger>
-        <TabsTrigger value="results">Method Results</TabsTrigger>
-        <TabsTrigger value="summary">Summary &amp; Charts</TabsTrigger>
+        <TabsTrigger value="input">
+          <Settings2 className="h-4 w-4 mr-1.5" />
+          Input
+        </TabsTrigger>
+        <TabsTrigger value="results">
+          <FlaskConical className="h-4 w-4 mr-1.5" />
+          Method Results
+        </TabsTrigger>
+        <TabsTrigger value="summary">
+          <BarChart3 className="h-4 w-4 mr-1.5" />
+          Summary
+        </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="input" className="flex-1 px-6 py-4">
+      <TabsContent value="input" className="flex-1 px-6 py-5">
         <Tabs defaultValue="cross-section">
           <TabsList className="w-fit mb-4">
             <TabsTrigger value="cross-section">Cross-Section</TabsTrigger>
@@ -36,11 +46,11 @@ export function MainTabs() {
         <ActionButtons />
       </TabsContent>
 
-      <TabsContent value="results" className="flex-1 px-6 py-4">
+      <TabsContent value="results" className="flex-1 px-6 py-5">
         <MethodTabs />
       </TabsContent>
 
-      <TabsContent value="summary" className="flex-1 px-6 py-4 space-y-6">
+      <TabsContent value="summary" className="flex-1 px-6 py-5 space-y-8">
         <ComparisonTables />
         <RegimeMatrix />
         <SummaryCharts />

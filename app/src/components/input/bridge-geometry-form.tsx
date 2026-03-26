@@ -1,22 +1,23 @@
 'use client';
 
-import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useProjectStore } from '@/store/project-store';
 import { BridgeGeometry, Pier } from '@/engine/types';
-import { toImperial, toDisplay, unitLabel } from '@/lib/units';
+import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
 
 export function BridgeGeometryForm() {
   const bridge = useProjectStore((s) => s.bridgeGeometry);
   const update = useProjectStore((s) => s.updateBridgeGeometry);
-  const us = useProjectStore((s) => s.unitSystem);
 
-  function setField(field: string, value: string, isLength = true) {
-    const raw = parseFloat(value) || 0;
-    update({ ...bridge, [field]: isLength ? toImperial(raw, 'length', us) : raw });
+  function setField(field: string, value: string) {
+    update({ ...bridge, [field]: parseFloat(value) || 0 });
   }
 
   function addPier() {
@@ -32,127 +33,145 @@ export function BridgeGeometryForm() {
     if (field === 'shape') {
       piers[index] = { ...piers[index], shape: value as Pier['shape'] };
     } else {
-      piers[index] = { ...piers[index], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
+      piers[index] = { ...piers[index], [field]: parseFloat(value) || 0 };
     }
     update({ ...bridge, piers });
   }
 
-  const lengthUnit = unitLabel('length', us);
-
   const fields = [
-    { key: 'lowChordLeft', label: 'Low Chord Elevation (Left)', unit: lengthUnit, isLength: true },
-    { key: 'lowChordRight', label: 'Low Chord Elevation (Right)', unit: lengthUnit, isLength: true },
-    { key: 'highChord', label: 'High Chord Elevation', unit: lengthUnit, isLength: true },
-    { key: 'leftAbutmentStation', label: 'Left Abutment Station', unit: lengthUnit, isLength: true },
-    { key: 'rightAbutmentStation', label: 'Right Abutment Station', unit: lengthUnit, isLength: true },
-    { key: 'leftAbutmentSlope', label: 'Left Abutment Slope', unit: 'H:V', isLength: false },
-    { key: 'rightAbutmentSlope', label: 'Right Abutment Slope', unit: 'H:V', isLength: false },
-    { key: 'skewAngle', label: 'Skew Angle', unit: unitLabel('angle', us), isLength: false },
+    { key: 'lowChordLeft', label: 'Low Chord Elev. (Left)', unit: 'ft' },
+    { key: 'lowChordRight', label: 'Low Chord Elev. (Right)', unit: 'ft' },
+    { key: 'highChord', label: 'High Chord Elevation', unit: 'ft' },
+    { key: 'leftAbutmentStation', label: 'Left Abutment Station', unit: 'ft' },
+    { key: 'rightAbutmentStation', label: 'Right Abutment Station', unit: 'ft' },
+    { key: 'leftAbutmentSlope', label: 'Left Abutment Slope', unit: 'H:V' },
+    { key: 'rightAbutmentSlope', label: 'Right Abutment Slope', unit: 'H:V' },
+    { key: 'skewAngle', label: 'Skew Angle', unit: 'deg' },
   ] as const;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-medium mb-3">Opening Geometry</h3>
-        <div className="grid grid-cols-2 gap-4">
-          {fields.map((f) => (
-            <div key={f.key} className="space-y-1">
-              <Label className="text-xs">{f.label} ({f.unit})</Label>
-              <Input
-                type="number"
-                value={f.isLength
-                  ? toDisplay((bridge as unknown as Record<string, number>)[f.key], 'length', us)
-                  : (bridge as unknown as Record<string, number>)[f.key]}
-                onChange={(e) => setField(f.key, e.target.value, f.isLength)}
-                className="h-8 text-sm"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-sm font-medium mb-3">Pier Data</h3>
-        <div className="rounded-lg border">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-1 p-2 text-xs text-muted-foreground border-b">
-            <div>#</div>
-            <div>Station ({lengthUnit})</div>
-            <div>Width ({lengthUnit})</div>
-            <div>Shape</div>
-            <div></div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Opening Geometry</CardTitle>
+          <CardDescription>Bridge opening dimensions, abutment locations, and skew</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4">
+            {fields.map((f) => (
+              <div key={f.key} className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">{f.label} <span className="text-muted-foreground/60">({f.unit})</span></Label>
+                <Input type="number" value={(bridge as unknown as Record<string, number>)[f.key]} onChange={(e) => setField(f.key, e.target.value)} className="h-8 text-sm font-mono" />
+              </div>
+            ))}
           </div>
-          {bridge.piers.map((pier, i) => (
-            <div key={i} className="grid grid-cols-[40px_1fr_1fr_1fr_40px] gap-1 p-1 items-center">
-              <span className="text-xs text-muted-foreground pl-1">{i + 1}</span>
-              <Input type="number" value={toDisplay(pier.station, 'length', us)} onChange={(e) => updatePier(i, 'station', e.target.value)} className="h-8 text-sm" />
-              <Input type="number" value={toDisplay(pier.width, 'length', us)} onChange={(e) => updatePier(i, 'width', e.target.value)} className="h-8 text-sm" />
-              <Select value={pier.shape} onValueChange={(v) => updatePier(i, 'shape', v ?? '')}>
-                <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="square">Square</SelectItem>
-                  <SelectItem value="round-nose">Round-nose</SelectItem>
-                  <SelectItem value="cylindrical">Cylindrical</SelectItem>
-                  <SelectItem value="sharp">Sharp</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => removePier(i)}>×</Button>
-            </div>
-          ))}
-          <div className="p-2 border-t">
-            <Button variant="outline" size="sm" onClick={addPier} className="w-full">+ Add Pier</Button>
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Low Chord Profile (optional collapsible) */}
-      <LowChordProfile bridge={bridge} update={update} us={us} />
+      <Card>
+        <CardHeader>
+          <CardTitle>Pier Data</CardTitle>
+          <CardDescription>Define pier locations, widths, and nose shapes</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/30 hover:bg-muted/30">
+                  <TableHead className="w-10 text-xs">#</TableHead>
+                  <TableHead className="text-xs">Station (ft)</TableHead>
+                  <TableHead className="text-xs">Width (ft)</TableHead>
+                  <TableHead className="text-xs">Shape</TableHead>
+                  <TableHead className="w-10"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {bridge.piers.map((pier, i) => (
+                  <TableRow key={i} className="even:bg-muted/20">
+                    <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
+                    <TableCell><Input type="number" value={pier.station} onChange={(e) => updatePier(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                    <TableCell><Input type="number" value={pier.width} onChange={(e) => updatePier(i, 'width', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                    <TableCell>
+                      <Select value={pier.shape} onValueChange={(v) => updatePier(i, 'shape', v ?? '')}>
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="square">Square</SelectItem>
+                          <SelectItem value="round-nose">Round-nose</SelectItem>
+                          <SelectItem value="cylindrical">Cylindrical</SelectItem>
+                          <SelectItem value="sharp">Sharp</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => removePier(i)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="p-2 border-t">
+              <Button variant="outline" size="sm" onClick={addPier} className="w-full"><Plus className="h-3.5 w-3.5 mr-1.5" />Add Pier</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <LowChordProfile bridge={bridge} update={update} />
     </div>
   );
 }
 
-function LowChordProfile({ bridge, update, us }: { bridge: BridgeGeometry; update: (b: BridgeGeometry) => void; us: 'imperial' | 'metric' }) {
+function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (b: BridgeGeometry) => void }) {
   const [open, setOpen] = useState(false);
   const profile = bridge.lowChordProfile;
-  const lengthUnit = unitLabel('length', us);
 
-  function addPoint() {
-    update({ ...bridge, lowChordProfile: [...profile, { station: 0, elevation: 0 }] });
-  }
-
-  function removePoint(i: number) {
-    update({ ...bridge, lowChordProfile: profile.filter((_, idx) => idx !== i) });
-  }
-
+  function addPoint() { update({ ...bridge, lowChordProfile: [...profile, { station: 0, elevation: 0 }] }); }
+  function removePoint(i: number) { update({ ...bridge, lowChordProfile: profile.filter((_, idx) => idx !== i) }); }
   function updatePoint(i: number, field: 'station' | 'elevation', value: string) {
     const pts = [...profile];
-    pts[i] = { ...pts[i], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
+    pts[i] = { ...pts[i], [field]: parseFloat(value) || 0 };
     update({ ...bridge, lowChordProfile: pts });
   }
 
   return (
-    <div>
-      <button onClick={() => setOpen(!open)} className="text-sm font-medium flex items-center gap-2 mb-2">
-        {open ? '▼' : '▶'} Low Chord Profile (optional)
-      </button>
-      {open && (
-        <div className="rounded-lg border">
-          <div className="grid grid-cols-[40px_1fr_1fr_40px] gap-1 p-2 text-xs text-muted-foreground border-b">
-            <div>#</div><div>Station ({lengthUnit})</div><div>Elevation ({lengthUnit})</div><div></div>
-          </div>
-          {profile.map((pt, i) => (
-            <div key={i} className="grid grid-cols-[40px_1fr_1fr_40px] gap-1 p-1 items-center">
-              <span className="text-xs text-muted-foreground pl-1">{i + 1}</span>
-              <Input type="number" value={toDisplay(pt.station, 'length', us)} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm" />
-              <Input type="number" value={toDisplay(pt.elevation, 'length', us)} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm" />
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => removePoint(i)}>×</Button>
+    <Card>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CardHeader>
+          <CollapsibleTrigger className="flex items-center gap-2 cursor-pointer">
+            {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            <CardTitle>Low Chord Profile</CardTitle>
+            <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+          </CollapsibleTrigger>
+          <CardDescription>Custom low chord elevations. If blank, linearly interpolates between left and right.</CardDescription>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent>
+            <div className="rounded-lg border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="w-10 text-xs">#</TableHead>
+                    <TableHead className="text-xs">Station (ft)</TableHead>
+                    <TableHead className="text-xs">Elevation (ft)</TableHead>
+                    <TableHead className="w-10"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {profile.map((pt, i) => (
+                    <TableRow key={i} className="even:bg-muted/20">
+                      <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
+                      <TableCell><Input type="number" value={pt.station} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                      <TableCell><Input type="number" value={pt.elevation} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                      <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => removePoint(i)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="p-2 border-t">
+                <Button variant="outline" size="sm" onClick={addPoint} className="w-full"><Plus className="h-3.5 w-3.5 mr-1.5" />Add Point</Button>
+              </div>
             </div>
-          ))}
-          <div className="p-2 border-t">
-            <Button variant="outline" size="sm" onClick={addPoint} className="w-full">+ Add Point</Button>
-          </div>
-          <p className="text-xs text-muted-foreground p-2">If blank, the tool linearly interpolates between left and right low chord elevations.</p>
-        </div>
-      )}
-    </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
