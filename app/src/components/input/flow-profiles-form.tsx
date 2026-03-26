@@ -15,7 +15,7 @@ export function FlowProfilesForm() {
   const us = useProjectStore((s) => s.unitSystem);
 
   function addProfile() {
-    update([...profiles, { name: '', discharge: 0, dsWsel: 0, channelSlope: 0.001, contractionLength: 0, expansionLength: 0 }]);
+    update([...profiles, { name: '', ari: '', discharge: 0, dsWsel: 0, channelSlope: 0.001, contractionLength: 0, expansionLength: 0 }]);
   }
 
   function removeProfile(index: number) { update(profiles.filter((_, i) => i !== index)); }

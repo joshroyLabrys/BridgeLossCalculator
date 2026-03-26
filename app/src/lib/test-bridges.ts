@@ -64,6 +64,7 @@ const windsorBridge: TestBridge = {
   flowProfiles: [
     {
       name: '20-yr ARI',
+      ari: '5% AEP',
       discharge: 176600,
       dsWsel: 16,
       channelSlope: 0.00015,
@@ -72,6 +73,7 @@ const windsorBridge: TestBridge = {
     },
     {
       name: '100-yr ARI',
+      ari: '1% AEP',
       discharge: 353100,
       dsWsel: 22,
       channelSlope: 0.0002,
@@ -86,6 +88,9 @@ const windsorBridge: TestBridge = {
     maxIterations: 100,
     tolerance: 0.01,
     initialGuessOffset: 0.5,
+    debrisBlockagePct: 0,
+    manningsNSensitivity: false,
+    manningsNSensitivityPct: 20,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
@@ -132,6 +137,7 @@ const breakfastCreekBridge: TestBridge = {
   flowProfiles: [
     {
       name: '10-yr ARI',
+      ari: '10% AEP',
       discharge: 5300,
       dsWsel: 6,
       channelSlope: 0.001,
@@ -140,6 +146,7 @@ const breakfastCreekBridge: TestBridge = {
     },
     {
       name: '50-yr ARI',
+      ari: '2% AEP',
       discharge: 10600,
       dsWsel: 8,
       channelSlope: 0.0012,
@@ -148,6 +155,7 @@ const breakfastCreekBridge: TestBridge = {
     },
     {
       name: '100-yr ARI',
+      ari: '1% AEP',
       discharge: 14100,
       dsWsel: 9.5,
       channelSlope: 0.0015,
@@ -162,6 +170,9 @@ const breakfastCreekBridge: TestBridge = {
     maxIterations: 100,
     tolerance: 0.01,
     initialGuessOffset: 0.5,
+    debrisBlockagePct: 0,
+    manningsNSensitivity: false,
+    manningsNSensitivityPct: 20,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
@@ -212,6 +223,7 @@ const echucaBridge: TestBridge = {
   flowProfiles: [
     {
       name: '10-yr ARI',
+      ari: '10% AEP',
       discharge: 70600,
       dsWsel: 12,
       channelSlope: 0.00008,
@@ -220,6 +232,7 @@ const echucaBridge: TestBridge = {
     },
     {
       name: '100-yr ARI',
+      ari: '1% AEP',
       discharge: 176600,
       dsWsel: 17,
       channelSlope: 0.0001,
@@ -234,6 +247,9 @@ const echucaBridge: TestBridge = {
     maxIterations: 100,
     tolerance: 0.01,
     initialGuessOffset: 0.5,
+    debrisBlockagePct: 0,
+    manningsNSensitivity: false,
+    manningsNSensitivityPct: 20,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };
@@ -283,6 +299,7 @@ const johnstoneBridge: TestBridge = {
   flowProfiles: [
     {
       name: '20-yr ARI',
+      ari: '5% AEP',
       discharge: 88300,
       dsWsel: 10,
       channelSlope: 0.002,
@@ -291,6 +308,7 @@ const johnstoneBridge: TestBridge = {
     },
     {
       name: '50-yr ARI',
+      ari: '2% AEP',
       discharge: 141300,
       dsWsel: 14,
       channelSlope: 0.0025,
@@ -299,6 +317,7 @@ const johnstoneBridge: TestBridge = {
     },
     {
       name: '100-yr ARI',
+      ari: '1% AEP',
       discharge: 194500,
       dsWsel: 17,
       channelSlope: 0.003,
@@ -313,6 +332,9 @@ const johnstoneBridge: TestBridge = {
     maxIterations: 100,
     tolerance: 0.01,
     initialGuessOffset: 0.5,
+    debrisBlockagePct: 0,
+    manningsNSensitivity: false,
+    manningsNSensitivityPct: 20,
     methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
   },
 };

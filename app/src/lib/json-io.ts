@@ -41,7 +41,7 @@ export function parseProjectJson(json: string): Omit<ProjectState, 'results'> & 
   return {
     crossSection: data.crossSection ?? [],
     bridgeGeometry: data.bridgeGeometry,
-    flowProfiles: data.flowProfiles ?? [],
+    flowProfiles: (data.flowProfiles ?? []).map((p) => ({ ...p, ari: p.ari ?? '' })),
     coefficients: data.coefficients,
     hecRasComparison: data.hecRasComparison ?? [],
     unitSystem: data.unitSystem ?? 'imperial',

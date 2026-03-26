@@ -6,6 +6,7 @@ import {
   Coefficients,
   CalculationResults,
   HecRasComparison,
+  SensitivityResults,
 } from '@/engine/types';
 import { serializeProject, parseProjectJson } from '@/lib/json-io';
 import { UnitSystem } from '@/lib/units';
@@ -18,6 +19,8 @@ interface ProjectStore {
   results: CalculationResults | null;
   hecRasComparison: HecRasComparison[];
   unitSystem: UnitSystem;
+  sensitivityResults: SensitivityResults | null;
+  projectName: string;
 
   updateCrossSection: (points: CrossSectionPoint[]) => void;
   updateBridgeGeometry: (geom: BridgeGeometry) => void;
@@ -27,6 +30,8 @@ interface ProjectStore {
   clearResults: () => void;
   updateHecRasComparison: (data: HecRasComparison[]) => void;
   setUnitSystem: (system: UnitSystem) => void;
+  setSensitivityResults: (results: SensitivityResults | null) => void;
+  setProjectName: (name: string) => void;
   exportProject: () => string;
   importProject: (json: string) => void;
   reset: () => void;
@@ -52,6 +57,9 @@ const defaultCoefficients: Coefficients = {
   maxIterations: 100,
   tolerance: 0.01,
   initialGuessOffset: 0.5,
+  debrisBlockagePct: 0,
+  manningsNSensitivity: false,
+  manningsNSensitivityPct: 20,
   methodsToRun: {
     energy: true,
     momentum: true,
@@ -68,6 +76,8 @@ const initialState = {
   results: null as CalculationResults | null,
   hecRasComparison: [] as HecRasComparison[],
   unitSystem: 'metric' as UnitSystem,
+  sensitivityResults: null as SensitivityResults | null,
+  projectName: '' as string,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -81,6 +91,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   clearResults: () => set({ results: null }),
   updateHecRasComparison: (data) => set({ hecRasComparison: data }),
   setUnitSystem: (system) => set({ unitSystem: system }),
+  setSensitivityResults: (results) => set({ sensitivityResults: results }),
+  setProjectName: (name) => set({ projectName: name }),
 
   exportProject: () => {
     const state = get();

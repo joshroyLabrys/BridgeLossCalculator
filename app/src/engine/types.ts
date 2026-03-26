@@ -31,6 +31,7 @@ export interface BridgeGeometry {
 
 export interface FlowProfile {
   name: string;
+  ari: string;              // e.g. "1% AEP", "Q100", "PMF"
   discharge: number;
   dsWsel: number;
   channelSlope: number;
@@ -45,6 +46,9 @@ export interface Coefficients {
   maxIterations: number;
   tolerance: number;
   initialGuessOffset: number;
+  debrisBlockagePct: number;       // 0-100, default 0
+  manningsNSensitivity: boolean;   // default false
+  manningsNSensitivityPct: number; // default 20 (meaning ±20%)
   methodsToRun: {
     energy: boolean;
     momentum: boolean;
@@ -116,4 +120,25 @@ export interface ProjectState {
   coefficients: Coefficients;
   results: CalculationResults | null;
   hecRasComparison: HecRasComparison[];
+}
+
+export interface FreeboardResult {
+  profileName: string;
+  ari: string;
+  discharge: number;
+  dsWsel: number;
+  usWsel: number;
+  lowChord: number;
+  freeboard: number;
+  status: 'clear' | 'low' | 'pressure' | 'overtopping';
+}
+
+export interface FreeboardSummary {
+  profiles: FreeboardResult[];
+  zeroFreeboardQ: number | null;
+}
+
+export interface SensitivityResults {
+  low: CalculationResults;
+  high: CalculationResults;
 }
