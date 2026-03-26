@@ -8,10 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useProjectStore } from '@/store/project-store';
 import { CrossSectionPoint } from '@/engine/types';
 import { CrossSectionChart } from '@/components/cross-section-chart';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Landmark } from 'lucide-react';
 
 export function CrossSectionForm() {
   const crossSection = useProjectStore((s) => s.crossSection);
+  const bridgeGeometry = useProjectStore((s) => s.bridgeGeometry);
+  const flowProfiles = useProjectStore((s) => s.flowProfiles);
+  const results = useProjectStore((s) => s.results);
   const updateCrossSection = useProjectStore((s) => s.updateCrossSection);
 
   function addRow() {
@@ -99,17 +102,63 @@ export function CrossSectionForm() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Preview</CardTitle>
-          <CardDescription>Live preview updates as you enter data</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[300px]">
-            <CrossSectionChart crossSection={crossSection} />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Preview</CardTitle>
+            <CardDescription>Live preview updates as you enter data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <CrossSectionChart crossSection={crossSection} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <BridgeOverlayChart
+          crossSection={crossSection}
+          bridgeGeometry={bridgeGeometry}
+          flowProfiles={flowProfiles}
+          results={results}
+        />
+      </div>
     </div>
+  );
+}
+
+function BridgeOverlayChart({ crossSection, bridgeGeometry, flowProfiles, results }: {
+  crossSection: CrossSectionPoint[];
+  bridgeGeometry: ReturnType<typeof useProjectStore.getState>['bridgeGeometry'];
+  flowProfiles: ReturnType<typeof useProjectStore.getState>['flowProfiles'];
+  results: ReturnType<typeof useProjectStore.getState>['results'];
+}) {
+  const methodWsels: Record<string, number> = {};
+  if (results) {
+    for (const method of ['energy', 'momentum', 'yarnell', 'wspro'] as const) {
+      const r = results[method][0];
+      if (r && !r.error) methodWsels[method] = r.upstreamWsel;
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Landmark className="h-4 w-4 text-muted-foreground" />
+          <CardTitle>Bridge Overlay</CardTitle>
+        </div>
+        <CardDescription>Cross-section with bridge geometry, piers, and water surface</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[350px]">
+          <CrossSectionChart
+            crossSection={crossSection}
+            bridge={bridgeGeometry}
+            wsel={flowProfiles[0]?.dsWsel}
+            methodWsels={Object.keys(methodWsels).length > 0 ? methodWsels : undefined}
+          />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
