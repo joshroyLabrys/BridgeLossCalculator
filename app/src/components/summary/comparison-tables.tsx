@@ -197,10 +197,10 @@ export function ComparisonTables() {
                   return (
                     <React.Fragment key={name}>
                       <TableCell className="px-1">
-                        <Input type="number" value={entry?.pierFLC ?? ''} onChange={(e) => updateHecRasField(name, 'pierFLC', e.target.value)} className="h-7 text-sm font-mono w-16" placeholder="—" />
+                        <Input type="number" value={entry?.pierFLC ?? ''} onChange={(e) => updateHecRasField(name, 'pierFLC', e.target.value)} className="h-7 text-sm font-mono tabular-nums text-right w-full" placeholder="—" />
                       </TableCell>
                       <TableCell className="px-1">
-                        <Input type="number" value={entry?.superFLC ?? ''} onChange={(e) => updateHecRasField(name, 'superFLC', e.target.value)} className="h-7 text-sm font-mono w-16" placeholder="—" />
+                        <Input type="number" value={entry?.superFLC ?? ''} onChange={(e) => updateHecRasField(name, 'superFLC', e.target.value)} className="h-7 text-sm font-mono tabular-nums text-right w-full" placeholder="—" />
                       </TableCell>
                     </React.Fragment>
                   );

@@ -62,7 +62,7 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
     select(container).select('svg').remove();
 
     const rect = container.getBoundingClientRect();
-    const margin = { top: 16, right: 24, bottom: 48, left: 56 };
+    const margin = { top: 16, right: 24, bottom: 68, left: 56 };
     const width = rect.width - margin.left - margin.right;
     const height = rect.height - margin.top - margin.bottom;
     if (width <= 0 || height <= 0) return;
@@ -335,39 +335,44 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
         if (tooltip) tooltip.style.opacity = '0';
       });
 
-    // --- LEGEND ---
-    const legendContainer = container.querySelector('.chart-legend');
-    if (legendContainer) {
-      legendContainer.innerHTML = '';
-      const items: { label: string; color: string; dashed: boolean }[] = [
-        { label: 'Ground', color: THEME.ground, dashed: false },
-      ];
-      if (bridge) items.push({ label: 'Bridge', color: THEME.bridge, dashed: false });
-      if (wsel !== undefined) items.push({ label: 'DS WSEL', color: THEME.water, dashed: true });
-      if (methodWsels) {
-        Object.keys(methodWsels).forEach(m => {
-          items.push({ label: m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1), color: METHOD_COLORS[m] ?? '#888', dashed: true });
-        });
-      }
-      items.forEach(item => {
-        const el = document.createElement('div');
-        el.className = 'flex items-center gap-1.5 text-[11px] text-muted-foreground';
-        const swatch = document.createElement('div');
-        swatch.className = 'w-3.5 h-0.5 rounded-sm shrink-0';
-        if (item.dashed) {
-          swatch.style.borderTop = `2px dashed ${item.color}`;
-          swatch.style.background = 'none';
-        } else {
-          swatch.style.background = item.color;
-          swatch.style.height = '3px';
-        }
-        el.appendChild(swatch);
-        const text = document.createElement('span');
-        text.textContent = item.label;
-        el.appendChild(text);
-        legendContainer.appendChild(el);
+    // --- LEGEND (rendered in SVG below axis labels) ---
+    const items: { label: string; color: string; dashed: boolean }[] = [
+      { label: 'Ground', color: THEME.ground, dashed: false },
+    ];
+    if (bridge) items.push({ label: 'Bridge', color: THEME.bridge, dashed: false });
+    if (wsel !== undefined) items.push({ label: 'DS WSEL', color: THEME.water, dashed: true });
+    if (methodWsels) {
+      Object.keys(methodWsels).forEach(m => {
+        items.push({ label: m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1), color: METHOD_COLORS[m] ?? '#888', dashed: true });
       });
     }
+
+    const legendG = svg.append('g')
+      .attr('transform', `translate(${width / 2}, ${height + 56})`);
+
+    const itemWidth = 80;
+    const totalWidth = items.length * itemWidth;
+    const startX = -totalWidth / 2;
+
+    items.forEach((item, i) => {
+      const g = legendG.append('g')
+        .attr('transform', `translate(${startX + i * itemWidth}, 0)`);
+
+      if (item.dashed) {
+        g.append('line')
+          .attr('x1', 0).attr('y1', 0).attr('x2', 14).attr('y2', 0)
+          .attr('stroke', item.color).attr('stroke-width', 2).attr('stroke-dasharray', '3 2');
+      } else {
+        g.append('rect')
+          .attr('x', 0).attr('y', -1.5).attr('width', 14).attr('height', 3)
+          .attr('fill', item.color).attr('rx', 1);
+      }
+
+      g.append('text')
+        .attr('x', 18).attr('y', 0).attr('dy', '0.35em')
+        .attr('fill', THEME.axis).attr('font-size', 10)
+        .text(item.label);
+    });
   }, [crossSection, wsel, bridge, methodWsels, lenUnit]);
 
   useEffect(() => {
@@ -395,7 +400,6 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
         ref={tooltipRef}
         className="absolute pointer-events-none opacity-0 transition-opacity duration-150 bg-card border border-border rounded-lg px-2.5 py-2 text-xs font-mono z-50 [&_.label]:text-muted-foreground [&_.label]:text-[10px] [&_.label]:uppercase [&_.label]:tracking-wide [&_.label]:mt-1 [&_.label]:first:mt-0 [&_.value]:text-foreground [&_.value]:font-semibold [&_.pier]:text-red-400"
       />
-      <div className="chart-legend absolute bottom-0 left-1/2 -translate-x-1/2 flex gap-4 pb-0.5" />
     </div>
   );
 }

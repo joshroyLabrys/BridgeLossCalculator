@@ -47,7 +47,7 @@ export function CrossSectionForm() {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border overflow-hidden">
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">

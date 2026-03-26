@@ -128,3 +128,14 @@
     @apply font-sans;
   }
 }
+
+/* Radial grid background */
+.dark body {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.55 0.12 230 / 0.07) 0%, transparent 70%),
+    linear-gradient(oklch(0.26 0.02 230 / 0.25) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.26 0.02 230 / 0.25) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+  background-position: top center, center center, center center;
+  background-attachment: fixed;
+}

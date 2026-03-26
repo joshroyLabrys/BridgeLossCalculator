@@ -35,12 +35,12 @@ export function HecRasInputRow({ profileNames, field }: {
       {profileNames.map((name) => {
         const entry = getEntry(name);
         return (
-          <TableCell key={name} className="px-1">
+          <TableCell key={name} className="text-right">
             <Input
               type="number"
               value={entry[field] ?? ''}
               onChange={(e) => setField(name, e.target.value)}
-              className="h-7 text-sm font-mono w-20"
+              className="h-7 text-sm font-mono tabular-nums text-right ml-auto w-full"
               placeholder="—"
             />
           </TableCell>
