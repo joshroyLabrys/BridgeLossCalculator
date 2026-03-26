@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { MethodResult, HecRasComparison } from '@/engine/types';
+import { toDisplay, unitLabel } from '@/lib/units';
 import { Calculator } from 'lucide-react';
 
 const METHOD_COLORS: Record<string, string> = {
@@ -74,6 +75,10 @@ export function ComparisonTables() {
   const comparison = useProjectStore((s) => s.hecRasComparison);
   const updateHecRas = useProjectStore((s) => s.updateHecRasComparison);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
+  const us = useProjectStore((s) => s.unitSystem);
+  const len = unitLabel('length', us);
+  const vel = unitLabel('velocity', us);
+  const areaU = unitLabel('area', us);
 
   if (!results) {
     return (
@@ -119,8 +124,8 @@ export function ComparisonTables() {
           </TableHeader>
           <TableBody>
             {/* Upstream WSEL */}
-            <SectionDivider label="Upstream WSEL (ft)" colSpan={colSpan} />
-            <MethodRows methods={methods} results={results} getValue={(r) => r.upstreamWsel.toFixed(2)} profileCount={profileNames.length} />
+            <SectionDivider label={`Upstream WSEL (${len})`} colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => toDisplay(r.upstreamWsel, 'length', us).toFixed(2)} profileCount={profileNames.length} />
             <HecRasInputRow profileNames={profileNames} field="upstreamWsel" />
             <TableRow className="bg-muted/10 hover:bg-muted/10">
               <TableCell className="text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</TableCell>
@@ -138,21 +143,21 @@ export function ComparisonTables() {
             </TableRow>
 
             {/* Head Loss */}
-            <SectionDivider label="Head Loss (ft)" colSpan={colSpan} />
-            <MethodRows methods={methods} results={results} getValue={(r) => r.totalHeadLoss.toFixed(3)} profileCount={profileNames.length} />
+            <SectionDivider label={`Head Loss (${len})`} colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} profileCount={profileNames.length} />
             <HecRasInputRow profileNames={profileNames} field="headLoss" />
 
             {/* Approach Velocity */}
-            <SectionDivider label="Approach Velocity (ft/s)" colSpan={colSpan} />
-            <MethodRows methods={methods} results={results} getValue={(r) => r.approachVelocity.toFixed(2)} profileCount={profileNames.length} />
+            <SectionDivider label={`Approach Velocity (${vel})`} colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => toDisplay(r.approachVelocity, 'velocity', us).toFixed(2)} profileCount={profileNames.length} />
 
             {/* Froude Number */}
             <SectionDivider label="Froude Number" colSpan={colSpan} />
             <MethodRows methods={methods} results={results} getValue={(r) => r.froudeApproach.toFixed(3)} profileCount={profileNames.length} />
 
             {/* Bridge Opening Area */}
-            <SectionDivider label="Bridge Opening Area (ft²)" colSpan={colSpan} />
-            <MethodRows methods={methods} results={results} getValue={(r) => r.inputEcho.bridgeOpeningArea.toFixed(1)} profileCount={profileNames.length} />
+            <SectionDivider label={`Bridge Opening Area (${areaU})`} colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => toDisplay(r.inputEcho.bridgeOpeningArea, 'area', us).toFixed(1)} profileCount={profileNames.length} />
 
             {/* TUFLOW Pier FLC */}
             <SectionDivider label="TUFLOW Pier FLC" colSpan={colSpan} />

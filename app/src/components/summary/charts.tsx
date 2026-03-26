@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useProjectStore } from '@/store/project-store';
+import { toDisplay, unitLabel } from '@/lib/units';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const COLORS = {
@@ -25,6 +26,9 @@ const tooltipStyle = {
 export function SummaryCharts() {
   const results = useProjectStore((s) => s.results);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
+  const us = useProjectStore((s) => s.unitSystem);
+  const len = unitLabel('length', us);
+  const dischargeU = unitLabel('discharge', us);
 
   if (!results) return null;
 
@@ -34,16 +38,16 @@ export function SummaryCharts() {
     const row: Record<string, string | number> = { name: p.name };
     for (const m of methods) {
       const r = results[m][i];
-      if (r && !r.error) row[m] = parseFloat(r.totalHeadLoss.toFixed(3));
+      if (r && !r.error) row[m] = parseFloat(toDisplay(r.totalHeadLoss, 'length', us).toFixed(3));
     }
     return row;
   });
 
   const wselData = flowProfiles.map((p, i) => {
-    const row: Record<string, string | number> = { Q: p.discharge };
+    const row: Record<string, string | number> = { Q: toDisplay(p.discharge, 'discharge', us) };
     for (const m of methods) {
       const r = results[m][i];
-      if (r && !r.error) row[m] = parseFloat(r.upstreamWsel.toFixed(2));
+      if (r && !r.error) row[m] = parseFloat(toDisplay(r.upstreamWsel, 'length', us).toFixed(2));
     }
     return row;
   });
@@ -61,7 +65,7 @@ export function SummaryCharts() {
               <BarChart data={headLossData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 230)" />
                 <XAxis dataKey="name" stroke="oklch(0.50 0.01 260)" fontSize={12} />
-                <YAxis label={{ value: 'Head Loss (ft)', angle: -90, position: 'insideLeft' }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <YAxis label={{ value: `Head Loss (${len})`, angle: -90, position: 'insideLeft' }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
                 {methods.map((m) => (
@@ -83,8 +87,8 @@ export function SummaryCharts() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={wselData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.26 0.02 230)" />
-                <XAxis dataKey="Q" label={{ value: 'Discharge (cfs)', position: 'bottom', offset: -5 }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
-                <YAxis label={{ value: 'US WSEL (ft)', angle: -90, position: 'insideLeft' }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <XAxis dataKey="Q" label={{ value: `Discharge (${dischargeU})`, position: 'bottom', offset: -5 }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
+                <YAxis label={{ value: `US WSEL (${len})`, angle: -90, position: 'insideLeft' }} stroke="oklch(0.50 0.01 260)" fontSize={12} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Legend />
                 {methods.map((m) => (

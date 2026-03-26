@@ -39,7 +39,7 @@ Private Const RES_ROW_SUPER_FLC As Long = 86  ' TUFLOW Super FLC
 Private Const COLOR_GOLD As Long = 16769408   ' RGB(255, 223, 128)
 
 ' Checkbox row on the Input sheet
-Private Const CHECKBOX_ROW As Long = 88
+Private Const CHECKBOX_ROW As Long = 109
 
 ' =============================================================================
 ' RunAllMethods
@@ -69,7 +69,7 @@ Public Sub RunAllMethods()
 
     ' --- Validate inputs first ---
     Dim validMsg As String
-    validMsg = ValidateInputs(wb)
+    validMsg = ValidateInputs(wb.Sheets(SHEET_INPUT))
     If Len(validMsg) > 0 Then
         Application.ScreenUpdating = True
         Application.Calculation = xlCalculationAutomatic
@@ -87,10 +87,10 @@ Public Sub RunAllMethods()
     Dim runYarnell  As Boolean
     Dim runWSPRO    As Boolean
 
-    runEnergy   = GetCheckboxValue(wsInput, CHECKBOX_ROW, 2)
-    runMomentum = GetCheckboxValue(wsInput, CHECKBOX_ROW, 3)
-    runYarnell  = GetCheckboxValue(wsInput, CHECKBOX_ROW, 4)
-    runWSPRO    = GetCheckboxValue(wsInput, CHECKBOX_ROW, 5)
+    runEnergy   = GetCheckboxValue(wsInput, CHECKBOX_ROW, 3)   ' Col C
+    runMomentum = GetCheckboxValue(wsInput, CHECKBOX_ROW, 4)   ' Col D
+    runYarnell  = GetCheckboxValue(wsInput, CHECKBOX_ROW, 5)   ' Col E
+    runWSPRO    = GetCheckboxValue(wsInput, CHECKBOX_ROW, 6)   ' Col F
 
     ' If none selected, run all
     If Not (runEnergy Or runMomentum Or runYarnell Or runWSPRO) Then

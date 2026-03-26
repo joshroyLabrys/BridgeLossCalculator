@@ -8,6 +8,7 @@ import { validateInputs } from '@/lib/validation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Play, RotateCcw, AlertTriangle, FlaskConical } from 'lucide-react';
 import { TEST_BRIDGES, type TestBridge } from '@/lib/test-bridges';
+import { toImperial } from '@/lib/units';
 
 export function ActionButtons() {
   const [testOpen, setTestOpen] = useState(false);
@@ -24,10 +25,41 @@ export function ActionButtons() {
   const updateCoefficients = useProjectStore((s) => s.updateCoefficients);
 
   function handleLoadTestBridge(bridge: TestBridge) {
-    updateCrossSection(bridge.crossSection);
-    updateBridgeGeometry(bridge.bridgeGeometry);
-    updateFlowProfiles(bridge.flowProfiles);
-    updateCoefficients(bridge.coefficients);
+    // Test bridge data is authored in metric — convert to imperial for engine storage
+    const m2i = (v: number, ut: 'length' | 'area' | 'velocity' | 'discharge') => toImperial(v, ut, 'metric');
+
+    updateCrossSection(bridge.crossSection.map((p) => ({
+      ...p,
+      station: m2i(p.station, 'length'),
+      elevation: m2i(p.elevation, 'length'),
+    })));
+
+    const bg = bridge.bridgeGeometry;
+    updateBridgeGeometry({
+      ...bg,
+      lowChordLeft: m2i(bg.lowChordLeft, 'length'),
+      lowChordRight: m2i(bg.lowChordRight, 'length'),
+      highChord: m2i(bg.highChord, 'length'),
+      leftAbutmentStation: m2i(bg.leftAbutmentStation, 'length'),
+      rightAbutmentStation: m2i(bg.rightAbutmentStation, 'length'),
+      piers: bg.piers.map((p) => ({ ...p, station: m2i(p.station, 'length'), width: m2i(p.width, 'length') })),
+      lowChordProfile: bg.lowChordProfile.map((p) => ({ station: m2i(p.station, 'length'), elevation: m2i(p.elevation, 'length') })),
+    });
+
+    updateFlowProfiles(bridge.flowProfiles.map((fp) => ({
+      ...fp,
+      discharge: m2i(fp.discharge, 'discharge'),
+      dsWsel: m2i(fp.dsWsel, 'length'),
+      contractionLength: m2i(fp.contractionLength, 'length'),
+      expansionLength: m2i(fp.expansionLength, 'length'),
+    })));
+
+    updateCoefficients({
+      ...bridge.coefficients,
+      tolerance: m2i(bridge.coefficients.tolerance, 'length'),
+      initialGuessOffset: m2i(bridge.coefficients.initialGuessOffset, 'length'),
+    });
+
     clearResults();
     setErrors([]);
     setTestOpen(false);
@@ -54,9 +86,11 @@ export function ActionButtons() {
           </ul>
         </div>
       )}
-      <div className="sticky bottom-0 flex justify-end gap-2 pt-4 pb-3 mt-4 border-t backdrop-blur-sm bg-background/80 -mx-6 px-6">
+      <div className="sticky bottom-0 flex items-center pt-4 pb-3 mt-4 border-t backdrop-blur-sm bg-background/80 -mx-6 px-6">
         <Button variant="outline" size="sm" onClick={() => setTestOpen(true)}><FlaskConical className="h-4 w-4 mr-1.5" />Load Test Bridge</Button>
-        <Button variant="outline" size="sm" onClick={() => { clearResults(); setErrors([]); }}><RotateCcw className="h-4 w-4 mr-1.5" />Clear</Button>
+        <div className="flex-1" />
+        <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => { clearResults(); setErrors([]); }}><RotateCcw className="h-4 w-4 mr-1.5" />Clear</Button>
+        <div className="w-6" />
         <Button onClick={handleRunAll}><Play className="h-4 w-4 mr-1.5" />Run All Methods</Button>
       </div>
 

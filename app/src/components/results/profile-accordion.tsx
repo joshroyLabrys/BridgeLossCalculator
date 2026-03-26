@@ -3,6 +3,8 @@
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { MethodResult } from '@/engine/types';
+import { useProjectStore } from '@/store/project-store';
+import { toDisplay, unitLabel } from '@/lib/units';
 import { CalculationSteps } from './calculation-steps';
 import { IterationLog } from './iteration-log';
 
@@ -22,12 +24,17 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 }
 
 export function ProfileAccordion({ results }: { results: MethodResult[] }) {
+  const us = useProjectStore((s) => s.unitSystem);
+  const len = unitLabel('length', us);
+  const areaU = unitLabel('area', us);
+  const vel = unitLabel('velocity', us);
+
   return (
     <Accordion multiple className="space-y-2">
       {results.map((r, i) => {
         const regime = regimeBadge[r.flowRegime];
         return (
-          <AccordionItem key={i} value={`profile-${i}`} className="border rounded-lg">
+          <AccordionItem key={i} value={`profile-${i}`} className="border rounded-lg bg-card">
             <AccordionTrigger className="px-4 py-3 hover:no-underline">
               <div className="flex items-center gap-3 flex-1">
                 <span className="font-medium">{r.profileName}</span>
@@ -36,25 +43,25 @@ export function ProfileAccordion({ results }: { results: MethodResult[] }) {
                 {r.error && <span className="text-xs text-destructive">{r.error}</span>}
               </div>
               <div className="text-sm text-muted-foreground mr-4 font-mono tabular-nums">
-                US WSEL: <span className="text-foreground font-medium">{r.upstreamWsel.toFixed(2)} ft</span>
-                {' | '}Δh: <span className="text-foreground font-medium">{r.totalHeadLoss.toFixed(3)} ft</span>
+                US WSEL: <span className="text-foreground font-medium">{toDisplay(r.upstreamWsel, 'length', us).toFixed(2)} {len}</span>
+                {' | '}Δh: <span className="text-foreground font-medium">{toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} {len}</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4 space-y-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Input Echo</div>
                 <div className="grid grid-cols-4 gap-2">
-                  <MetricCard label="Flow Area" value={`${r.inputEcho.flowArea.toFixed(1)} ft²`} />
-                  <MetricCard label="Hydraulic Radius" value={`${r.inputEcho.hydraulicRadius.toFixed(3)} ft`} />
-                  <MetricCard label="Bridge Opening Area" value={`${r.inputEcho.bridgeOpeningArea.toFixed(1)} ft²`} />
-                  <MetricCard label="Pier Blockage" value={`${r.inputEcho.pierBlockage.toFixed(1)} ft²`} />
+                  <MetricCard label="Flow Area" value={`${toDisplay(r.inputEcho.flowArea, 'area', us).toFixed(1)} ${areaU}`} />
+                  <MetricCard label="Hydraulic Radius" value={`${toDisplay(r.inputEcho.hydraulicRadius, 'length', us).toFixed(3)} ${len}`} />
+                  <MetricCard label="Bridge Opening Area" value={`${toDisplay(r.inputEcho.bridgeOpeningArea, 'area', us).toFixed(1)} ${areaU}`} />
+                  <MetricCard label="Pier Blockage" value={`${toDisplay(r.inputEcho.pierBlockage, 'area', us).toFixed(1)} ${areaU}`} />
                 </div>
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Results</div>
                 <div className="grid grid-cols-4 gap-2">
-                  <MetricCard label="Approach Velocity" value={`${r.approachVelocity.toFixed(2)} ft/s`} />
-                  <MetricCard label="Bridge Velocity" value={`${r.bridgeVelocity.toFixed(2)} ft/s`} />
+                  <MetricCard label="Approach Velocity" value={`${toDisplay(r.approachVelocity, 'velocity', us).toFixed(2)} ${vel}`} />
+                  <MetricCard label="Bridge Velocity" value={`${toDisplay(r.bridgeVelocity, 'velocity', us).toFixed(2)} ${vel}`} />
                   <MetricCard label="Froude (approach)" value={r.froudeApproach.toFixed(3)} />
                   <MetricCard label="Froude (bridge)" value={r.froudeBridge.toFixed(3)} />
                 </div>

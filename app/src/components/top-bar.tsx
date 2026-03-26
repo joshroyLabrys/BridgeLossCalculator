@@ -3,12 +3,15 @@
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useProjectStore } from '@/store/project-store';
-import { Waves, Upload, Download } from 'lucide-react';
+import { UnitSystem } from '@/lib/units';
+import { Waves, Upload, Download, Ruler } from 'lucide-react';
 
 export function TopBar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportProject = useProjectStore((s) => s.exportProject);
   const importProject = useProjectStore((s) => s.importProject);
+  const unitSystem = useProjectStore((s) => s.unitSystem);
+  const setUnitSystem = useProjectStore((s) => s.setUnitSystem);
 
   function handleExport() {
     const json = exportProject();
@@ -42,7 +45,22 @@ export function TopBar() {
         <Waves className="h-5 w-5 text-primary" />
         <h1 className="text-xl font-semibold text-primary">Bridge Loss Calculator</h1>
       </div>
-      <div className="flex gap-2">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 rounded-full border border-border/50 bg-muted/30 px-1 py-0.5">
+          <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-2" />
+          <button
+            onClick={() => setUnitSystem('metric')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Metric
+          </button>
+          <button
+            onClick={() => setUnitSystem('imperial')}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            Imperial
+          </button>
+        </div>
         <input
           ref={fileInputRef}
           type="file"

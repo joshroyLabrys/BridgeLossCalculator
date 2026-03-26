@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useProjectStore } from '@/store/project-store';
 import { CrossSectionPoint } from '@/engine/types';
 import { CrossSectionChart } from '@/components/cross-section-chart';
+import { toDisplay, toImperial, unitLabel } from '@/lib/units';
 import { Plus, Trash2, Landmark, Upload } from 'lucide-react';
 import { useRef } from 'react';
 
@@ -17,7 +18,9 @@ export function CrossSectionForm() {
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
   const results = useProjectStore((s) => s.results);
   const updateCrossSection = useProjectStore((s) => s.updateCrossSection);
+  const us = useProjectStore((s) => s.unitSystem);
   const csvInputRef = useRef<HTMLInputElement>(null);
+  const lenUnit = unitLabel('length', us);
 
   function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,6 +62,8 @@ export function CrossSectionForm() {
     const updated = [...crossSection];
     if (field === 'bankStation') {
       updated[index] = { ...updated[index], bankStation: value === '—' ? null : value as 'left' | 'right' };
+    } else if (field === 'station' || field === 'elevation') {
+      updated[index] = { ...updated[index], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
     } else {
       updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 };
     }
@@ -79,8 +84,8 @@ export function CrossSectionForm() {
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10 text-xs">#</TableHead>
-                    <TableHead className="text-xs">Station (ft)</TableHead>
-                    <TableHead className="text-xs">Elevation (ft)</TableHead>
+                    <TableHead className="text-xs">Station ({lenUnit})</TableHead>
+                    <TableHead className="text-xs">Elevation ({lenUnit})</TableHead>
                     <TableHead className="text-xs">Manning's n</TableHead>
                     <TableHead className="text-xs">Bank</TableHead>
                     <TableHead className="w-10"></TableHead>
@@ -91,10 +96,10 @@ export function CrossSectionForm() {
                     <TableRow key={i} className="even:bg-muted/20">
                       <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
                       <TableCell>
-                        <Input type="number" value={point.station} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" />
+                        <Input type="number" value={toDisplay(point.station, 'length', us)} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={point.elevation} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" />
+                        <Input type="number" value={toDisplay(point.elevation, 'length', us)} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" />
                       </TableCell>
                       <TableCell>
                         <Input type="number" value={point.manningsN} onChange={(e) => updatePoint(i, 'manningsN', e.target.value)} className="h-8 text-sm font-mono" step="0.001" />

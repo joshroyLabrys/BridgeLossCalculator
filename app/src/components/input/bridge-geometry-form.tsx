@@ -9,15 +9,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useProjectStore } from '@/store/project-store';
 import { BridgeGeometry, Pier } from '@/engine/types';
+import { toDisplay, toImperial, unitLabel } from '@/lib/units';
 import { Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 
 export function BridgeGeometryForm() {
   const bridge = useProjectStore((s) => s.bridgeGeometry);
   const update = useProjectStore((s) => s.updateBridgeGeometry);
+  const us = useProjectStore((s) => s.unitSystem);
+  const lenUnit = unitLabel('length', us);
+
+  const lengthFields = new Set(['lowChordLeft', 'lowChordRight', 'highChord', 'leftAbutmentStation', 'rightAbutmentStation']);
 
   function setField(field: string, value: string) {
-    update({ ...bridge, [field]: parseFloat(value) || 0 });
+    const raw = parseFloat(value) || 0;
+    update({ ...bridge, [field]: lengthFields.has(field) ? toImperial(raw, 'length', us) : raw });
   }
 
   function addPier() {
@@ -33,17 +39,17 @@ export function BridgeGeometryForm() {
     if (field === 'shape') {
       piers[index] = { ...piers[index], shape: value as Pier['shape'] };
     } else {
-      piers[index] = { ...piers[index], [field]: parseFloat(value) || 0 };
+      piers[index] = { ...piers[index], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
     }
     update({ ...bridge, piers });
   }
 
   const fields = [
-    { key: 'lowChordLeft', label: 'Low Chord Elev. (Left)', unit: 'ft' },
-    { key: 'lowChordRight', label: 'Low Chord Elev. (Right)', unit: 'ft' },
-    { key: 'highChord', label: 'High Chord Elevation', unit: 'ft' },
-    { key: 'leftAbutmentStation', label: 'Left Abutment Station', unit: 'ft' },
-    { key: 'rightAbutmentStation', label: 'Right Abutment Station', unit: 'ft' },
+    { key: 'lowChordLeft', label: 'Low Chord Elev. (Left)', unit: lenUnit },
+    { key: 'lowChordRight', label: 'Low Chord Elev. (Right)', unit: lenUnit },
+    { key: 'highChord', label: 'High Chord Elevation', unit: lenUnit },
+    { key: 'leftAbutmentStation', label: 'Left Abutment Station', unit: lenUnit },
+    { key: 'rightAbutmentStation', label: 'Right Abutment Station', unit: lenUnit },
     { key: 'leftAbutmentSlope', label: 'Left Abutment Slope', unit: 'H:V' },
     { key: 'rightAbutmentSlope', label: 'Right Abutment Slope', unit: 'H:V' },
     { key: 'skewAngle', label: 'Skew Angle', unit: 'deg' },
@@ -61,7 +67,7 @@ export function BridgeGeometryForm() {
             {fields.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{f.label} <span className="text-muted-foreground/60">({f.unit})</span></Label>
-                <Input type="number" value={(bridge as unknown as Record<string, number>)[f.key]} onChange={(e) => setField(f.key, e.target.value)} className="h-8 text-sm font-mono" />
+                <Input type="number" value={lengthFields.has(f.key) ? toDisplay((bridge as unknown as Record<string, number>)[f.key], 'length', us) : (bridge as unknown as Record<string, number>)[f.key]} onChange={(e) => setField(f.key, e.target.value)} className="h-8 text-sm font-mono" />
               </div>
             ))}
           </div>
@@ -79,8 +85,8 @@ export function BridgeGeometryForm() {
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead className="w-10 text-xs">#</TableHead>
-                  <TableHead className="text-xs">Station (ft)</TableHead>
-                  <TableHead className="text-xs">Width (ft)</TableHead>
+                  <TableHead className="text-xs">Station ({lenUnit})</TableHead>
+                  <TableHead className="text-xs">Width ({lenUnit})</TableHead>
                   <TableHead className="text-xs">Shape</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
@@ -89,8 +95,8 @@ export function BridgeGeometryForm() {
                 {bridge.piers.map((pier, i) => (
                   <TableRow key={i} className="even:bg-muted/20">
                     <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
-                    <TableCell><Input type="number" value={pier.station} onChange={(e) => updatePier(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
-                    <TableCell><Input type="number" value={pier.width} onChange={(e) => updatePier(i, 'width', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                    <TableCell><Input type="number" value={toDisplay(pier.station, 'length', us)} onChange={(e) => updatePier(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                    <TableCell><Input type="number" value={toDisplay(pier.width, 'length', us)} onChange={(e) => updatePier(i, 'width', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
                     <TableCell>
                       <Select value={pier.shape} onValueChange={(v) => updatePier(i, 'shape', v ?? '')}>
                         <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
@@ -121,13 +127,15 @@ export function BridgeGeometryForm() {
 
 function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (b: BridgeGeometry) => void }) {
   const [open, setOpen] = useState(false);
+  const us = useProjectStore((s) => s.unitSystem);
+  const lenUnit = unitLabel('length', us);
   const profile = bridge.lowChordProfile;
 
   function addPoint() { update({ ...bridge, lowChordProfile: [...profile, { station: 0, elevation: 0 }] }); }
   function removePoint(i: number) { update({ ...bridge, lowChordProfile: profile.filter((_, idx) => idx !== i) }); }
   function updatePoint(i: number, field: 'station' | 'elevation', value: string) {
     const pts = [...profile];
-    pts[i] = { ...pts[i], [field]: parseFloat(value) || 0 };
+    pts[i] = { ...pts[i], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
     update({ ...bridge, lowChordProfile: pts });
   }
 
@@ -149,8 +157,8 @@ function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10 text-xs">#</TableHead>
-                    <TableHead className="text-xs">Station (ft)</TableHead>
-                    <TableHead className="text-xs">Elevation (ft)</TableHead>
+                    <TableHead className="text-xs">Station ({lenUnit})</TableHead>
+                    <TableHead className="text-xs">Elevation ({lenUnit})</TableHead>
                     <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -158,8 +166,8 @@ function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (
                   {profile.map((pt, i) => (
                     <TableRow key={i} className="even:bg-muted/20">
                       <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
-                      <TableCell><Input type="number" value={pt.station} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
-                      <TableCell><Input type="number" value={pt.elevation} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                      <TableCell><Input type="number" value={toDisplay(pt.station, 'length', us)} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                      <TableCell><Input type="number" value={toDisplay(pt.elevation, 'length', us)} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
                       <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => removePoint(i)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                     </TableRow>
                   ))}

@@ -67,7 +67,7 @@ const initialState = {
   coefficients: defaultCoefficients,
   results: null as CalculationResults | null,
   hecRasComparison: [] as HecRasComparison[],
-  unitSystem: 'imperial' as UnitSystem,
+  unitSystem: 'metric' as UnitSystem,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
