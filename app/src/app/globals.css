@@ -129,13 +129,12 @@
   }
 }
 
-/* Radial grid background */
+/* Grid background with mid-to-dark blue gradient */
 .dark body {
-  background-image:
-    radial-gradient(ellipse 60% 50% at 50% 0%, oklch(0.55 0.12 230 / 0.07) 0%, transparent 70%),
-    linear-gradient(oklch(0.26 0.02 230 / 0.25) 1px, transparent 1px),
-    linear-gradient(90deg, oklch(0.26 0.02 230 / 0.25) 1px, transparent 1px);
-  background-size: 100% 100%, 48px 48px, 48px 48px;
-  background-position: top center, center center, center center;
+  background:
+    linear-gradient(oklch(0.45 0.12 230 / 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.45 0.12 230 / 0.12) 1px, transparent 1px),
+    linear-gradient(180deg, oklch(0.18 0.03 230) 0%, oklch(0.11 0.02 240) 100%);
+  background-size: 40px 40px, 40px 40px, 100% 100%;
   background-attachment: fixed;
 }
