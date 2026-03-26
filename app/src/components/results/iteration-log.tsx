@@ -2,9 +2,13 @@
 
 import { useState } from 'react';
 import { IterationStep } from '@/engine/types';
+import { useProjectStore } from '@/store/project-store';
+import { toDisplay, unitLabel } from '@/lib/units';
 
 export function IterationLog({ log }: { log: IterationStep[] }) {
   const [open, setOpen] = useState(false);
+  const us = useProjectStore((s) => s.unitSystem);
+  const lenUnit = unitLabel('length', us);
 
   if (log.length === 0) return null;
 
@@ -21,16 +25,16 @@ export function IterationLog({ log }: { log: IterationStep[] }) {
                 <th className="p-1 text-left">#</th>
                 <th className="p-1 text-right">Trial WSEL</th>
                 <th className="p-1 text-right">Computed WSEL</th>
-                <th className="p-1 text-right">Error (ft)</th>
+                <th className="p-1 text-right">Error ({lenUnit})</th>
               </tr>
             </thead>
             <tbody>
               {log.map((step) => (
                 <tr key={step.iteration} className="border-t">
                   <td className="p-1">{step.iteration}</td>
-                  <td className="p-1 text-right">{step.trialWsel.toFixed(4)}</td>
-                  <td className="p-1 text-right">{step.computedWsel.toFixed(4)}</td>
-                  <td className="p-1 text-right">{step.error.toFixed(6)}</td>
+                  <td className="p-1 text-right">{toDisplay(step.trialWsel, 'length', us).toFixed(4)}</td>
+                  <td className="p-1 text-right">{toDisplay(step.computedWsel, 'length', us).toFixed(4)}</td>
+                  <td className="p-1 text-right">{toDisplay(step.error, 'length', us).toFixed(6)}</td>
                 </tr>
               ))}
             </tbody>

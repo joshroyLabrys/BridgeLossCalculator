@@ -4,10 +4,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useProjectStore } from '@/store/project-store';
+import { toImperial, toDisplay, unitLabel } from '@/lib/units';
 
 export function CoefficientsForm() {
   const coefficients = useProjectStore((s) => s.coefficients);
   const update = useProjectStore((s) => s.updateCoefficients);
+  const us = useProjectStore((s) => s.unitSystem);
+
+  const lengthUnit = unitLabel('length', us);
 
   function setField(field: string, value: number) {
     update({ ...coefficients, [field]: value });
@@ -62,12 +66,24 @@ export function CoefficientsForm() {
             <Input type="number" value={coefficients.maxIterations} onChange={(e) => setField('maxIterations', parseInt(e.target.value) || 100)} className="h-8 text-sm" />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Tolerance (ft)</Label>
-            <Input type="number" value={coefficients.tolerance} onChange={(e) => setField('tolerance', parseFloat(e.target.value) || 0.01)} className="h-8 text-sm" step="0.001" />
+            <Label className="text-xs">Tolerance ({lengthUnit})</Label>
+            <Input
+              type="number"
+              value={toDisplay(coefficients.tolerance, 'length', us)}
+              onChange={(e) => setField('tolerance', toImperial(parseFloat(e.target.value) || 0.01, 'length', us))}
+              className="h-8 text-sm"
+              step="0.001"
+            />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Initial Guess Offset (ft)</Label>
-            <Input type="number" value={coefficients.initialGuessOffset} onChange={(e) => setField('initialGuessOffset', parseFloat(e.target.value) || 0.5)} className="h-8 text-sm" step="0.1" />
+            <Label className="text-xs">Initial Guess Offset ({lengthUnit})</Label>
+            <Input
+              type="number"
+              value={toDisplay(coefficients.initialGuessOffset, 'length', us)}
+              onChange={(e) => setField('initialGuessOffset', toImperial(parseFloat(e.target.value) || 0.5, 'length', us))}
+              className="h-8 text-sm"
+              step="0.1"
+            />
           </div>
         </div>
       </div>
