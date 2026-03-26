@@ -37,6 +37,38 @@ function pctDiffBadge(pct: number | null) {
   return <Badge variant="outline" className={`text-xs font-mono ${color}`}>{pct.toFixed(1)}%</Badge>;
 }
 
+function SectionDivider({ label, colSpan }: { label: string; colSpan: number }) {
+  return (
+    <TableRow className="bg-muted/20 hover:bg-muted/20">
+      <TableCell colSpan={colSpan} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground py-1.5">
+        {label}
+      </TableCell>
+    </TableRow>
+  );
+}
+
+function MethodRows({ methods, results, getValue, profileCount }: {
+  methods: readonly ('energy' | 'momentum' | 'yarnell' | 'wspro')[];
+  results: NonNullable<ReturnType<typeof useProjectStore.getState>['results']>;
+  getValue: (r: MethodResult) => string;
+  profileCount: number;
+}) {
+  return (
+    <>
+      {methods.map((method) => (
+        <TableRow key={method} className="even:bg-muted/10">
+          <TableCell><MethodName method={method} /></TableCell>
+          {results[method].map((r, i) => (
+            <TableCell key={i} className="text-right font-mono tabular-nums">
+              {r.error ? <span className="text-destructive">ERR</span> : getValue(r)}
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  );
+}
+
 export function ComparisonTables() {
   const results = useProjectStore((s) => s.results);
   const comparison = useProjectStore((s) => s.hecRasComparison);
@@ -69,177 +101,71 @@ export function ComparisonTables() {
 
   const profileNames = flowProfiles.map((p) => p.name);
   const methods = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
+  const colSpan = 1 + profileNames.length;
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Upstream WSEL Comparison</CardTitle>
-          <CardDescription>Upstream water surface elevation (ft) across all methods</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="text-xs">Method</TableHead>
-                {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {methods.map((method) => (
-                <TableRow key={method} className="even:bg-muted/20">
-                  <TableCell><MethodName method={method} /></TableCell>
-                  {results[method].map((r, i) => (
-                    <TableCell key={i} className="text-right font-mono tabular-nums">
-                      {r.error ? <span className="text-destructive">ERR</span> : r.upstreamWsel.toFixed(2)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-              <HecRasInputRow profileNames={profileNames} field="upstreamWsel" />
-              <TableRow className="bg-muted/10">
-                <TableCell className="text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</TableCell>
-                {profileNames.map((name, i) => {
-                  const hecEntry = comparison.find((c) => c.profileName === name);
-                  const energyResult = results.energy[i];
-                  if (!hecEntry?.headLoss || !energyResult || energyResult.error) {
-                    return <TableCell key={name} className="text-right">—</TableCell>;
-                  }
-                  const pct = hecEntry.headLoss !== 0
-                    ? ((energyResult.totalHeadLoss - hecEntry.headLoss) / hecEntry.headLoss) * 100
-                    : null;
-                  return <TableCell key={name} className="text-right">{pctDiffBadge(pct)}</TableCell>;
-                })}
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Method Comparison</CardTitle>
+        <CardDescription>All methods compared across flow profiles</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="text-xs w-[180px]">Method</TableHead>
+              {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {/* Upstream WSEL */}
+            <SectionDivider label="Upstream WSEL (ft)" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.upstreamWsel.toFixed(2)} profileCount={profileNames.length} />
+            <HecRasInputRow profileNames={profileNames} field="upstreamWsel" />
+            <TableRow className="bg-muted/10 hover:bg-muted/10">
+              <TableCell className="text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</TableCell>
+              {profileNames.map((name, i) => {
+                const hecEntry = comparison.find((c) => c.profileName === name);
+                const energyResult = results.energy[i];
+                if (!hecEntry?.upstreamWsel || !energyResult || energyResult.error) {
+                  return <TableCell key={name} className="text-right">—</TableCell>;
+                }
+                const pct = hecEntry.upstreamWsel !== 0
+                  ? ((energyResult.upstreamWsel - hecEntry.upstreamWsel) / hecEntry.upstreamWsel) * 100
+                  : null;
+                return <TableCell key={name} className="text-right">{pctDiffBadge(pct)}</TableCell>;
+              })}
+            </TableRow>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Head Loss Comparison</CardTitle>
-          <CardDescription>Total head loss (ft) across all methods</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.totalHeadLoss.toFixed(3)} />
-        </CardContent>
-      </Card>
+            {/* Head Loss */}
+            <SectionDivider label="Head Loss (ft)" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.totalHeadLoss.toFixed(3)} profileCount={profileNames.length} />
+            <HecRasInputRow profileNames={profileNames} field="headLoss" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Approach Velocity</CardTitle>
-          <CardDescription>Approach velocity (ft/s) across all methods</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.approachVelocity.toFixed(2)} />
-        </CardContent>
-      </Card>
+            {/* Approach Velocity */}
+            <SectionDivider label="Approach Velocity (ft/s)" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.approachVelocity.toFixed(2)} profileCount={profileNames.length} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Froude Number</CardTitle>
-          <CardDescription>Approach Froude number across all methods</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.froudeApproach.toFixed(3)} />
-        </CardContent>
-      </Card>
+            {/* Froude Number */}
+            <SectionDivider label="Froude Number" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.froudeApproach.toFixed(3)} profileCount={profileNames.length} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Bridge Opening Area</CardTitle>
-          <CardDescription>Net bridge opening area (ft²) across all methods</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SimpleMethodTable profileNames={profileNames} methods={methods} results={results} getValue={(r) => r.inputEcho.bridgeOpeningArea.toFixed(1)} />
-        </CardContent>
-      </Card>
+            {/* Bridge Opening Area */}
+            <SectionDivider label="Bridge Opening Area (ft²)" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.inputEcho.bridgeOpeningArea.toFixed(1)} profileCount={profileNames.length} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>TUFLOW Form Loss Coefficients</CardTitle>
-          <CardDescription>Pier and superstructure FLCs for TUFLOW modelling</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/30 hover:bg-muted/30">
-                <TableHead className="text-xs">Method</TableHead>
-                {profileNames.map((n) => <TableHead key={n} className="text-xs text-center" colSpan={2}>{n}</TableHead>)}
-              </TableRow>
-              <TableRow className="bg-muted/20 hover:bg-muted/20">
-                <TableHead></TableHead>
-                {profileNames.map((n) => (
-                  <React.Fragment key={n}>
-                    <TableHead className="text-right text-xs text-muted-foreground">Pier</TableHead>
-                    <TableHead className="text-right text-xs text-muted-foreground">Super</TableHead>
-                  </React.Fragment>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {methods.map((method) => (
-                <TableRow key={method} className="even:bg-muted/20">
-                  <TableCell><MethodName method={method} /></TableCell>
-                  {results[method].map((r, i) => (
-                    <React.Fragment key={i}>
-                      <TableCell className="text-right font-mono tabular-nums text-sm">{r.error ? 'ERR' : r.tuflowPierFLC.toFixed(3)}</TableCell>
-                      <TableCell className="text-right font-mono tabular-nums text-sm">{r.error ? 'ERR' : (r.tuflowSuperFLC !== null ? r.tuflowSuperFLC.toFixed(3) : 'N/A')}</TableCell>
-                    </React.Fragment>
-                  ))}
-                </TableRow>
-              ))}
-              <TableRow className="bg-amber-500/5 border-y border-amber-500/20">
-                <TableCell className="text-sm font-semibold text-amber-400">HEC-RAS</TableCell>
-                {profileNames.map((name) => {
-                  const entry = comparison.find((c) => c.profileName === name);
-                  return (
-                    <React.Fragment key={name}>
-                      <TableCell className="px-1">
-                        <Input type="number" value={entry?.pierFLC ?? ''} onChange={(e) => updateHecRasField(name, 'pierFLC', e.target.value)} className="h-7 text-sm font-mono tabular-nums text-right w-full" placeholder="—" />
-                      </TableCell>
-                      <TableCell className="px-1">
-                        <Input type="number" value={entry?.superFLC ?? ''} onChange={(e) => updateHecRasField(name, 'superFLC', e.target.value)} className="h-7 text-sm font-mono tabular-nums text-right w-full" placeholder="—" />
-                      </TableCell>
-                    </React.Fragment>
-                  );
-                })}
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+            {/* TUFLOW Pier FLC */}
+            <SectionDivider label="TUFLOW Pier FLC" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.tuflowPierFLC.toFixed(3)} profileCount={profileNames.length} />
+            <HecRasInputRow profileNames={profileNames} field="pierFLC" />
 
-function SimpleMethodTable({ profileNames, methods, results, getValue }: {
-  profileNames: string[];
-  methods: readonly ('energy' | 'momentum' | 'yarnell' | 'wspro')[];
-  results: NonNullable<ReturnType<typeof useProjectStore.getState>['results']>;
-  getValue: (r: MethodResult) => string;
-}) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-muted/30 hover:bg-muted/30">
-          <TableHead className="text-xs">Method</TableHead>
-          {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {methods.map((method) => (
-          <TableRow key={method} className="even:bg-muted/20">
-            <TableCell><MethodName method={method} /></TableCell>
-            {results[method].map((r, i) => (
-              <TableCell key={i} className="text-right font-mono tabular-nums">
-                {r.error ? <span className="text-destructive">ERR</span> : getValue(r)}
-              </TableCell>
-            ))}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+            {/* TUFLOW Superstructure FLC */}
+            <SectionDivider label="TUFLOW Superstructure FLC" colSpan={colSpan} />
+            <MethodRows methods={methods} results={results} getValue={(r) => r.tuflowSuperFLC !== null ? r.tuflowSuperFLC.toFixed(3) : 'N/A'} profileCount={profileNames.length} />
+            <HecRasInputRow profileNames={profileNames} field="superFLC" />
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }
