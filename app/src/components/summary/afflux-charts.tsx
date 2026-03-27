@@ -13,6 +13,7 @@ import { useProjectStore } from '@/store/project-store';
 import { unitLabel, toDisplay } from '@/lib/units';
 import { CalculationResults } from '@/engine/types';
 import { Download } from 'lucide-react';
+import { ReactNode } from 'react';
 
 const METHOD_COLORS: Record<string, string> = {
   energy: '#3b82f6',
@@ -140,7 +141,7 @@ function useD3Chart(
   }, [draw]);
 }
 
-export function AffluxCharts() {
+export function AffluxCharts({ callout }: { callout?: ReactNode } = {}) {
   const results = useProjectStore((s) => s.results);
   const sensitivityResults = useProjectStore((s) => s.sensitivityResults);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
@@ -269,18 +270,23 @@ export function AffluxCharts() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Afflux Rating Curve</CardTitle>
-          <CardDescription className="max-w-prose text-pretty">
-            Head loss by method across discharge scenarios.
-            {sensitivityResults ? ' Shaded bands show Manning\'s n sensitivity — where bands are wider than method spread, roughness dominates.' : ''}
-            {' '}Converging lines = consistent methods; divergence at higher flows may signal pressure flow transition.
-          </CardDescription>
-          <CardAction>
-            <Button variant="outline" size="sm" onClick={exportCsv}>
-              <Download className="h-3.5 w-3.5 mr-1.5" />
-              CSV
-            </Button>
-          </CardAction>
+          <div className="flex items-start gap-6">
+            <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex items-center justify-between">
+                <CardTitle>Afflux Rating Curve</CardTitle>
+                <Button variant="outline" size="sm" onClick={exportCsv}>
+                  <Download className="h-3.5 w-3.5 mr-1.5" />
+                  CSV
+                </Button>
+              </div>
+              <CardDescription className="text-pretty">
+                Head loss by method across discharge scenarios.
+                {sensitivityResults ? ' Shaded bands show Manning\'s n sensitivity — where bands are wider than method spread, roughness dominates.' : ''}
+                {' '}Converging lines = consistent methods; divergence at higher flows may signal pressure flow transition.
+              </CardDescription>
+            </div>
+            {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+          </div>
         </CardHeader>
         <CardContent>
           <div ref={affluxRef} className="h-[320px] w-full" />

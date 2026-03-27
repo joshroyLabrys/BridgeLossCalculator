@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { MethodResult, HecRasComparison } from '@/engine/types';
 import { toDisplay, unitLabel } from '@/lib/units';
 import { Calculator } from 'lucide-react';
+import { ReactNode } from 'react';
 
 const METHOD_COLORS: Record<string, string> = {
   energy: 'bg-blue-500',
@@ -82,7 +83,7 @@ function MethodRows({ methods, results, getValue, profileCount }: {
   );
 }
 
-export function ComparisonTables() {
+export function ComparisonTables({ callout }: { callout?: ReactNode } = {}) {
   const results = useProjectStore((s) => s.results);
   const comparison = useProjectStore((s) => s.hecRasComparison);
   const updateHecRas = useProjectStore((s) => s.updateHecRasComparison);
@@ -123,12 +124,17 @@ export function ComparisonTables() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Method Comparison</CardTitle>
-        <CardDescription className="max-w-prose text-pretty">
-          Four independent methods compared side-by-side. Agreement within 5% (green) is high confidence,
-          5–10% (amber) is acceptable, and beyond 10% (red) warrants investigation. Enter HEC-RAS values
-          for percentage differences. TUFLOW FLC values are form loss coefficients for 2D models.
-        </CardDescription>
+        <div className="flex items-start gap-6">
+          <div className="flex-1 min-w-0 space-y-1">
+            <CardTitle>Method Comparison</CardTitle>
+            <CardDescription className="text-pretty">
+              Four independent methods compared side-by-side. Agreement within 5% (green) is high confidence,
+              5–10% (amber) is acceptable, and beyond 10% (red) warrants investigation. Enter HEC-RAS values
+              for percentage differences. TUFLOW FLC values are form loss coefficients for 2D models.
+            </CardDescription>
+          </div>
+          {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+        </div>
       </CardHeader>
       <CardContent>
         <Table>

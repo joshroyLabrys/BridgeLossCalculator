@@ -49,13 +49,22 @@ export function AiSummaryBanner() {
 
   if (!aiSummary) return null;
 
+  const overallItems = Array.isArray(aiSummary.overall) ? aiSummary.overall : [aiSummary.overall];
+
   return (
     <Card className="border-primary/20 bg-primary/5">
       <CardContent className="flex items-start gap-3 py-4 px-4">
         <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-xs font-semibold uppercase tracking-widest text-primary/60 mb-1.5">AI Analysis</p>
-          <p className="text-sm text-foreground leading-relaxed">{aiSummary.overall}</p>
+          <ul className="space-y-1">
+            {overallItems.map((item, i) => (
+              <li key={i} className="text-sm text-foreground leading-relaxed flex items-baseline gap-2">
+                <span className="text-primary/40 shrink-0">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </CardContent>
     </Card>

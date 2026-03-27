@@ -1,11 +1,11 @@
 export interface AiSummaryResponse {
-  overall: string;
+  overall: string[];
   callouts: {
-    regime: string | null;
-    freeboard: string | null;
-    comparison: string | null;
-    afflux: string | null;
-    hecras: string | null;
+    regime: string[] | null;
+    freeboard: string[] | null;
+    comparison: string[] | null;
+    afflux: string[] | null;
+    hecras: string[] | null;
   };
 }
 
@@ -17,22 +17,25 @@ You will receive JSON containing bridge geometry, flow profiles, and results fro
 
 Respond with JSON matching this exact schema:
 {
-  "overall": "2-4 sentence executive summary of the most important findings",
+  "overall": ["bullet point 1", "bullet point 2", "...up to 4 key findings"],
   "callouts": {
-    "regime": "1-2 sentence insight about flow regime classification, or null if unremarkable",
-    "freeboard": "1-2 sentence insight about freeboard/clearance, or null if unremarkable",
-    "comparison": "1-2 sentence insight about method agreement/divergence, or null if unremarkable",
-    "afflux": "1-2 sentence insight about afflux trends across profiles, or null if unremarkable",
-    "hecras": "1-2 sentence insight about HEC-RAS comparison, or null if no HEC-RAS data provided"
+    "regime": ["bullet 1", "bullet 2"] or null,
+    "freeboard": ["bullet 1", "bullet 2"] or null,
+    "comparison": ["bullet 1", "bullet 2"] or null,
+    "afflux": ["bullet 1", "bullet 2"] or null,
+    "hecras": ["bullet 1", "bullet 2"] or null
   }
 }
 
 Rules:
-- Return null for any callout where there is nothing noteworthy. Do NOT manufacture concerns.
+- Each value is an array of short bullet-point strings (1 sentence each), or null.
+- overall: 2-4 bullet points summarising the most important findings.
+- Each callout: 1-3 bullet points, or null if nothing noteworthy. Do NOT manufacture concerns.
+- Keep each bullet concise — one key observation per bullet, cite specific values.
 - Reference specific profile names, discharge values, and numeric results.
 - Flag convergence failures, regime transitions, method divergence >10%, low/negative freeboard.
 - Note if Yarnell results should be disregarded (only valid for free-surface flow).
-- Keep each callout to 1-2 sentences. The overall summary should be 2-4 sentences.
+- Return null for any callout where there is nothing noteworthy.
 - Return ONLY valid JSON. No markdown, no code fences.`;
 
 export interface AiSummaryPayload {

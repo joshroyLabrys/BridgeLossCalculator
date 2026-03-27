@@ -15,7 +15,7 @@ import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { FreeboardCheck } from '@/components/summary/freeboard-check';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
-import { AiCallout } from '@/components/summary/ai-callout';
+import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
 import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal } from 'lucide-react';
 
@@ -190,23 +190,18 @@ export function MainTabs() {
           </p>
         </div>
         <AiSummaryBanner />
-        <div>
-          <RegimeMatrix />
-          <AiCallout text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />
-        </div>
-        <div>
-          <ComparisonTables />
-          <AiCallout text={aiSummary?.callouts.comparison ?? null} loading={aiLoading} />
-          <AiCallout text={aiSummary?.callouts.hecras ?? null} loading={aiLoading} />
-        </div>
-        <div>
-          <AffluxCharts />
-          <AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />
-        </div>
-        <div>
-          <FreeboardCheck />
-          <AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />
-        </div>
+        <RegimeMatrix callout={<AiCallout text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />} />
+        <ComparisonTables callout={
+          <AiCalloutGrouped
+            loading={aiLoading}
+            sections={[
+              { label: 'Method Agreement', text: aiSummary?.callouts.comparison ?? null },
+              { label: 'HEC-RAS Comparison', text: aiSummary?.callouts.hecras ?? null },
+            ]}
+          />
+        } />
+        <AffluxCharts callout={<AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
+        <FreeboardCheck callout={<AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
       </TabsContent>
     </Tabs>
   );

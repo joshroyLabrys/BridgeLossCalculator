@@ -9,8 +9,8 @@ export async function POST(request: Request) {
 
     const parsed: AiSummaryResponse = JSON.parse(raw);
 
-    // Validate shape
-    if (typeof parsed.overall !== 'string' || typeof parsed.callouts !== 'object') {
+    // Validate shape — overall must be an array, callouts must be an object
+    if (!Array.isArray(parsed.overall) || typeof parsed.callouts !== 'object') {
       return Response.json(
         { error: 'Invalid response structure from AI' },
         { status: 502 }

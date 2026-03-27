@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertTriangle } from 'lucide-react';
+import { ReactNode } from 'react';
 
 const METHOD_COLORS: Record<string, string> = {
   energy: 'bg-blue-500',
@@ -19,7 +20,7 @@ const regimeStyle = {
   'overtopping': { label: 'O', full: 'Overtopping', className: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
 };
 
-export function RegimeMatrix() {
+export function RegimeMatrix({ callout }: { callout?: ReactNode } = {}) {
   const results = useProjectStore((s) => s.results);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
 
@@ -37,17 +38,22 @@ export function RegimeMatrix() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Flow Regime Matrix</CardTitle>
-        <CardDescription className="max-w-prose text-pretty">
-          Flow regime determines which methods are valid. Yarnell is derived for free-surface conditions
-          only — results under pressure or overtopping should be treated with caution.
-        </CardDescription>
-        {hasRegimeDisagreement && (
-          <p className="text-sm text-amber-400 max-w-prose text-pretty">
-            Methods disagree on regime for one or more profiles — the bridge may be near a flow
-            transition and results carry higher uncertainty.
-          </p>
-        )}
+        <div className="flex items-start gap-6">
+          <div className="flex-1 min-w-0 space-y-1">
+            <CardTitle>Flow Regime Matrix</CardTitle>
+            <CardDescription className="text-pretty">
+              Flow regime determines which methods are valid. Yarnell is derived for free-surface conditions
+              only — results under pressure or overtopping should be treated with caution.
+            </CardDescription>
+            {hasRegimeDisagreement && (
+              <p className="text-sm text-amber-400 text-pretty">
+                Methods disagree on regime for one or more profiles — the bridge may be near a flow
+                transition and results carry higher uncertainty.
+              </p>
+            )}
+          </div>
+          {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <Table>
