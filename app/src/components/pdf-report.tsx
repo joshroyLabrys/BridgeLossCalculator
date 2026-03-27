@@ -179,7 +179,7 @@ function DataTable({ columns, data }: { columns: Column[]; data: Record<string, 
             <Text key={ci} style={[
               col.align === 'right' ? s.tdRight : s.td,
               { width: col.width, textAlign: col.align || 'left' },
-              col.cellStyle?.(row) || {},
+              (col.cellStyle?.(row) || {}) as Record<string, string | number>,
             ]}>
               {col.render(row, ri)}
             </Text>
