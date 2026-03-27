@@ -27,6 +27,8 @@ export function ActionButtons() {
   const updateBridgeGeometry = useProjectStore((s) => s.updateBridgeGeometry);
   const updateFlowProfiles = useProjectStore((s) => s.updateFlowProfiles);
   const updateCoefficients = useProjectStore((s) => s.updateCoefficients);
+  const fetchAiSummary = useProjectStore((s) => s.fetchAiSummary);
+  const clearAiSummary = useProjectStore((s) => s.clearAiSummary);
 
   function handleLoadTestBridge(bridge: TestBridge) {
     // Test bridge data is authored in metric — convert to imperial for engine storage
@@ -73,6 +75,7 @@ export function ActionButtons() {
     const validationErrors = validateInputs(crossSection, bridgeGeometry, flowProfiles);
     if (validationErrors.length > 0) { setErrors(validationErrors.map((e) => e.message)); return; }
     setErrors([]);
+    clearAiSummary();
     setIsProcessing(true);
 
     // Defer computation so the UI can paint the loading state
@@ -90,6 +93,7 @@ export function ActionButtons() {
       toast.success('Processing complete', {
         description: 'All methods have been calculated. Viewing summary.',
       });
+      fetchAiSummary();
     }, 50);
   }
 
