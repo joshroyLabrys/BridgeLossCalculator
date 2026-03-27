@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 import { Toaster } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
 import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
+import { generatePdf } from '@/components/pdf-report';
 import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal } from 'lucide-react';
 
 export function MainTabs() {
@@ -27,12 +28,40 @@ export function MainTabs() {
   const setUnitSystem = useProjectStore((s) => s.setUnitSystem);
   const activeMainTab = useProjectStore((s) => s.activeMainTab);
   const setActiveMainTab = useProjectStore((s) => s.setActiveMainTab);
+  const crossSection = useProjectStore((s) => s.crossSection);
+  const bridgeGeometry = useProjectStore((s) => s.bridgeGeometry);
+  const flowProfiles = useProjectStore((s) => s.flowProfiles);
+  const coefficients = useProjectStore((s) => s.coefficients);
+  const results = useProjectStore((s) => s.results);
+  const projectName = useProjectStore((s) => s.projectName);
   const aiSummary = useProjectStore((s) => s.aiSummary);
   const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
+
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const handleTabChange = useCallback((value: string | number | null) => {
     if (typeof value === 'string') setActiveMainTab(value);
   }, [setActiveMainTab]);
+
+  async function handlePdf() {
+    setPdfLoading(true);
+    try {
+      await generatePdf({
+        projectName,
+        crossSection,
+        bridge: bridgeGeometry,
+        profiles: flowProfiles,
+        coefficients,
+        results,
+        aiSummary,
+      });
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      alert(`PDF generation failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
 
   function handleExport() {
     const json = exportProject();
@@ -136,9 +165,9 @@ export function MainTabs() {
               <Download className="h-4 w-4 mr-1.5" />
               Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
+            <Button variant="outline" size="sm" onClick={handlePdf} disabled={pdfLoading}>
               <FileText className="h-4 w-4 mr-1.5" />
-              PDF
+              {pdfLoading ? 'Generating…' : 'PDF'}
             </Button>
           </div>
         </div>
