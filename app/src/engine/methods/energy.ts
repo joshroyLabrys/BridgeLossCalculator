@@ -12,6 +12,7 @@ import {
   calcTopWidth,
   calcConveyance,
   calcHydraulicRadius,
+  calcAlpha,
 } from '../geometry';
 import {
   calcNetBridgeArea,
@@ -28,6 +29,8 @@ import {
 import { detectFlowRegime } from '../flow-regime';
 import { calcTuflowPierFLC, calcTuflowSuperFLC } from '../tuflow-flc';
 import { solve } from '../iteration';
+import { runPressureFlow } from '../pressure-flow';
+import { runOvertoppingFlow } from '../overtopping-flow';
 
 /**
  * Energy method: standard step energy equation across 4 cross-sections.
@@ -51,7 +54,6 @@ export function runEnergy(
   const dsTopWidth = calcTopWidth(crossSection, dsWsel);
   const dsConveyance = calcConveyance(crossSection, dsWsel);
   const dsVelocity = calcVelocity(Q, dsArea);
-  const dsVh = calcVelocityHead(dsVelocity);
 
   steps.push({
     stepNumber: 1,
@@ -72,10 +74,20 @@ export function runEnergy(
   const lowChord = interpolateLowChord(bridge, midStation);
   const regime = detectFlowRegime(dsWsel, lowChord, bridge.highChord);
 
+  if (regime === 'pressure') {
+    return runPressureFlow(crossSection, bridge, profile, coefficients);
+  }
+  if (regime === 'overtopping') {
+    return runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+  }
+
+  // Compute alpha
+  const alpha = coefficients.alphaOverride ?? calcAlpha(crossSection, dsWsel);
+  const dsVh = calcVelocityHead(dsVelocity, alpha);
+
   // Bridge section properties at DS WSEL
   const bridgeArea = calcNetBridgeArea(bridge, crossSection, dsWsel, coefficients.debrisBlockagePct);
   const bridgeVelocity = calcVelocity(Q, bridgeArea);
-  const bridgeVh = calcVelocityHead(bridgeVelocity);
 
   // Iterate on upstream WSEL
   const dsSf = calcFrictionSlope(Q, dsConveyance);
@@ -87,22 +99,28 @@ export function runEnergy(
       const usArea = calcFlowArea(crossSection, trialWsel);
       const usConveyance = calcConveyance(crossSection, trialWsel);
       const usVelocity = calcVelocity(Q, usArea);
-      const usVh = calcVelocityHead(usVelocity);
+      const usVh = calcVelocityHead(usVelocity, alpha);
 
       const usSf = calcFrictionSlope(Q, usConveyance);
 
       // Friction loss across full reach
       const hf = calcFrictionLoss(
-        profile.contractionLength + profile.expansionLength,
+        bridge.contractionLength + bridge.expansionLength,
         dsSf,
         usSf
       );
 
+      // Recompute bridge velocity head at current trial WSEL
+      const bridgeWsel = (trialWsel + dsWsel) / 2;
+      const iterBridgeArea = calcNetBridgeArea(bridge, crossSection, bridgeWsel, coefficients.debrisBlockagePct);
+      const iterBridgeVelocity = calcVelocity(Q, iterBridgeArea);
+      const iterBridgeVh = calcVelocityHead(iterBridgeVelocity, alpha);
+
       // Contraction loss
-      const hc = Cc * Math.abs(bridgeVh - dsVh);
+      const hc = Cc * Math.abs(iterBridgeVh - dsVh);
 
       // Expansion loss
-      const he = Ce * Math.abs(usVh - bridgeVh);
+      const he = Ce * Math.abs(usVh - iterBridgeVh);
 
       return dsWsel + hf + hc + he;
     },
@@ -115,11 +133,17 @@ export function runEnergy(
   const usTopWidth = calcTopWidth(crossSection, usWsel);
   const usConveyance = calcConveyance(crossSection, usWsel);
   const usVelocity = calcVelocity(Q, usArea);
-  const usVh = calcVelocityHead(usVelocity);
+  const usVh = calcVelocityHead(usVelocity, alpha);
   const usSf = calcFrictionSlope(Q, usConveyance);
 
+  // Final bridge velocity head at converged WSEL
+  const bridgeWsel = (usWsel + dsWsel) / 2;
+  const finalBridgeArea = calcNetBridgeArea(bridge, crossSection, bridgeWsel, coefficients.debrisBlockagePct);
+  const finalBridgeVelocity = calcVelocity(Q, finalBridgeArea);
+  const bridgeVh = calcVelocityHead(finalBridgeVelocity, alpha);
+
   const hf = calcFrictionLoss(
-    profile.contractionLength + profile.expansionLength,
+    bridge.contractionLength + bridge.expansionLength,
     dsSf,
     usSf
   );
@@ -131,7 +155,7 @@ export function runEnergy(
     stepNumber: 2,
     description: 'Friction loss',
     formula: `h_f = L × (S_f1 + S_f2) / 2`,
-    intermediateValues: { L: profile.contractionLength + profile.expansionLength, Sf_ds: dsSf, Sf_us: usSf },
+    intermediateValues: { L: bridge.contractionLength + bridge.expansionLength, Sf_ds: dsSf, Sf_us: usSf },
     result: hf,
     unit: 'ft',
   });
@@ -177,6 +201,7 @@ export function runEnergy(
     froudeApproach: froudeUs,
     froudeBridge: froudeDs,
     flowRegime: regime,
+    flowCalculationType: 'free-surface',
     iterationLog: solverResult.log,
     converged: solverResult.converged,
     calculationSteps: steps,
