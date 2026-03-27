@@ -9,8 +9,8 @@ import { useProjectStore } from '@/store/project-store';
 import { CrossSectionPoint } from '@/engine/types';
 import { CrossSectionChart } from '@/components/cross-section-chart';
 import { toDisplay, toImperial, unitLabel } from '@/lib/units';
-import { Plus, Trash2, Landmark, Upload } from 'lucide-react';
-import { useRef } from 'react';
+import { Plus, Trash2, Landmark, Upload, ShieldAlert } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 export function CrossSectionForm() {
   const crossSection = useProjectStore((s) => s.crossSection);
@@ -169,6 +169,8 @@ function BridgeOverlayChart({ crossSection, bridgeGeometry, flowProfiles, result
   flowProfiles: ReturnType<typeof useProjectStore.getState>['flowProfiles'];
   results: ReturnType<typeof useProjectStore.getState>['results'];
 }) {
+  const [showHazard, setShowHazard] = useState(false);
+
   const methodWsels: Record<string, number> = {};
   if (results) {
     for (const method of ['energy', 'momentum', 'yarnell', 'wspro'] as const) {
@@ -177,12 +179,30 @@ function BridgeOverlayChart({ crossSection, bridgeGeometry, flowProfiles, result
     }
   }
 
+  // Use the first available energy result for hazard overlay
+  const hazardResult = results?.energy?.[0] ?? null;
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <Landmark className="h-4 w-4 text-muted-foreground" />
-          <CardTitle>Bridge Overlay</CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Landmark className="h-4 w-4 text-muted-foreground" />
+            <CardTitle>Bridge Overlay</CardTitle>
+          </div>
+          {results && (
+            <button
+              onClick={() => setShowHazard(!showHazard)}
+              className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all border ${
+                showHazard
+                  ? 'border-primary/50 bg-primary/10 text-primary'
+                  : 'border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ShieldAlert className="h-3.5 w-3.5" />
+              Hazard Overlay
+            </button>
+          )}
         </div>
         <CardDescription>Cross-section with bridge geometry, piers, and water surface</CardDescription>
       </CardHeader>
@@ -193,6 +213,8 @@ function BridgeOverlayChart({ crossSection, bridgeGeometry, flowProfiles, result
             bridge={bridgeGeometry}
             wsel={flowProfiles[0]?.dsWsel}
             methodWsels={Object.keys(methodWsels).length > 0 ? methodWsels : undefined}
+            hazardResult={showHazard ? hazardResult : null}
+            showHazard={showHazard}
           />
         </div>
       </CardContent>

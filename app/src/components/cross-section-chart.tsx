@@ -9,6 +9,8 @@ import { min, max } from 'd3-array';
 import { CrossSectionPoint, BridgeGeometry } from '@/engine/types';
 import { useProjectStore } from '@/store/project-store';
 import { unitLabel } from '@/lib/units';
+import { computeHazardZones, HAZARD_COLORS, HAZARD_LABELS, type HazardLevel } from './hazard-overlay';
+import type { MethodResult } from '@/engine/types';
 
 interface CrossSectionChartProps {
   crossSection: CrossSectionPoint[];
@@ -16,6 +18,8 @@ interface CrossSectionChartProps {
   bridge?: BridgeGeometry;
   /** Per-method WSEL lines to overlay. Key = method name, value = WSEL elevation. */
   methodWsels?: Record<string, number>;
+  hazardResult?: MethodResult | null;
+  showHazard?: boolean;
 }
 
 const METHOD_COLORS: Record<string, string> = {
@@ -48,7 +52,7 @@ function interpGround(crossSection: CrossSectionPoint[], sta: number): number {
   return crossSection[crossSection.length - 1]?.elevation ?? 0;
 }
 
-export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: CrossSectionChartProps) {
+export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels, hazardResult, showHazard }: CrossSectionChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const us = useProjectStore((s) => s.unitSystem);
@@ -163,6 +167,55 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
           .attr('fill', THEME.water)
           .attr('fill-opacity', 0.08);
       }
+    }
+
+    // --- HAZARD OVERLAY ---
+    if (showHazard && hazardResult && wsel !== undefined) {
+      const zones = computeHazardZones(crossSection, wsel, hazardResult.approachVelocity);
+      for (const zone of zones) {
+        const zx1 = x(zone.stationStart);
+        const zx2 = x(zone.stationEnd);
+        const zy1 = y(wsel);
+        // Find ground elevation at zone boundaries for the bottom
+        const midSta = (zone.stationStart + zone.stationEnd) / 2;
+        const groundElev = interpGround(crossSection, midSta);
+        const zy2 = y(groundElev);
+
+        svg.append('rect')
+          .attr('x', zx1)
+          .attr('y', zy1)
+          .attr('width', Math.max(zx2 - zx1, 1))
+          .attr('height', Math.max(zy2 - zy1, 0))
+          .attr('fill', HAZARD_COLORS[zone.level])
+          .attr('fill-opacity', 0.25)
+          .attr('pointer-events', 'none');
+      }
+
+      // Hazard legend (top-right of chart)
+      const hazLevels: HazardLevel[] = ['H1', 'H2', 'H3', 'H4', 'H5'];
+      const legendG = svg.append('g')
+        .attr('transform', `translate(${width - 130}, 8)`);
+
+      legendG.append('rect')
+        .attr('x', -6).attr('y', -4)
+        .attr('width', 136).attr('height', hazLevels.length * 14 + 8)
+        .attr('fill', 'oklch(0.15 0.01 230)')
+        .attr('fill-opacity', 0.9)
+        .attr('rx', 4)
+        .attr('stroke', THEME.grid);
+
+      hazLevels.forEach((level, i) => {
+        legendG.append('rect')
+          .attr('x', 0).attr('y', i * 14)
+          .attr('width', 10).attr('height', 10)
+          .attr('fill', HAZARD_COLORS[level])
+          .attr('rx', 1);
+
+        legendG.append('text')
+          .attr('x', 14).attr('y', i * 14 + 8)
+          .attr('fill', THEME.axis).attr('font-size', 9)
+          .text(`${level}: ${HAZARD_LABELS[level].split('—')[0].trim()}`);
+      });
     }
 
     // --- GROUND LINE ---
@@ -373,7 +426,7 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
         .attr('fill', THEME.axis).attr('font-size', 10)
         .text(item.label);
     });
-  }, [crossSection, wsel, bridge, methodWsels, lenUnit]);
+  }, [crossSection, wsel, bridge, methodWsels, lenUnit, hazardResult, showHazard]);
 
   useEffect(() => {
     draw();
