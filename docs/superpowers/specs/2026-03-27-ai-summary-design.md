@@ -14,9 +14,17 @@ The AI analysis is non-blocking: it triggers automatically after calculations co
 - `src/app/api/ai-summary/route.ts` — Next.js POST route handler
 
 ### Auth Priority
-1. **Codex OAuth** — reads JWT from `~/.codex/auth.json` (written by `codex login`)
-2. **Platform API key** — falls back to `OPENAI_API_KEY` env var
-3. **Error** — returns error asking user to configure auth
+1. **`OPENAI_API_KEY`** env var — standard Platform API key (required for Vercel)
+2. **`OPENAI_OAUTH_TOKEN`** env var — Codex OAuth token (expires daily)
+3. **`~/.codex/auth.json`** — auto-reads Codex OAuth token from disk (local dev only, written by `codex login`)
+4. **Error** — returns error asking user to configure auth
+
+### Deployment
+
+- **Local dev:** No env vars needed. Run `codex login` to write `~/.codex/auth.json` — the auth layer reads it automatically.
+- **Vercel:** Set `OPENAI_API_KEY` in the Vercel project environment variables. The Codex file path is not available in serverless environments.
+
+See `app/.env.example` for reference.
 
 ### Codex OAuth Client Config
 ```typescript
