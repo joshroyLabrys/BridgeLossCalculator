@@ -368,7 +368,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
                       { width: `${80 / profiles.length}%`, textAlign: 'center' },
                       warn ? { color: COLORS.amber, fontFamily: 'Helvetica-Bold' } : {},
                     ]}>
-                      {label}{warn ? ' ⚠' : ''}
+                      {label}{warn ? ' (!)' : ''}
                     </Text>
                   );
                 })}

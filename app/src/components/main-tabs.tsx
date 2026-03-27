@@ -17,7 +17,7 @@ import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
 import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
-import { generatePdf } from '@/components/pdf-report';
+import type { PdfReportData } from '@/components/pdf-report';
 import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal } from 'lucide-react';
 
 export function MainTabs() {
@@ -46,6 +46,7 @@ export function MainTabs() {
   async function handlePdf() {
     setPdfLoading(true);
     try {
+      const { generatePdf } = await import('@/components/pdf-report');
       await generatePdf({
         projectName,
         crossSection,

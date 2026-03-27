@@ -60,7 +60,8 @@ function svgToDataUrl(svg: SVGSVGElement, scale: number): Promise<string> {
       const canvas = document.createElement('canvas');
       canvas.width = w * scale;
       canvas.height = h * scale;
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); reject(new Error('Could not get canvas 2D context')); return; }
       ctx.scale(scale, scale);
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
