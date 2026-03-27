@@ -5,6 +5,9 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { useProjectStore } from '@/store/project-store';
 import { HecRasComparison } from '@/engine/types';
 
+/** FLC fields are geometric — one value typically applies to all profiles. */
+const FILL_ALL_FIELDS = new Set<string>(['pierFLC', 'superFLC']);
+
 export function HecRasInputRow({ profileNames, field, spacer }: {
   profileNames: string[];
   field: 'upstreamWsel' | 'headLoss' | 'pierFLC' | 'superFLC';
@@ -20,11 +23,25 @@ export function HecRasInputRow({ profileNames, field, spacer }: {
   }
 
   function setField(profileName: string, value: string) {
+    const parsed = value ? parseFloat(value) : null;
+    const oldValue = getEntry(profileName)[field];
+
     const entries = profileNames.map((name) => {
       const entry = getEntry(name);
+
       if (name === profileName) {
-        return { ...entry, [field]: value ? parseFloat(value) : null };
+        return { ...entry, [field]: parsed };
       }
+
+      // For FLC fields, propagate to cells that are empty or still match the
+      // previous shared value (i.e. haven't been individually overridden).
+      if (FILL_ALL_FIELDS.has(field)) {
+        const current = entry[field];
+        if (current === null || current === oldValue) {
+          return { ...entry, [field]: parsed };
+        }
+      }
+
       return entry;
     });
     update(entries);
