@@ -16,6 +16,7 @@ import type {
   FlowProfile,
   Coefficients,
   CalculationResults,
+  HecRasComparison,
 } from '@/engine/types';
 import type { AiSummaryResponse } from '@/lib/api/ai-summary-prompt';
 import { captureCharts, CapturedChart } from './pdf-chart-capture';
@@ -30,7 +31,7 @@ const METHOD_LABELS: Record<string, string> = {
   wspro: 'WSPRO',
 };
 
-const COLORS = {
+const C = {
   primary: '#1e40af',
   text: '#111827',
   textLight: '#6b7280',
@@ -41,79 +42,95 @@ const COLORS = {
   amber: '#b45309',
   red: '#dc2626',
   white: '#ffffff',
+  bg: '#f9fafb',
 };
 
 /* ─── Styles ─── */
 
 const s = StyleSheet.create({
+  /* Page */
   page: {
     paddingTop: 40,
-    paddingBottom: 50,
+    paddingBottom: 45,
     paddingHorizontal: 42,
     fontFamily: 'Helvetica',
     fontSize: 9,
-    color: COLORS.text,
+    color: C.text,
   },
   pageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
     paddingBottom: 4,
-    marginBottom: 12,
+    marginBottom: 10,
   },
-  pageHeaderTitle: { fontSize: 8, color: COLORS.textMuted, fontFamily: 'Helvetica', letterSpacing: 0.5 },
-  pageHeaderSection: { fontSize: 8, color: COLORS.textLight, fontFamily: 'Helvetica-Bold' },
+  pageHeaderLeft: { fontSize: 8, color: C.textMuted, letterSpacing: 0.5 },
+  pageHeaderRight: { fontSize: 8, color: C.textLight, fontFamily: 'Helvetica-Bold' },
   pageFooter: {
     position: 'absolute',
-    bottom: 25,
+    bottom: 20,
     left: 42,
     right: 42,
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 0.5,
-    borderTopColor: COLORS.borderLight,
-    paddingTop: 4,
+    borderTopColor: C.borderLight,
+    paddingTop: 3,
   },
-  footerText: { fontSize: 7, color: COLORS.textMuted },
+  footerText: { fontSize: 7, color: C.textMuted },
+
+  /* Cover */
   coverCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  coverRule: { width: 60, height: 2, backgroundColor: COLORS.primary, marginBottom: 24 },
-  coverTitle: { fontSize: 22, fontFamily: 'Helvetica-Bold', color: COLORS.text, textAlign: 'center' },
-  coverSubtitle: { fontSize: 12, color: COLORS.textLight, marginTop: 4, textAlign: 'center' },
-  coverRuleBottom: { width: 60, height: 2, backgroundColor: COLORS.primary, marginTop: 24, marginBottom: 16 },
-  coverDate: { fontSize: 10, color: COLORS.textMuted },
-  sectionTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: COLORS.text, marginBottom: 2 },
-  sectionDesc: { fontSize: 8, color: COLORS.textMuted, marginBottom: 8, maxWidth: 400 },
-  subTitle: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#374151', marginTop: 8, marginBottom: 4 },
-  subDesc: { fontSize: 7, color: COLORS.textMuted, marginBottom: 4 },
-  kvGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
+  coverRule: { width: 60, height: 2, backgroundColor: C.primary, marginBottom: 24 },
+  coverTitle: { fontSize: 22, fontFamily: 'Helvetica-Bold', color: C.text, textAlign: 'center' },
+  coverSub: { fontSize: 12, color: C.textLight, marginTop: 4, textAlign: 'center' },
+  coverRuleB: { width: 60, height: 2, backgroundColor: C.primary, marginTop: 24, marginBottom: 16 },
+  coverDate: { fontSize: 10, color: C.textMuted },
+
+  /* Sections */
+  section: { marginBottom: 12 },
+  sectionTitle: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: C.text, marginBottom: 2 },
+  sectionDesc: { fontSize: 7.5, color: C.textMuted, marginBottom: 6, maxWidth: 420 },
+  divider: { borderBottomWidth: 0.5, borderBottomColor: C.border, marginTop: 4, marginBottom: 10 },
+  subTitle: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#374151', marginTop: 6, marginBottom: 3 },
+  subDesc: { fontSize: 7, color: C.textMuted, marginBottom: 3 },
+
+  /* Key-Value grid */
+  kvGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 6 },
   kvItem: { width: '33%', flexDirection: 'row', marginBottom: 2 },
-  kvLabel: { fontSize: 8, color: COLORS.textLight },
+  kvLabel: { fontSize: 8, color: C.textLight },
   kvValue: { fontSize: 8, fontFamily: 'Helvetica-Bold', marginLeft: 3 },
-  table: { borderWidth: 0.5, borderColor: COLORS.border, marginBottom: 6 },
-  tableRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.border },
-  tableRowAlt: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.border, backgroundColor: '#f9fafb' },
-  tableHeader: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderBottomWidth: 0.5, borderBottomColor: COLORS.border },
-  th: { fontSize: 8, fontFamily: 'Helvetica-Bold', paddingVertical: 3, paddingHorizontal: 4 },
-  td: { fontSize: 8, paddingVertical: 2, paddingHorizontal: 4 },
-  tdRight: { fontSize: 8, paddingVertical: 2, paddingHorizontal: 4, textAlign: 'right' },
-  chartContainer: { marginBottom: 10 },
-  chartLabel: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#374151', marginBottom: 4 },
-  chartImage: { width: '100%', objectFit: 'contain' },
-  chartBorder: { borderWidth: 0.5, borderColor: COLORS.border, borderRadius: 2, overflow: 'hidden', backgroundColor: COLORS.white },
+
+  /* Tables */
+  table: { borderWidth: 0.5, borderColor: C.border, marginBottom: 4 },
+  tHead: { flexDirection: 'row', backgroundColor: C.borderLight, borderBottomWidth: 0.5, borderBottomColor: C.border },
+  tRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: C.border },
+  tRowAlt: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: C.border, backgroundColor: C.bg },
+  th: { fontSize: 7.5, fontFamily: 'Helvetica-Bold', paddingVertical: 2.5, paddingHorizontal: 4 },
+  td: { fontSize: 7.5, paddingVertical: 2, paddingHorizontal: 4 },
+  tdR: { fontSize: 7.5, paddingVertical: 2, paddingHorizontal: 4, textAlign: 'right' },
+
+  /* Charts */
+  chartWrap: { marginBottom: 8 },
+  chartLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#374151', marginBottom: 3 },
+  chartImg: { width: '100%', objectFit: 'contain' },
+  chartBorder: { borderWidth: 0.5, borderColor: C.border, borderRadius: 2, overflow: 'hidden', backgroundColor: C.white },
+
+  /* Bullets */
   bulletItem: { flexDirection: 'row', marginBottom: 2, paddingRight: 16 },
-  bulletDot: { fontSize: 8, color: COLORS.textMuted, marginRight: 4, width: 8 },
-  bulletText: { fontSize: 8, color: COLORS.textLight, flex: 1 },
+  bulletDot: { fontSize: 8, color: C.textMuted, marginRight: 4, width: 8 },
+  bulletText: { fontSize: 8, color: C.textLight, flex: 1 },
 });
 
-/* ─── Helper Components ─── */
+/* ─── Helpers ─── */
 
-function PageHeader({ section, reportTitle }: { section: string; reportTitle: string }) {
+function PageHeader({ reportTitle }: { reportTitle: string }) {
   return (
     <View style={s.pageHeader} fixed>
-      <Text style={s.pageHeaderTitle}>{reportTitle.toUpperCase()}</Text>
-      <Text style={s.pageHeaderSection}>{section}</Text>
+      <Text style={s.pageHeaderLeft}>{reportTitle.toUpperCase()}</Text>
+      <Text style={s.pageHeaderRight}>Hydraulic Loss Assessment</Text>
     </View>
   );
 }
@@ -122,17 +139,23 @@ function PageFooter({ date }: { date: string }) {
   return (
     <View style={s.pageFooter} fixed>
       <Text style={s.footerText}>Generated by Bridge Loss Calculator · QA verification only</Text>
-      <Text style={s.footerText} render={({ pageNumber }) => `${date} · Page ${pageNumber}`} />
+      <Text style={s.footerText} render={({ pageNumber, totalPages }) => `${date} · Page ${pageNumber} of ${totalPages}`} />
     </View>
   );
 }
 
-function SectionTitle({ number, title }: { number: number; title: string }) {
-  return <Text style={s.sectionTitle}>{number}. {title}</Text>;
+function Sec({ num, title, desc, children }: { num: number; title: string; desc?: string; children: React.ReactNode }) {
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>{num}. {title}</Text>
+      {desc ? <Text style={s.sectionDesc}>{desc}</Text> : null}
+      {children}
+    </View>
+  );
 }
 
-function SectionDesc({ children }: { children: string }) {
-  return <Text style={s.sectionDesc}>{children}</Text>;
+function Divider() {
+  return <View style={s.divider} />;
 }
 
 function KV({ label, value }: { label: string; value: string | number }) {
@@ -155,18 +178,18 @@ function Bullet({ text, color }: { text: string; color?: string }) {
 
 /* ─── Table ─── */
 
-interface Column {
+interface Col {
   header: string;
   width: string | number;
   align?: 'left' | 'right' | 'center';
-  render: (row: Record<string, unknown>, rowIndex: number) => string;
+  render: (row: Record<string, unknown>, i: number) => string;
   cellStyle?: (row: Record<string, unknown>) => object | undefined;
 }
 
-function DataTable({ columns, data }: { columns: Column[]; data: Record<string, unknown>[] }) {
+function DataTable({ columns, data }: { columns: Col[]; data: Record<string, unknown>[] }) {
   return (
     <View style={s.table}>
-      <View style={s.tableHeader} fixed>
+      <View style={s.tHead} fixed>
         {columns.map((col, ci) => (
           <Text key={ci} style={[s.th, { width: col.width, textAlign: col.align || 'left' }]}>
             {col.header}
@@ -174,10 +197,10 @@ function DataTable({ columns, data }: { columns: Column[]; data: Record<string, 
         ))}
       </View>
       {data.map((row, ri) => (
-        <View key={ri} style={ri % 2 ? s.tableRowAlt : s.tableRow} wrap={false}>
+        <View key={ri} style={ri % 2 ? s.tRowAlt : s.tRow} wrap={false}>
           {columns.map((col, ci) => (
             <Text key={ci} style={[
-              col.align === 'right' ? s.tdRight : s.td,
+              col.align === 'right' ? s.tdR : s.td,
               { width: col.width, textAlign: col.align || 'left' },
               (col.cellStyle?.(row) || {}) as Record<string, string | number>,
             ]}>
@@ -190,7 +213,7 @@ function DataTable({ columns, data }: { columns: Column[]; data: Record<string, 
   );
 }
 
-/* ─── Report data interface ─── */
+/* ─── Report data ─── */
 
 export interface PdfReportData {
   projectName: string;
@@ -199,6 +222,7 @@ export interface PdfReportData {
   profiles: FlowProfile[];
   coefficients: Coefficients;
   results: CalculationResults | null;
+  hecRasComparison: HecRasComparison[];
   aiSummary: AiSummaryResponse | null;
   charts: CapturedChart[];
 }
@@ -206,301 +230,308 @@ export interface PdfReportData {
 /* ─── Document ─── */
 
 function ReportDocument({ data }: { data: PdfReportData }) {
-  const { projectName, crossSection, bridge, profiles, coefficients, results, aiSummary, charts } = data;
+  const { projectName, crossSection, bridge, profiles, coefficients, results, hecRasComparison, aiSummary, charts } = data;
   const date = new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
   const title = projectName || 'Bridge Hydraulic Loss Assessment';
   const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
+  const xsChart = charts.find((c) => c.id === 'cross-section');
+  const otherCharts = charts.filter((c) => c.id !== 'cross-section');
+  const hasHecRas = hecRasComparison.length > 0 && hecRasComparison.some((c) => c.upstreamWsel !== null || c.headLoss !== null);
 
-  let sectionNum = 0;
-  const nextSection = () => ++sectionNum;
+  let sn = 0;
+  const next = () => ++sn;
 
   return (
     <Document title={`${title} - Report`} author="Bridge Loss Calculator">
-      {/* ═══ Cover ═══ */}
+
+      {/* ═══ COVER ═══ */}
       <Page size="A4" style={[s.page, { paddingTop: 0, paddingBottom: 0 }]}>
         <View style={s.coverCenter}>
           <View style={s.coverRule} />
           <Text style={s.coverTitle}>Bridge Hydraulic Loss Assessment</Text>
-          {projectName ? <Text style={s.coverSubtitle}>{projectName}</Text> : null}
-          <View style={s.coverRuleBottom} />
+          {projectName ? <Text style={s.coverSub}>{projectName}</Text> : null}
+          <View style={s.coverRuleB} />
           <Text style={s.coverDate}>{date}</Text>
         </View>
       </Page>
 
-      {/* ═══ Input Summary ═══ */}
-      <Page size="A4" style={s.page}>
-        <PageHeader section="Input Summary" reportTitle={title} />
-        <SectionTitle number={nextSection()} title="Input Summary" />
-        <SectionDesc>Summary of bridge geometry, coefficients, and flow profiles used as inputs.</SectionDesc>
+      {/* ═══ BODY — single flowing page ═══ */}
+      <Page size="A4" style={s.page} wrap>
+        <PageHeader reportTitle={title} />
+        <PageFooter date={date} />
 
-        <Text style={s.subTitle}>Bridge Geometry</Text>
-        <Text style={s.subDesc}>Structural dimensions of the bridge opening.</Text>
-        <View style={s.kvGrid}>
-          <KV label="Low Chord Left" value={bridge.lowChordLeft} />
-          <KV label="Low Chord Right" value={bridge.lowChordRight} />
-          <KV label="High Chord" value={bridge.highChord} />
-          <KV label="Skew Angle" value={`${bridge.skewAngle}°`} />
-          <KV label="Left Abutment" value={bridge.leftAbutmentStation} />
-          <KV label="Right Abutment" value={bridge.rightAbutmentStation} />
-          <KV label="Piers" value={bridge.piers.length} />
-          {coefficients.debrisBlockagePct > 0 ? <KV label="Debris Blockage" value={`${coefficients.debrisBlockagePct}%`} /> : null}
-        </View>
+        {/* ── 1. Input Summary ── */}
+        <Sec num={next()} title="Input Summary" desc="Summary of bridge geometry, coefficients, and flow profiles used as inputs.">
+          <Text style={s.subTitle}>Bridge Geometry</Text>
+          <View style={s.kvGrid}>
+            <KV label="Low Chord Left" value={bridge.lowChordLeft} />
+            <KV label="Low Chord Right" value={bridge.lowChordRight} />
+            <KV label="High Chord" value={bridge.highChord} />
+            <KV label="Skew Angle" value={`${bridge.skewAngle}°`} />
+            <KV label="Left Abutment" value={bridge.leftAbutmentStation} />
+            <KV label="Right Abutment" value={bridge.rightAbutmentStation} />
+            <KV label="Piers" value={bridge.piers.length} />
+            {coefficients.debrisBlockagePct > 0 ? <KV label="Debris Blockage" value={`${coefficients.debrisBlockagePct}%`} /> : null}
+          </View>
 
-        <Text style={s.subTitle}>Coefficients</Text>
-        <Text style={s.subDesc}>Loss coefficients and adjustment factors applied to all methods.</Text>
-        <View style={s.kvGrid}>
-          <KV label="Contraction Coeff" value={coefficients.contractionCoeff} />
-          <KV label="Expansion Coeff" value={coefficients.expansionCoeff} />
-          {coefficients.yarnellK !== null ? <KV label="Yarnell K" value={coefficients.yarnellK} /> : null}
-          <KV label="Max Iterations" value={coefficients.maxIterations} />
-          <KV label="Tolerance" value={coefficients.tolerance} />
-          {coefficients.debrisBlockagePct > 0 ? <KV label="Debris Blockage" value={`${coefficients.debrisBlockagePct}%`} /> : null}
-          {coefficients.manningsNSensitivityPct !== null && coefficients.manningsNSensitivityPct > 0
-            ? <KV label="Manning's n Sensitivity" value={`±${coefficients.manningsNSensitivityPct}%`} />
-            : null}
-        </View>
+          <Text style={s.subTitle}>Coefficients</Text>
+          <View style={s.kvGrid}>
+            <KV label="Contraction" value={coefficients.contractionCoeff} />
+            <KV label="Expansion" value={coefficients.expansionCoeff} />
+            {coefficients.yarnellK !== null ? <KV label="Yarnell K" value={coefficients.yarnellK} /> : null}
+            <KV label="Max Iterations" value={coefficients.maxIterations} />
+            <KV label="Tolerance" value={coefficients.tolerance} />
+            {coefficients.manningsNSensitivityPct !== null && coefficients.manningsNSensitivityPct > 0
+              ? <KV label="Manning's n Sensitivity" value={`±${coefficients.manningsNSensitivityPct}%`} />
+              : null}
+          </View>
 
-        <Text style={s.subTitle}>Flow Profiles</Text>
-        <Text style={s.subDesc}>Design flow scenarios with downstream boundary conditions.</Text>
-        <DataTable
-          columns={[
-            { header: 'Name', width: '25%', render: (r) => r.name as string },
-            { header: 'ARI', width: '15%', render: (r) => (r.ari as string) || '—' },
-            { header: 'Q', width: '20%', align: 'right', render: (r) => String(r.discharge) },
-            { header: 'DS WSEL', width: '20%', align: 'right', render: (r) => String(r.dsWsel) },
-            { header: 'Slope', width: '20%', align: 'right', render: (r) => String(r.channelSlope) },
-          ]}
-          data={profiles as unknown as Record<string, unknown>[]}
-        />
+          <Text style={s.subTitle}>Flow Profiles</Text>
+          <DataTable
+            columns={[
+              { header: 'Name', width: '25%', render: (r) => r.name as string },
+              { header: 'ARI', width: '15%', render: (r) => (r.ari as string) || '—' },
+              { header: 'Q', width: '20%', align: 'right', render: (r) => String(r.discharge) },
+              { header: 'DS WSEL', width: '20%', align: 'right', render: (r) => String(r.dsWsel) },
+              { header: 'Slope', width: '20%', align: 'right', render: (r) => String(r.channelSlope) },
+            ]}
+            data={profiles as unknown as Record<string, unknown>[]}
+          />
+        </Sec>
 
-        {charts.find((c) => c.id === 'cross-section') ? (
-          <View style={s.chartContainer}>
-            <Text style={s.chartLabel}>Cross-Section Profile</Text>
-            <View style={s.chartBorder}>
-              <Image style={s.chartImage} src={charts.find((c) => c.id === 'cross-section')!.dataUrl} />
+        {/* ── Cross-Section Chart ── */}
+        {xsChart ? (
+          <View wrap={false}>
+            <Divider />
+            <View style={s.chartWrap}>
+              <Text style={s.chartLabel}>Cross-Section Profile</Text>
+              <View style={s.chartBorder}>
+                <Image style={s.chartImg} src={xsChart.dataUrl} />
+              </View>
             </View>
           </View>
         ) : null}
 
-        <PageFooter date={date} />
-      </Page>
+        <Divider />
 
-      {/* ═══ Cross-Section Data ═══ */}
-      <Page size="A4" style={s.page} wrap>
-        <PageHeader section="Cross-Section Data" reportTitle={title} />
-        <SectionTitle number={nextSection()} title="Cross-Section Data" />
-        <SectionDesc>
-          {`Surveyed channel stations, elevations, and roughness coefficients (${crossSection.length} points).`}
-        </SectionDesc>
-        <DataTable
-          columns={[
-            { header: 'Station', width: '25%', align: 'right', render: (r) => (r.station as number).toFixed(1) },
-            { header: 'Elevation', width: '25%', align: 'right', render: (r) => (r.elevation as number).toFixed(2) },
-            { header: "Manning's n", width: '25%', align: 'right', render: (r) => String(r.manningsN) },
-            { header: 'Bank', width: '25%', render: (r) => (r.bankStation as string) || '—' },
-          ]}
-          data={crossSection as unknown as Record<string, unknown>[]}
-        />
-        <PageFooter date={date} />
-      </Page>
-
-      {/* ═══ Freeboard & Flow Regime ═══ */}
-      {results && freeboard ? (
-        <Page size="A4" style={s.page}>
-          <PageHeader section="Results" reportTitle={title} />
-          <SectionTitle number={nextSection()} title="Freeboard Check" />
-          <SectionDesc>
-            Clearance between computed upstream WSEL (worst across methods) and bridge low chord. Positive = clearance below deck. Negative = pressure flow or overtopping.
-          </SectionDesc>
-
+        {/* ── 2. Cross-Section Data ── */}
+        <Sec num={next()} title="Cross-Section Data" desc={`Surveyed channel geometry (${crossSection.length} points).`}>
           <DataTable
             columns={[
-              { header: 'Profile', width: '16%', render: (r) => r.profileName as string },
-              { header: 'ARI', width: '10%', render: (r) => (r.ari as string) || '—' },
-              { header: 'Q', width: '12%', align: 'right', render: (r) => (r.discharge as number).toFixed(0) },
-              { header: 'US WSEL', width: '14%', align: 'right', render: (r) => (r.usWsel as number).toFixed(2) },
-              { header: 'Low Chord', width: '14%', align: 'right', render: (r) => (r.lowChord as number).toFixed(2) },
-              { header: 'Freeboard', width: '14%', align: 'right', render: (r) => (r.freeboard as number).toFixed(2) },
-              {
-                header: 'Status', width: '20%', align: 'center',
-                render: (r) => (r.status as string).toUpperCase(),
-                cellStyle: (r) => {
-                  const st = r.status as string;
-                  return {
-                    fontFamily: 'Helvetica-Bold',
-                    color: st === 'clear' ? COLORS.green : st === 'low' ? COLORS.amber : COLORS.red,
-                  };
-                },
-              },
+              { header: 'Station', width: '25%', align: 'right', render: (r) => (r.station as number).toFixed(1) },
+              { header: 'Elevation', width: '25%', align: 'right', render: (r) => (r.elevation as number).toFixed(2) },
+              { header: "Manning's n", width: '25%', align: 'right', render: (r) => String(r.manningsN) },
+              { header: 'Bank', width: '25%', render: (r) => (r.bankStation as string) || '—' },
             ]}
-            data={freeboard.profiles as unknown as Record<string, unknown>[]}
+            data={crossSection as unknown as Record<string, unknown>[]}
           />
+        </Sec>
 
-          {freeboard.zeroFreeboardQ !== null ? (
-            <Text style={{ fontSize: 7, color: COLORS.textLight, marginBottom: 10 }}>
-              Estimated Q at zero freeboard: {freeboard.zeroFreeboardQ.toFixed(0)} (interpolated)
-            </Text>
-          ) : null}
-
-          <Text style={[s.sectionTitle, { marginTop: 6 }]}>{nextSection()}. Flow Regime</Text>
-          <SectionDesc>
-            Classification per method per profile. F = Free Surface, P = Pressure, O = Overtopping. Yarnell is valid for free-surface flow only.
-          </SectionDesc>
-
-          <View style={s.table}>
-            <View style={s.tableHeader} fixed>
-              <Text style={[s.th, { width: '20%' }]}>Method</Text>
-              {profiles.map((p) => (
-                <Text key={p.name} style={[s.th, { width: `${80 / profiles.length}%`, textAlign: 'center' }]}>
-                  {p.name}
+        {/* ── 3. Freeboard Check ── */}
+        {results && freeboard ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="Freeboard Check" desc="Clearance between computed upstream WSEL (worst across methods) and bridge low chord. Positive = clearance. Negative = pressure/overtopping.">
+              <DataTable
+                columns={[
+                  { header: 'Profile', width: '16%', render: (r) => r.profileName as string },
+                  { header: 'ARI', width: '10%', render: (r) => (r.ari as string) || '—' },
+                  { header: 'Q', width: '12%', align: 'right', render: (r) => (r.discharge as number).toFixed(0) },
+                  { header: 'US WSEL', width: '14%', align: 'right', render: (r) => (r.usWsel as number).toFixed(2) },
+                  { header: 'Low Chord', width: '14%', align: 'right', render: (r) => (r.lowChord as number).toFixed(2) },
+                  { header: 'Freeboard', width: '14%', align: 'right', render: (r) => (r.freeboard as number).toFixed(2) },
+                  {
+                    header: 'Status', width: '20%', align: 'center',
+                    render: (r) => (r.status as string).toUpperCase(),
+                    cellStyle: (r) => ({
+                      fontFamily: 'Helvetica-Bold',
+                      color: (r.status as string) === 'clear' ? C.green : (r.status as string) === 'low' ? C.amber : C.red,
+                    }),
+                  },
+                ]}
+                data={freeboard.profiles as unknown as Record<string, unknown>[]}
+              />
+              {freeboard.zeroFreeboardQ !== null ? (
+                <Text style={{ fontSize: 7, color: C.textLight, marginTop: 2 }}>
+                  Estimated Q at zero freeboard: {freeboard.zeroFreeboardQ.toFixed(0)} (interpolated)
                 </Text>
-              ))}
-            </View>
-            {METHODS.map((m, mi) => (
-              <View key={m} style={mi % 2 ? s.tableRowAlt : s.tableRow} wrap={false}>
-                <Text style={[s.td, { width: '20%', fontFamily: 'Helvetica-Bold' }]}>{METHOD_LABELS[m]}</Text>
-                {results[m].map((r, i) => {
-                  const label = r.flowRegime === 'free-surface' ? 'F' : r.flowRegime === 'pressure' ? 'P' : 'O';
-                  const warn = m === 'yarnell' && r.flowRegime !== 'free-surface';
-                  return (
-                    <Text key={i} style={[
-                      s.td,
-                      { width: `${80 / profiles.length}%`, textAlign: 'center' },
-                      warn ? { color: COLORS.amber, fontFamily: 'Helvetica-Bold' } : {},
-                    ]}>
-                      {label}{warn ? ' (!)' : ''}
-                    </Text>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
+              ) : null}
+            </Sec>
+          </>
+        ) : null}
 
-          <PageFooter date={date} />
-        </Page>
-      ) : null}
-
-      {/* ═══ Method Comparison ═══ */}
-      {results ? (
-        <Page size="A4" style={s.page}>
-          <PageHeader section="Method Comparison" reportTitle={title} />
-          <SectionTitle number={nextSection()} title="Method Comparison" />
-          <SectionDesc>
-            Four independent methods compared across flow profiles. Consistent results increase confidence; divergence beyond 10% warrants investigation.
-          </SectionDesc>
-
-          {[
-            { title: 'Upstream WSEL', desc: 'Water surface elevation immediately upstream of the bridge.', key: 'upstreamWsel' as const, decimals: 2 },
-            { title: 'Head Loss (Afflux)', desc: 'Total energy loss caused by the bridge constriction.', key: 'totalHeadLoss' as const, decimals: 3 },
-            { title: 'Approach Velocity', desc: 'Mean velocity in the approach section.', key: 'approachVelocity' as const, decimals: 2 },
-            { title: 'Froude Number', desc: 'Values above 1.0 indicate supercritical flow.', key: 'froudeApproach' as const, decimals: 3 },
-          ].map(({ title: t, desc, key, decimals }) => (
-            <View key={t} style={{ marginBottom: 8 }}>
-              <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#374151', marginBottom: 2 }}>{t}</Text>
-              <Text style={{ fontSize: 7, color: COLORS.textMuted, marginBottom: 3 }}>{desc}</Text>
+        {/* ── 4. Flow Regime ── */}
+        {results ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="Flow Regime" desc="F = Free Surface, P = Pressure, O = Overtopping. Yarnell is valid for free-surface only — flagged (!) otherwise.">
               <View style={s.table}>
-                <View style={s.tableHeader} fixed>
+                <View style={s.tHead} fixed>
                   <Text style={[s.th, { width: '20%' }]}>Method</Text>
                   {profiles.map((p) => (
-                    <Text key={p.name} style={[s.th, { width: `${80 / profiles.length}%`, textAlign: 'right' }]}>
-                      {p.name}
-                    </Text>
+                    <Text key={p.name} style={[s.th, { width: `${80 / profiles.length}%`, textAlign: 'center' }]}>{p.name}</Text>
                   ))}
                 </View>
                 {METHODS.map((m, mi) => (
-                  <View key={m} style={mi % 2 ? s.tableRowAlt : s.tableRow} wrap={false}>
+                  <View key={m} style={mi % 2 ? s.tRowAlt : s.tRow} wrap={false}>
                     <Text style={[s.td, { width: '20%', fontFamily: 'Helvetica-Bold' }]}>{METHOD_LABELS[m]}</Text>
-                    {results[m].map((r, i) => (
-                      <Text key={i} style={[
-                        s.tdRight,
-                        { width: `${80 / profiles.length}%` },
-                        r.error ? { color: COLORS.red, fontStyle: 'italic' } : {},
-                      ]}>
-                        {r.error ? 'ERR' : r[key].toFixed(decimals)}
-                      </Text>
-                    ))}
+                    {results[m].map((r, i) => {
+                      const lbl = r.flowRegime === 'free-surface' ? 'F' : r.flowRegime === 'pressure' ? 'P' : 'O';
+                      const warn = m === 'yarnell' && r.flowRegime !== 'free-surface';
+                      return (
+                        <Text key={i} style={[
+                          s.td, { width: `${80 / profiles.length}%`, textAlign: 'center' },
+                          warn ? { color: C.amber, fontFamily: 'Helvetica-Bold' } : {},
+                        ]}>
+                          {lbl}{warn ? ' (!)' : ''}
+                        </Text>
+                      );
+                    })}
                   </View>
                 ))}
               </View>
-            </View>
-          ))}
+            </Sec>
+          </>
+        ) : null}
 
-          <PageFooter date={date} />
-        </Page>
-      ) : null}
+        {/* ── 5. Method Comparison ── */}
+        {results ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="Method Comparison" desc="Four independent methods compared. Consistent results increase confidence; divergence >10% warrants investigation.">
+              {([
+                { t: 'Upstream WSEL', k: 'upstreamWsel' as const, d: 2 },
+                { t: 'Head Loss (Afflux)', k: 'totalHeadLoss' as const, d: 3 },
+                { t: 'Approach Velocity', k: 'approachVelocity' as const, d: 2 },
+                { t: 'Froude Number', k: 'froudeApproach' as const, d: 3 },
+              ] as const).map(({ t, k, d }) => (
+                <View key={t} style={{ marginBottom: 6 }} wrap={false}>
+                  <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#374151', marginBottom: 2 }}>{t}</Text>
+                  <View style={s.table}>
+                    <View style={s.tHead}>
+                      <Text style={[s.th, { width: '20%' }]}>Method</Text>
+                      {profiles.map((p) => (
+                        <Text key={p.name} style={[s.th, { width: `${80 / profiles.length}%`, textAlign: 'right' }]}>{p.name}</Text>
+                      ))}
+                    </View>
+                    {METHODS.map((m, mi) => (
+                      <View key={m} style={mi % 2 ? s.tRowAlt : s.tRow}>
+                        <Text style={[s.td, { width: '20%', fontFamily: 'Helvetica-Bold' }]}>{METHOD_LABELS[m]}</Text>
+                        {results[m].map((r, i) => (
+                          <Text key={i} style={[
+                            s.tdR, { width: `${80 / profiles.length}%` },
+                            r.error ? { color: C.red, fontStyle: 'italic' } : {},
+                          ]}>
+                            {r.error ? 'ERR' : r[k].toFixed(d)}
+                          </Text>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </Sec>
+          </>
+        ) : null}
 
-      {/* ═══ Charts ═══ */}
-      {charts.filter((c) => c.id !== 'cross-section').length > 0 ? (
-        <Page size="A4" style={s.page}>
-          <PageHeader section="Charts" reportTitle={title} />
-          <SectionTitle number={nextSection()} title="Charts" />
-          <SectionDesc>Afflux rating curve and upstream WSEL trend captured from the interactive summary view.</SectionDesc>
-
-          {charts.filter((c) => c.id !== 'cross-section').map((chart) => (
-            <View key={chart.id} style={s.chartContainer} wrap={false}>
-              <Text style={s.chartLabel}>{chart.label}</Text>
-              <View style={s.chartBorder}>
-                <Image style={s.chartImage} src={chart.dataUrl} />
+        {/* ── 6. HEC-RAS Comparison ── */}
+        {hasHecRas ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="HEC-RAS Comparison" desc="Validation against HEC-RAS model results. Differences may indicate geometry or coefficient discrepancies.">
+              <View style={s.table}>
+                <View style={s.tHead} fixed>
+                  <Text style={[s.th, { width: '20%' }]}>Profile</Text>
+                  <Text style={[s.th, { width: '20%', textAlign: 'right' }]}>HEC-RAS WSEL</Text>
+                  <Text style={[s.th, { width: '20%', textAlign: 'right' }]}>Energy WSEL</Text>
+                  <Text style={[s.th, { width: '20%', textAlign: 'right' }]}>HEC-RAS h_L</Text>
+                  <Text style={[s.th, { width: '20%', textAlign: 'right' }]}>Energy h_L</Text>
+                </View>
+                {hecRasComparison.map((h, i) => {
+                  const energyResult = results?.energy[i];
+                  return (
+                    <View key={i} style={i % 2 ? s.tRowAlt : s.tRow} wrap={false}>
+                      <Text style={[s.td, { width: '20%' }]}>{h.profileName}</Text>
+                      <Text style={[s.tdR, { width: '20%' }]}>{h.upstreamWsel?.toFixed(2) ?? '—'}</Text>
+                      <Text style={[s.tdR, { width: '20%' }]}>{energyResult && !energyResult.error ? energyResult.upstreamWsel.toFixed(2) : '—'}</Text>
+                      <Text style={[s.tdR, { width: '20%' }]}>{h.headLoss?.toFixed(3) ?? '—'}</Text>
+                      <Text style={[s.tdR, { width: '20%' }]}>{energyResult && !energyResult.error ? energyResult.totalHeadLoss.toFixed(3) : '—'}</Text>
+                    </View>
+                  );
+                })}
               </View>
-            </View>
-          ))}
+            </Sec>
+          </>
+        ) : null}
 
-          <PageFooter date={date} />
-        </Page>
-      ) : null}
+        {/* ── 7. Charts ── */}
+        {otherCharts.length > 0 ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="Charts" desc="Afflux rating curve and upstream WSEL trend.">
+              {otherCharts.map((chart) => (
+                <View key={chart.id} style={s.chartWrap} wrap={false}>
+                  <Text style={s.chartLabel}>{chart.label}</Text>
+                  <View style={s.chartBorder}>
+                    <Image style={s.chartImg} src={chart.dataUrl} />
+                  </View>
+                </View>
+              ))}
+            </Sec>
+          </>
+        ) : null}
 
-      {/* ═══ AI Analysis ═══ */}
-      {aiSummary ? (
-        <Page size="A4" style={s.page}>
-          <PageHeader section="AI Analysis" reportTitle={title} />
-          <SectionTitle number={nextSection()} title="AI Analysis" />
-          <SectionDesc>Automated review of calculation results by AI. This analysis is supplementary — engineering judgement should always take precedence.</SectionDesc>
+        {/* ── 8. AI Analysis ── */}
+        {aiSummary ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="AI Analysis" desc="Automated review of results. Supplementary only — engineering judgement takes precedence.">
+              <Text style={s.subTitle}>Summary</Text>
+              {aiSummary.overall.map((item, i) => <Bullet key={i} text={item} color="#374151" />)}
 
-          <Text style={s.subTitle}>Summary</Text>
-          {aiSummary.overall.map((item, i) => <Bullet key={i} text={item} color="#374151" />)}
+              {aiSummary.callouts.regime ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Flow Regime</Text>
+                  {aiSummary.callouts.regime.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
 
-          {aiSummary.callouts.regime ? (
-            <View style={{ marginTop: 6 }}>
-              <Text style={[s.subTitle, { fontSize: 9 }]}>Flow Regime</Text>
-              {aiSummary.callouts.regime.map((item, i) => <Bullet key={i} text={item} />)}
-            </View>
-          ) : null}
+              {aiSummary.callouts.freeboard ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Freeboard</Text>
+                  {aiSummary.callouts.freeboard.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
 
-          {aiSummary.callouts.freeboard ? (
-            <View style={{ marginTop: 6 }}>
-              <Text style={[s.subTitle, { fontSize: 9 }]}>Freeboard</Text>
-              {aiSummary.callouts.freeboard.map((item, i) => <Bullet key={i} text={item} />)}
-            </View>
-          ) : null}
+              {aiSummary.callouts.comparison ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Method Comparison</Text>
+                  {aiSummary.callouts.comparison.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
 
-          {aiSummary.callouts.comparison ? (
-            <View style={{ marginTop: 6 }}>
-              <Text style={[s.subTitle, { fontSize: 9 }]}>Method Comparison</Text>
-              {aiSummary.callouts.comparison.map((item, i) => <Bullet key={i} text={item} />)}
-            </View>
-          ) : null}
+              {aiSummary.callouts.afflux ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Afflux Trends</Text>
+                  {aiSummary.callouts.afflux.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
 
-          {aiSummary.callouts.afflux ? (
-            <View style={{ marginTop: 6 }}>
-              <Text style={[s.subTitle, { fontSize: 9 }]}>Afflux Trends</Text>
-              {aiSummary.callouts.afflux.map((item, i) => <Bullet key={i} text={item} />)}
-            </View>
-          ) : null}
+              {aiSummary.callouts.hecras ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>HEC-RAS Comparison</Text>
+                  {aiSummary.callouts.hecras.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
 
-          {aiSummary.callouts.hecras ? (
-            <View style={{ marginTop: 6 }}>
-              <Text style={[s.subTitle, { fontSize: 9 }]}>HEC-RAS Comparison</Text>
-              {aiSummary.callouts.hecras.map((item, i) => <Bullet key={i} text={item} />)}
-            </View>
-          ) : null}
+              <Text style={{ fontSize: 6, color: C.textMuted, fontStyle: 'italic', marginTop: 10 }}>
+                Generated by AI. For reference only — does not constitute engineering advice.
+              </Text>
+            </Sec>
+          </>
+        ) : null}
 
-          <Text style={{ fontSize: 6, color: COLORS.textMuted, fontStyle: 'italic', marginTop: 16 }}>
-            Generated by AI. This analysis is for reference only and does not constitute engineering advice.
-          </Text>
-
-          <PageFooter date={date} />
-        </Page>
-      ) : null}
+      </Page>
     </Document>
   );
 }
@@ -519,5 +550,5 @@ export async function generatePdf(data: Omit<PdfReportData, 'charts'>): Promise<
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

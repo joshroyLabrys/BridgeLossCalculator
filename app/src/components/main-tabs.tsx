@@ -34,6 +34,7 @@ export function MainTabs() {
   const coefficients = useProjectStore((s) => s.coefficients);
   const results = useProjectStore((s) => s.results);
   const projectName = useProjectStore((s) => s.projectName);
+  const hecRasComparison = useProjectStore((s) => s.hecRasComparison);
   const aiSummary = useProjectStore((s) => s.aiSummary);
   const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
 
@@ -54,6 +55,7 @@ export function MainTabs() {
         profiles: flowProfiles,
         coefficients,
         results,
+        hecRasComparison,
         aiSummary,
       });
     } catch (err) {
