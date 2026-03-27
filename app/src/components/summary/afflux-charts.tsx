@@ -289,7 +289,7 @@ export function AffluxCharts({ callout }: { callout?: ReactNode } = {}) {
           </div>
         </CardHeader>
         <CardContent>
-          <div ref={affluxRef} className="h-[320px] w-full" />
+          <div ref={affluxRef} className="h-[320px] w-full" data-chart-id="afflux-rating" />
         </CardContent>
       </Card>
 
@@ -302,7 +302,7 @@ export function AffluxCharts({ callout }: { callout?: ReactNode } = {}) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div ref={wselRef} className="h-[320px] w-full" />
+          <div ref={wselRef} className="h-[320px] w-full" data-chart-id="wsel-trend" />
         </CardContent>
       </Card>
     </div>

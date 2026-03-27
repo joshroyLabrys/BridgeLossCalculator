@@ -395,7 +395,7 @@ export function CrossSectionChart({ crossSection, wsel, bridge, methodWsels }: C
   }
 
   return (
-    <div className="relative w-full h-full" ref={containerRef}>
+    <div className="relative w-full h-full" ref={containerRef} data-chart-id="cross-section">
       <div
         ref={tooltipRef}
         className="absolute pointer-events-none opacity-0 transition-opacity duration-150 bg-card border border-border rounded-lg px-2.5 py-2 text-xs font-mono z-50 [&_.label]:text-muted-foreground [&_.label]:text-[10px] [&_.label]:uppercase [&_.label]:tracking-wide [&_.label]:mt-1 [&_.label]:first:mt-0 [&_.value]:text-foreground [&_.value]:font-semibold [&_.pier]:text-red-400"
