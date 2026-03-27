@@ -93,7 +93,7 @@ export function CoefficientsForm() {
         {/* Solver + Sensitivity */}
         <div className="py-5">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Solver</div>
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Max Iter.</Label>
               <Input type="number" value={coefficients.maxIterations} onChange={(e) => setField('maxIterations', parseInt(e.target.value) || 100)} className="h-8 text-sm font-mono" />
@@ -109,6 +109,14 @@ export function CoefficientsForm() {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">n Sensitivity (±%)</Label>
               <Input type="number" value={coefficients.manningsNSensitivityPct ?? ''} onChange={(e) => update({ ...coefficients, manningsNSensitivityPct: e.target.value ? Math.max(1, parseFloat(e.target.value)) : null })} className="h-8 text-sm font-mono" step="5" min="1" max="100" placeholder="Off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Alpha (α₁)</Label>
+              <Input type="number" value={coefficients.alphaOverride ?? ''} onChange={(e) => update({ ...coefficients, alphaOverride: e.target.value ? Math.max(0.5, parseFloat(e.target.value)) : null })} className="h-8 text-sm font-mono" step="0.1" min="0.5" max="5" placeholder="Auto" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Freeboard Thr. ({lenUnit})</Label>
+              <Input type="number" value={toDisplay(coefficients.freeboardThreshold, 'length', us)} onChange={(e) => setField('freeboardThreshold', toImperial(parseFloat(e.target.value) || 0.3, 'length', us))} className="h-8 text-sm font-mono" step="0.1" />
             </div>
           </div>
         </div>

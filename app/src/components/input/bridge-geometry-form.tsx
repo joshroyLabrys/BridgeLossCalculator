@@ -19,7 +19,7 @@ export function BridgeGeometryForm() {
   const us = useProjectStore((s) => s.unitSystem);
   const lenUnit = unitLabel('length', us);
 
-  const lengthFields = new Set(['lowChordLeft', 'lowChordRight', 'highChord', 'leftAbutmentStation', 'rightAbutmentStation']);
+  const lengthFields = new Set(['lowChordLeft', 'lowChordRight', 'highChord', 'leftAbutmentStation', 'rightAbutmentStation', 'contractionLength', 'expansionLength', 'deckWidth']);
 
   function setField(field: string, value: string) {
     const raw = parseFloat(value) || 0;
@@ -50,9 +50,9 @@ export function BridgeGeometryForm() {
     { key: 'highChord', label: 'High Chord Elevation', unit: lenUnit },
     { key: 'leftAbutmentStation', label: 'Left Abutment Station', unit: lenUnit },
     { key: 'rightAbutmentStation', label: 'Right Abutment Station', unit: lenUnit },
-    { key: 'leftAbutmentSlope', label: 'Left Abutment Slope', unit: 'H:V' },
-    { key: 'rightAbutmentSlope', label: 'Right Abutment Slope', unit: 'H:V' },
     { key: 'skewAngle', label: 'Skew Angle', unit: 'deg' },
+    { key: 'contractionLength', label: 'Contraction Length', unit: lenUnit },
+    { key: 'expansionLength', label: 'Expansion Length', unit: lenUnit },
   ] as const;
 
   return (
@@ -70,6 +70,24 @@ export function BridgeGeometryForm() {
                 <Input type="number" value={lengthFields.has(f.key) ? toDisplay((bridge as unknown as Record<string, number>)[f.key], 'length', us) : (bridge as unknown as Record<string, number>)[f.key]} onChange={(e) => setField(f.key, e.target.value)} className="h-8 text-sm font-mono" />
               </div>
             ))}
+          </div>
+
+          <div className="h-px bg-border/50 mt-6 mb-4" />
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Pressure / Overtopping</div>
+          <p className="text-xs text-muted-foreground mb-3">Used when WSEL exceeds low chord</p>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Orifice Cd</Label>
+              <Input type="number" value={bridge.orificeCd} onChange={(e) => setField('orificeCd', e.target.value)} className="h-8 text-sm font-mono" step="0.1" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Weir Cw</Label>
+              <Input type="number" value={bridge.weirCw} onChange={(e) => setField('weirCw', e.target.value)} className="h-8 text-sm font-mono" step="0.1" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Deck Width ({lenUnit})</Label>
+              <Input type="number" value={toDisplay(bridge.deckWidth, 'length', us)} onChange={(e) => setField('deckWidth', e.target.value)} className="h-8 text-sm font-mono" />
+            </div>
           </div>
         </CardContent>
       </Card>

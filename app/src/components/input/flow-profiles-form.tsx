@@ -15,14 +15,14 @@ export function FlowProfilesForm() {
   const us = useProjectStore((s) => s.unitSystem);
 
   function addProfile() {
-    update([...profiles, { name: '', ari: '', discharge: 0, dsWsel: 0, channelSlope: 0.001, contractionLength: 0, expansionLength: 0 }]);
+    update([...profiles, { name: '', ari: '', discharge: 0, dsWsel: 0, channelSlope: 0.001 }]);
   }
 
   function removeProfile(index: number) { update(profiles.filter((_, i) => i !== index)); }
 
   const fieldUnitType: Record<string, UnitType | null> = {
     name: null, ari: null, discharge: 'discharge', dsWsel: 'length',
-    channelSlope: 'slope', contractionLength: 'length', expansionLength: 'length',
+    channelSlope: 'slope',
   };
 
   function updateProfile(index: number, field: keyof FlowProfile, value: string) {
@@ -41,9 +41,7 @@ export function FlowProfilesForm() {
     { key: 'ari', label: 'ARI/AEP', type: 'text', unitType: null as UnitType | null },
     { key: 'discharge', label: `Q (${unitLabel('discharge', us)})`, type: 'number', unitType: 'discharge' as UnitType | null },
     { key: 'dsWsel', label: `DS WSEL (${unitLabel('length', us)})`, type: 'number', unitType: 'length' as UnitType | null },
-    { key: 'channelSlope', label: `Slope (${unitLabel('slope', us)})`, type: 'number', unitType: null as UnitType | null },
-    { key: 'contractionLength', label: `Contr. L (${unitLabel('length', us)})`, type: 'number', unitType: 'length' as UnitType | null },
-    { key: 'expansionLength', label: `Expan. L (${unitLabel('length', us)})`, type: 'number', unitType: 'length' as UnitType | null },
+    { key: 'channelSlope', label: `Channel Slope`, type: 'number', unitType: null as UnitType | null },
   ] as const;
 
   return (

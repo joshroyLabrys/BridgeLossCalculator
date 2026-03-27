@@ -19,13 +19,14 @@ export function FreeboardCheck() {
   const results = useProjectStore((s) => s.results);
   const bridge = useProjectStore((s) => s.bridgeGeometry);
   const profiles = useProjectStore((s) => s.flowProfiles);
+  const coefficients = useProjectStore((s) => s.coefficients);
   const us = useProjectStore((s) => s.unitSystem);
   const len = unitLabel('length', us);
   const qUnit = unitLabel('discharge', us);
 
-  if (!results || results.energy.length === 0) return null;
+  if (!results) return null;
 
-  const freeboard = computeFreeboard(results.energy, bridge, profiles);
+  const freeboard = computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold);
 
   return (
     <Card>
@@ -78,6 +79,7 @@ export function FreeboardCheck() {
           ) : (
             <span>All profiles exceed low chord.</span>
           )}
+          <span className="text-muted-foreground ml-4">Low threshold: <span className="font-mono font-medium text-foreground">{toDisplay(coefficients.freeboardThreshold, 'length', us).toFixed(2)} {len}</span></span>
         </div>
       </CardContent>
     </Card>

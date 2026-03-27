@@ -12,7 +12,7 @@ export function PrintReport() {
   const projectName = useProjectStore((s) => s.projectName);
 
   const methods = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
-  const freeboard = results?.energy ? computeFreeboard(results.energy, bridge, profiles) : null;
+  const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
 
   return (
     <div className="print-report hidden print:block bg-white text-black p-8 text-sm font-sans">

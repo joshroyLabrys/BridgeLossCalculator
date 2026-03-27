@@ -61,7 +61,18 @@ function MethodRows({ methods, results, getValue, profileCount }: {
           <TableCell><MethodName method={method} /></TableCell>
           {results[method].map((r, i) => (
             <TableCell key={i} className="text-right font-mono tabular-nums">
-              {r.error ? <span className="text-destructive">ERR</span> : getValue(r)}
+              {r.error ? (
+                <span className="text-destructive">ERR</span>
+              ) : (
+                <span>
+                  {getValue(r)}
+                  {r.flowCalculationType !== 'free-surface' && (
+                    <span className="ml-1 text-[10px] text-purple-400">
+                      {r.flowCalculationType === 'orifice' ? 'ORF' : 'ORF+WR'}
+                    </span>
+                  )}
+                </span>
+              )}
             </TableCell>
           ))}
         </TableRow>
