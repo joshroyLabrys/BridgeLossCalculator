@@ -176,16 +176,10 @@ input[type="number"] {
     background-image: none !important;
   }
 
-  /* Hide the interactive app — everything that isn't .print-report */
-  body > div > div > *:not(.print-report) {
-    display: none !important;
-  }
-
-  /* Also catch the Tabs wrapper and any stray elements */
-  [data-slot="tabs"],
-  header,
-  .sticky,
-  [data-sonner-toaster] {
+  /* Hide everything in the page wrapper except .print-report.
+     Uses :has() to find the container that holds .print-report,
+     then hides all its other children. */
+  :has(> .print-report) > *:not(.print-report) {
     display: none !important;
   }
 
