@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@/lib/api/openai-auth');
 vi.mock('openai');
@@ -12,8 +12,14 @@ const mockResolveOpenAICredentials = vi.mocked(resolveOpenAICredentials);
 const MockOpenAI = vi.mocked(OpenAI);
 
 describe('callOpenAI', () => {
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it('throws when no credentials found', async () => {
@@ -49,44 +55,37 @@ describe('callOpenAI', () => {
     expect(result).toBe('{"result":"ok"}');
   });
 
-  it('uses Responses API when credentials type is codex', async () => {
+  it('uses raw fetch to Responses API when credentials type is codex', async () => {
     mockResolveOpenAICredentials.mockResolvedValue({
       type: 'codex',
       token: 'jwt-token-abc',
       accountId: 'acct-123',
     });
 
-    const mockResponsesCreate = vi.fn().mockResolvedValue({
-      output: [
-        {
-          type: 'message',
-          content: [{ type: 'output_text', text: '{"summary":"bridge"}' }],
-        },
-      ],
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: '{"summary":"bridge"}' }],
+          },
+        ],
+      }),
     });
-    MockOpenAI.mockImplementation(function () {
-      return { responses: { create: mockResponsesCreate } };
-    } as unknown as typeof OpenAI);
 
     const result = await callOpenAI('sys', 'user');
 
-    expect(MockOpenAI).toHaveBeenCalledWith({
-      apiKey: 'jwt-token-abc',
-      baseURL: 'https://chatgpt.com/backend-api/codex',
-      defaultHeaders: {
-        version: '0.80.0',
-        'x-codex-beta-features': 'unified_exec,shell_snapshot',
-        originator: 'codex_exec',
-        'chatgpt-account-id': 'acct-123',
-      },
-    });
-    expect(mockResponsesCreate).toHaveBeenCalledWith({
-      model: 'gpt-5.4',
-      instructions: 'sys',
-      input: 'user',
-      text: { format: { type: 'json_object' } },
-      temperature: 0.3,
-    });
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      'https://chatgpt.com/backend-api/codex/responses',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer jwt-token-abc',
+          'chatgpt-account-id': 'acct-123',
+        }),
+      })
+    );
     expect(result).toBe('{"summary":"bridge"}');
   });
 
@@ -97,24 +96,22 @@ describe('callOpenAI', () => {
       accountId: undefined,
     });
 
-    const mockResponsesCreate = vi.fn().mockResolvedValue({
-      output: [
-        {
-          type: 'message',
-          content: [{ type: 'output_text', text: '' }],
-        },
-      ],
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        output: [
+          {
+            type: 'message',
+            content: [{ type: 'output_text', text: '{}' }],
+          },
+        ],
+      }),
     });
-    MockOpenAI.mockImplementation(function () {
-      return { responses: { create: mockResponsesCreate } };
-    } as unknown as typeof OpenAI);
 
     await callOpenAI('sys', 'user');
 
-    expect(MockOpenAI).toHaveBeenCalledWith(
-      expect.objectContaining({
-        defaultHeaders: expect.not.objectContaining({ 'chatgpt-account-id': expect.anything() }),
-      })
-    );
+    const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const headers = callArgs[1].headers;
+    expect(headers).not.toHaveProperty('chatgpt-account-id');
   });
 });

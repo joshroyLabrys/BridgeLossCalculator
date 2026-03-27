@@ -23,27 +23,37 @@ export async function callOpenAI(systemPrompt: string, userPrompt: string): Prom
     return response.choices[0].message.content ?? '';
   }
 
-  // Codex OAuth path — uses Responses API
-  const client = new OpenAI({
-    apiKey: creds.token,
-    baseURL: 'https://chatgpt.com/backend-api/codex',
-    defaultHeaders: {
-      version: '0.80.0',
-      'x-codex-beta-features': 'unified_exec,shell_snapshot',
-      originator: 'codex_exec',
-      ...(creds.accountId ? { 'chatgpt-account-id': creds.accountId } : {}),
-    },
+  // Codex OAuth path — raw fetch to Responses API
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${creds.token}`,
+    version: '0.80.0',
+    'x-codex-beta-features': 'unified_exec,shell_snapshot',
+    originator: 'codex_exec',
+  };
+  if (creds.accountId) {
+    headers['chatgpt-account-id'] = creds.accountId;
+  }
+
+  const res = await fetch('https://chatgpt.com/backend-api/codex/responses', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: 'gpt-5.4',
+      instructions: systemPrompt,
+      input: userPrompt,
+      text: { format: { type: 'json_object' } },
+      temperature: 0.3,
+    }),
   });
 
-  const response = await (client as any).responses.create({
-    model: 'gpt-5.4',
-    instructions: systemPrompt,
-    input: userPrompt,
-    text: { format: { type: 'json_object' } },
-    temperature: 0.3,
-  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`${res.status} ${res.statusText}${body ? `: ${body}` : ''}`);
+  }
 
-  const outputMessage = response.output.find((o: any) => o.type === 'message');
+  const data = await res.json();
+  const outputMessage = data.output?.find((o: any) => o.type === 'message');
   const textBlock = outputMessage?.content?.find((c: any) => c.type === 'output_text');
   return textBlock?.text ?? '';
 }
