@@ -45,9 +45,12 @@ const defaultBridgeGeometry: BridgeGeometry = {
   highChord: 0,
   leftAbutmentStation: 0,
   rightAbutmentStation: 0,
-  leftAbutmentSlope: 0,
-  rightAbutmentSlope: 0,
   skewAngle: 0,
+  contractionLength: 0,
+  expansionLength: 0,
+  orificeCd: 0.8,
+  weirCw: 1.4,
+  deckWidth: 0,
   piers: [],
   lowChordProfile: [],
 };
@@ -61,6 +64,8 @@ const defaultCoefficients: Coefficients = {
   initialGuessOffset: 0.5,
   debrisBlockagePct: 0,
   manningsNSensitivityPct: null,
+  alphaOverride: null,
+  freeboardThreshold: 0.984,
   methodsToRun: {
     energy: true,
     momentum: true,

@@ -36,7 +36,7 @@ describe('useProjectStore', () => {
     useProjectStore.getState().updateCrossSection(points);
     const json = useProjectStore.getState().exportProject();
     const parsed = JSON.parse(json);
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
     expect(parsed.crossSection).toEqual(points);
 
     // Reset and reimport
