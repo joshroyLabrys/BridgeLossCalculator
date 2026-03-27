@@ -192,22 +192,27 @@ input[type="number"] {
   .print-page {
     page-break-after: always;
     position: relative;
+    box-sizing: border-box;
+  }
+
+  .print-page:first-child {
+    /* Cover page only: centred content */
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;
+  }
+
+  .print-page:first-child .print-page-content {
+    flex: 1;
   }
 
   .print-page:last-child {
     page-break-after: auto;
   }
 
-  .print-page-content {
-    flex: 1;
-  }
-
   .print-page-footer {
-    margin-top: auto;
+    margin-top: 2mm;
+    padding-top: 1mm;
   }
 
   /* ── Table and SVG overflow ── */
@@ -222,6 +227,17 @@ input[type="number"] {
     height: auto !important;
     overflow: hidden;
     display: block;
+    background: white;
+  }
+
+  /* Override dark D3 chart colours for print */
+  .print-report svg text {
+    fill: #374151 !important;
+  }
+
+  .print-report svg line,
+  .print-report svg .domain {
+    stroke: #d1d5db !important;
   }
 
   @page {

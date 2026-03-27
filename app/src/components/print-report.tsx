@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { useProjectStore } from '@/store/project-store';
 import { computeFreeboard } from '@/engine/freeboard';
 
@@ -73,6 +73,20 @@ function SectionDesc({ children }: { children: ReactNode }) {
   return <p className="text-[9px] text-gray-400 mb-2 max-w-[140mm] leading-snug">{children}</p>;
 }
 
+function PrintBullets({ items, className = 'text-gray-500' }: { items: string | string[]; className?: string }) {
+  const list = Array.isArray(items) ? items : [items];
+  return (
+    <ul className="max-w-[160mm] space-y-0.5">
+      {list.map((item, i) => (
+        <li key={i} className={`text-[10px] leading-snug flex items-baseline gap-1.5 ${className}`}>
+          <span className="text-gray-300 shrink-0">•</span>
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /* ─── Report ─── */
 
 export function PrintReport() {
@@ -89,6 +103,38 @@ export function PrintReport() {
   const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
   const date = new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
   const title = projectName || 'Bridge Hydraulic Loss Assessment';
+
+  // Capture live chart SVGs before print so they appear in the report
+  const [chartSvgs, setChartSvgs] = useState<{ label: string; svg: string; width: number; height: number }[]>([]);
+
+  useEffect(() => {
+    function captureCharts() {
+      const svgs: typeof chartSvgs = [];
+      // Find all rendered SVGs inside known chart containers
+      const chartContainers = document.querySelectorAll<HTMLDivElement>(
+        // Cross-section charts, afflux charts, WSEL charts
+        '[class*="h-[300px]"], [class*="h-[350px]"], [class*="h-[320px]"]'
+      );
+      chartContainers.forEach((container) => {
+        const svg = container.querySelector('svg');
+        if (!svg) return;
+        // Determine label from nearest card title
+        const card = container.closest('[class*="CardContent"]')?.parentElement;
+        const titleEl = card?.querySelector('[class*="CardTitle"]');
+        const label = titleEl?.textContent || 'Chart';
+        svgs.push({
+          label,
+          svg: svg.outerHTML,
+          width: svg.clientWidth || 600,
+          height: svg.clientHeight || 300,
+        });
+      });
+      setChartSvgs(svgs);
+    }
+
+    window.addEventListener('beforeprint', captureCharts);
+    return () => window.removeEventListener('beforeprint', captureCharts);
+  }, []);
 
   // Paginate cross-section rows
   const xsChunks: typeof crossSection[] = [];
@@ -347,10 +393,30 @@ export function PrintReport() {
         </Page>
       )}
 
+      {/* ═══ PAGE(s): Charts ═══ */}
+      {chartSvgs.length > 0 && (
+        <Page section="Charts" page={nextPage()} date={date} reportTitle={title}>
+          <SectionTitle number={6} title="Charts" />
+          <SectionDesc>
+            Captured from the interactive summary view. Cross-section profile, afflux rating curve, and upstream WSEL trend.
+          </SectionDesc>
+          {chartSvgs.map((chart, i) => (
+            <div key={i} className="mb-4">
+              <h3 className="text-[10px] font-semibold text-gray-600 mb-1">{chart.label}</h3>
+              <div
+                className="border border-gray-200 rounded overflow-hidden bg-white"
+                style={{ maxWidth: '100%' }}
+                dangerouslySetInnerHTML={{ __html: chart.svg }}
+              />
+            </div>
+          ))}
+        </Page>
+      )}
+
       {/* ═══ PAGE: AI Analysis ═══ */}
       {(aiSummary || aiSummaryLoading) && results && (
         <Page section="AI Analysis" page={nextPage()} date={date} reportTitle={title}>
-          <SectionTitle number={6} title="AI Analysis" />
+          <SectionTitle number={chartSvgs.length > 0 ? 7 : 6} title="AI Analysis" />
           <SectionDesc>
             Automated review of calculation results by AI. This analysis is supplementary —
             engineering judgement should always take precedence.
@@ -362,41 +428,41 @@ export function PrintReport() {
             <div className="space-y-3 mt-2">
               <div>
                 <h3 className="text-[11px] font-semibold text-gray-700 mb-1">Summary</h3>
-                <p className="text-[10px] text-gray-600 leading-snug max-w-[160mm]">{aiSummary.overall}</p>
+                <PrintBullets items={aiSummary.overall} className="text-gray-600" />
               </div>
 
               {aiSummary.callouts.regime && (
                 <div>
                   <h3 className="text-[10px] font-semibold text-gray-600 mb-0.5">Flow Regime</h3>
-                  <p className="text-[10px] text-gray-500 leading-snug max-w-[160mm]">{aiSummary.callouts.regime}</p>
+                  <PrintBullets items={aiSummary.callouts.regime} />
                 </div>
               )}
 
               {aiSummary.callouts.freeboard && (
                 <div>
                   <h3 className="text-[10px] font-semibold text-gray-600 mb-0.5">Freeboard</h3>
-                  <p className="text-[10px] text-gray-500 leading-snug max-w-[160mm]">{aiSummary.callouts.freeboard}</p>
+                  <PrintBullets items={aiSummary.callouts.freeboard} />
                 </div>
               )}
 
               {aiSummary.callouts.comparison && (
                 <div>
                   <h3 className="text-[10px] font-semibold text-gray-600 mb-0.5">Method Comparison</h3>
-                  <p className="text-[10px] text-gray-500 leading-snug max-w-[160mm]">{aiSummary.callouts.comparison}</p>
+                  <PrintBullets items={aiSummary.callouts.comparison} />
                 </div>
               )}
 
               {aiSummary.callouts.afflux && (
                 <div>
                   <h3 className="text-[10px] font-semibold text-gray-600 mb-0.5">Afflux Trends</h3>
-                  <p className="text-[10px] text-gray-500 leading-snug max-w-[160mm]">{aiSummary.callouts.afflux}</p>
+                  <PrintBullets items={aiSummary.callouts.afflux} />
                 </div>
               )}
 
               {aiSummary.callouts.hecras && (
                 <div>
                   <h3 className="text-[10px] font-semibold text-gray-600 mb-0.5">HEC-RAS Comparison</h3>
-                  <p className="text-[10px] text-gray-500 leading-snug max-w-[160mm]">{aiSummary.callouts.hecras}</p>
+                  <PrintBullets items={aiSummary.callouts.hecras} />
                 </div>
               )}
 
