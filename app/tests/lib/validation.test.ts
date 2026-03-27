@@ -92,4 +92,17 @@ describe('validateInputs', () => {
     const errors = validateInputs(highN, validBridge, validProfiles);
     expect(errors.some(e => e.severity === 'warning' && e.message.includes('unusual'))).toBe(true);
   });
+
+  it('warns when DS WSEL is unreasonably high', () => {
+    const highProfiles: FlowProfile[] = [{ name: 'High', ari: '', discharge: 100, dsWsel: 25, channelSlope: 0.001 }];
+    const errors = validateInputs(validCrossSection, validBridge, highProfiles);
+    expect(errors.some(e => e.severity === 'warning' && e.message.includes('unreasonably high'))).toBe(true);
+  });
+
+  it('warns when deck width is zero with overtopping expected', () => {
+    const overtoppingProfiles: FlowProfile[] = [{ name: 'OT', ari: '', discharge: 5000, dsWsel: 15, channelSlope: 0.001 }];
+    const zeroDeck: BridgeGeometry = { ...validBridge, deckWidth: 0 };
+    const errors = validateInputs(validCrossSection, zeroDeck, overtoppingProfiles);
+    expect(errors.some(e => e.severity === 'warning' && e.message.includes('zero'))).toBe(true);
+  });
 });

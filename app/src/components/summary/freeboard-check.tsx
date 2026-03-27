@@ -35,7 +35,7 @@ export function FreeboardCheck() {
           <ShieldCheck className="h-4 w-4 text-muted-foreground" />
           <CardTitle>Freeboard Check</CardTitle>
         </div>
-        <CardDescription>Low chord clearance using Energy method upstream WSEL</CardDescription>
+        <CardDescription>Low chord clearance using worst-case upstream WSEL across all methods</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <Table>

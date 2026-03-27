@@ -77,6 +77,14 @@ export function validateInputs(
     if (profiles[i].dsWsel < minElev) {
       errors.push({ field: `profiles[${i}].dsWsel`, message: `DS WSEL (${profiles[i].dsWsel.toFixed(2)}) is below the lowest cross-section elevation (${minElev.toFixed(2)})`, severity: 'error' });
     }
+    if (profiles[i].dsWsel > bridge.highChord + 10) {
+      errors.push({ field: `profiles[${i}].dsWsel`, message: 'DS WSEL appears unreasonably high — check units and datum', severity: 'warning' });
+    }
+  }
+
+  const maxDsWsel = profiles.length > 0 ? Math.max(...profiles.map(p => p.dsWsel)) : 0;
+  if (bridge.deckWidth <= 0 && maxDsWsel > bridge.highChord) {
+    errors.push({ field: 'bridge.deckWidth', message: 'Deck width is zero — overtopping calculations will use zero weir length', severity: 'warning' });
   }
 
   return errors;

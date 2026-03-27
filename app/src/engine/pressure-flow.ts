@@ -11,8 +11,7 @@ import { calcNetBridgeArea, calcPierBlockage, interpolateLowChord } from './brid
 import { calcVelocity, calcFroudeNumber } from './hydraulics';
 import { calcTuflowPierFLC, calcTuflowSuperFLC } from './tuflow-flc';
 import { solve } from './iteration';
-
-const G = 32.174;
+import { G } from '@/lib/constants';
 
 /**
  * Orifice flow solver for pressure flow regime.
@@ -101,6 +100,8 @@ export function runPressureFlow(
     converged: solverResult.converged,
     calculationSteps: steps,
     tuflowPierFLC: calcTuflowPierFLC(totalLoss, usVelocity),
+    // Note: Passes total afflux as superstructure head loss. For a true layered FLC,
+    // subtract the free-surface pier-only afflux. This is a conservative estimate.
     tuflowSuperFLC: calcTuflowSuperFLC(totalLoss, usVelocity, 'pressure'),
     inputEcho: {
       flowArea: dsArea,

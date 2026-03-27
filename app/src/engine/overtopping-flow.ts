@@ -12,8 +12,7 @@ import { calcVelocity, calcFroudeNumber } from './hydraulics';
 import { calcTuflowPierFLC, calcTuflowSuperFLC } from './tuflow-flc';
 import { calcEffectiveWeirLength } from './deck-profile';
 import { solve } from './iteration';
-
-const G = 32.174;
+import { G } from '@/lib/constants';
 
 /**
  * Combined orifice + weir solver for overtopping flow regime.
@@ -136,6 +135,8 @@ export function runOvertoppingFlow(
     converged: solverResult.converged,
     calculationSteps: steps,
     tuflowPierFLC: calcTuflowPierFLC(totalLoss, usVelocity),
+    // Note: Passes total afflux as superstructure head loss. For a true layered FLC,
+    // subtract the free-surface pier-only afflux. This is a conservative estimate.
     tuflowSuperFLC: calcTuflowSuperFLC(totalLoss, usVelocity, 'overtopping'),
     inputEcho: {
       flowArea: dsArea,

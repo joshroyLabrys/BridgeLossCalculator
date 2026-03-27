@@ -75,9 +75,10 @@ export function ActionButtons() {
   }
 
   function handleRunAll() {
-    const validationErrors = validateInputs(crossSection, bridgeGeometry, flowProfiles);
-    if (validationErrors.length > 0) { setErrors(validationErrors.map((e) => e.message)); return; }
-    setErrors([]);
+    const validationResults = validateInputs(crossSection, bridgeGeometry, flowProfiles);
+    const blockingErrors = validationResults.filter(e => e.severity === 'error');
+    if (blockingErrors.length > 0) { setErrors(blockingErrors.map(e => e.message)); return; }
+    setErrors(validationResults.filter(e => e.severity === 'warning').map(e => e.message));
     setIsProcessing(true);
 
     // Defer computation so the UI can paint the loading state
