@@ -4,7 +4,8 @@
  * all within a single relatively-positioned container.
  */
 import { View, Text, Svg, Line, Rect, Circle, G, Path, StyleSheet } from '@react-pdf/renderer';
-import type { CrossSectionPoint, BridgeGeometry, CalculationResults, FlowProfile, HecRasComparison } from '@/engine/types';
+import type { CrossSectionPoint, BridgeGeometry, CalculationResults, FlowProfile, HecRasComparison, MethodResult } from '@/engine/types';
+import type { HydraulicProfile } from '@/engine/simulation-profile';
 
 const METHODS = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
 const METHOD_COLORS: Record<string, string> = {
@@ -397,6 +398,544 @@ export function PdfCrossSectionChart({ crossSection, bridge, results, profileInd
             </View>
           );
         }) : null}
+      </View>
+    </View>
+  );
+}
+
+/* ─── Energy Grade Diagram (PDF) ─── */
+
+const G_CONST = 32.174;
+
+const EGL_COLORS = {
+  ground: '#78716c',
+  groundFill: '#e5e7eb',
+  hgl: '#3b82f6',
+  hglFill: 'rgba(59,130,246,0.08)',
+  egl: '#f97316',
+  eglFill: 'rgba(249,115,22,0.06)',
+  bridge: '#dc2626',
+  bridgeFill: '#fecaca',
+  pier: '#dc2626',
+  vh: '#8b5cf6',
+  hl: '#22c55e',
+  water: 'rgba(59,130,246,0.08)',
+  sectionLine: '#d1d5db',
+  label: '#374151',
+  flowArrow: '#3b82f6',
+  tableText: '#6b7280',
+  tableBold: '#374151',
+};
+
+interface EglSection {
+  label: string;
+  shortLabel: string;
+  x: number;
+  bed: number;
+  wsel: number;
+  velocity: number;
+  velocityHead: number;
+  egl: number;
+  froude: number;
+}
+
+interface PdfEnergyGradeDiagramProps {
+  profile: HydraulicProfile;
+  width: number;
+  height: number;
+}
+
+export function PdfEnergyGradeDiagram({ profile, width, height }: PdfEnergyGradeDiagramProps) {
+  const M = { top: 18, right: 20, bottom: 70, left: 48 };
+  const plotW = width - M.left - M.right;
+  const plotH = height - M.top - M.bottom;
+
+  const p = profile;
+
+  // Longitudinal distances
+  const contrLen = p.approach.stationEnd - p.approach.stationStart || 50;
+  const bridgeLen = p.bridge.stationEnd - p.bridge.stationStart || 20;
+  const expanLen = p.exit.stationEnd - p.exit.stationStart || 50;
+  const totalLen = contrLen + bridgeLen + expanLen;
+
+  // Thalweg bed profile
+  const channelSlope = p.approach.depth > 0
+    ? (p.usWsel - p.dsWsel) / totalLen * 0.3
+    : 0;
+  const bridgeBed = p.bridge.bedElevation;
+  const bed4 = bridgeBed + channelSlope * contrLen;
+  const bed3 = bridgeBed;
+  const bed2 = bridgeBed;
+  const bed1 = bridgeBed - channelSlope * expanLen;
+
+  const approachVH = (p.approach.velocity ** 2) / (2 * G_CONST);
+  const exitVH = (p.exit.velocity ** 2) / (2 * G_CONST);
+
+  const sections: EglSection[] = [
+    { label: 'Section 4', shortLabel: '4', x: 0,
+      bed: bed4, wsel: p.usWsel, velocity: p.approach.velocity,
+      velocityHead: approachVH, egl: p.usWsel + approachVH,
+      froude: p.approach.velocity / Math.sqrt(G_CONST * Math.max(p.approach.depth, 0.01)) },
+    { label: 'Sec 3 (BU)', shortLabel: '3', x: contrLen,
+      bed: bed3, wsel: p.usWsel, velocity: p.approach.velocity,
+      velocityHead: approachVH, egl: p.usWsel + approachVH,
+      froude: p.approach.velocity / Math.sqrt(G_CONST * Math.max(p.approach.depth, 0.01)) },
+    { label: 'Sec 2 (BD)', shortLabel: '2', x: contrLen + bridgeLen,
+      bed: bed2, wsel: p.dsWsel, velocity: p.exit.velocity,
+      velocityHead: exitVH, egl: p.dsWsel + exitVH,
+      froude: p.exit.velocity / Math.sqrt(G_CONST * Math.max(p.exit.depth, 0.01)) },
+    { label: 'Section 1', shortLabel: '1', x: totalLen,
+      bed: bed1, wsel: p.dsWsel, velocity: p.exit.velocity,
+      velocityHead: exitVH, egl: p.dsWsel + exitVH,
+      froude: p.exit.velocity / Math.sqrt(G_CONST * Math.max(p.exit.depth, 0.01)) },
+  ];
+
+  // Scales
+  const xPad = totalLen * 0.08;
+  const allElev = [
+    ...sections.map(sec => sec.bed), ...sections.map(sec => sec.egl),
+    p.bridge.highChord, p.bridge.lowChordLeft,
+  ];
+  const yPad = (Math.max(...allElev) - Math.min(...allElev)) * 0.15 || 2;
+
+  const xScale = makeScale(-xPad, totalLen + xPad, M.left, M.left + plotW, 0);
+  const yScale = makeScale(
+    Math.min(...allElev) - yPad, Math.max(...allElev) + yPad,
+    M.top + plotH, M.top, 0
+  );
+
+  const xTicks = generateTicks(xScale, 6);
+  const yTicks = generateTicks({ min: yScale.min, max: yScale.max, pxMin: yScale.pxMax, pxMax: yScale.pxMin }, 6);
+
+  const px = (v: number) => toPixel(v, xScale);
+  const py = (v: number) => toPixel(v, yScale);
+
+  // Ground fill path
+  const groundFillD = sections.map((sec, i) =>
+    `${i === 0 ? 'M' : 'L'} ${px(sec.x)} ${py(sec.bed)}`
+  ).join(' ') +
+    ` L ${px(sections[sections.length - 1].x)} ${M.top + plotH}` +
+    ` L ${px(sections[0].x)} ${M.top + plotH} Z`;
+
+  const groundLineD = sections.map((sec, i) =>
+    `${i === 0 ? 'M' : 'L'} ${px(sec.x)} ${py(sec.bed)}`
+  ).join(' ');
+
+  // Water fill path
+  const waterFillD = sections.map((sec, i) =>
+    `${i === 0 ? 'M' : 'L'} ${px(sec.x)} ${py(sec.wsel)}`
+  ).join(' ') +
+    [...sections].reverse().map((sec) => ` L ${px(sec.x)} ${py(sec.bed)}`).join('') + ' Z';
+
+  // HGL path
+  const hglD = sections.map((sec, i) =>
+    `${i === 0 ? 'M' : 'L'} ${px(sec.x)} ${py(sec.wsel)}`
+  ).join(' ');
+
+  // EGL path
+  const eglD = sections.map((sec, i) =>
+    `${i === 0 ? 'M' : 'L'} ${px(sec.x)} ${py(sec.egl)}`
+  ).join(' ');
+
+  // EGL-HGL band
+  const eglBandD = sections.map((sec, i) =>
+    `${i === 0 ? 'M' : 'L'} ${px(sec.x)} ${py(sec.egl)}`
+  ).join(' ') +
+    [...sections].reverse().map((sec) => ` L ${px(sec.x)} ${py(sec.wsel)}`).join('') + ' Z';
+
+  // Bridge geometry
+  const bx1 = px(contrLen);
+  const bx2 = px(contrLen + bridgeLen);
+  const bMid = (bx1 + bx2) / 2;
+  const bWidth = bx2 - bx1;
+
+  // Velocity head dimension lines
+  const vhLines: { sx: number; y1: number; y2: number; label: string; side: 'left' | 'right' }[] = [];
+  if (approachVH > 0.001) {
+    vhLines.push({ sx: px(0) - 12, y1: py(sections[0].wsel), y2: py(sections[0].egl),
+      label: `V²/2g=${approachVH.toFixed(3)}`, side: 'left' });
+  }
+  if (exitVH > 0.001) {
+    vhLines.push({ sx: px(totalLen) + 12, y1: py(sections[3].wsel), y2: py(sections[3].egl),
+      label: `V²/2g=${exitVH.toFixed(3)}`, side: 'right' });
+  }
+
+  // Total head loss
+  const egl4 = sections[0].egl;
+  const egl1 = sections[3].egl;
+  const hl = egl4 - egl1;
+  const hlX = px(totalLen * 0.80);
+
+  // Table data below diagram
+  const tableTop = M.top + plotH + 22;
+  const rowH = 10;
+  const headers = ['WSEL', 'Velocity', 'Froude', 'EGL'];
+
+  return (
+    <View>
+      <View style={{ position: 'relative', width, height }}>
+        <Svg style={{ position: 'absolute', top: 0, left: 0 }} width={width} height={height}>
+          <Rect x={0} y={0} width={width} height={height} fill="white" />
+
+          {/* Grid */}
+          {yTicks.map((v, i) => (
+            <Line key={`gy${i}`} x1={M.left} y1={toPixel(v, yScale)} x2={M.left + plotW} y2={toPixel(v, yScale)}
+              stroke="#ebebeb" strokeWidth={0.5} />
+          ))}
+          {xTicks.map((v, i) => (
+            <Line key={`gx${i}`} x1={toPixel(v, xScale)} y1={M.top} x2={toPixel(v, xScale)} y2={M.top + plotH}
+              stroke="#ebebeb" strokeWidth={0.5} />
+          ))}
+
+          {/* Axes */}
+          <Line x1={M.left} y1={M.top} x2={M.left} y2={M.top + plotH} stroke="#9ca3af" strokeWidth={0.75} />
+          <Line x1={M.left} y1={M.top + plotH} x2={M.left + plotW} y2={M.top + plotH} stroke="#9ca3af" strokeWidth={0.75} />
+
+          {/* Ground fill + line */}
+          <Path d={groundFillD} fill={EGL_COLORS.groundFill} opacity={0.5} />
+          <Path d={groundLineD} stroke={EGL_COLORS.ground} strokeWidth={1.5} fill="none" />
+
+          {/* Water fill */}
+          <Path d={waterFillD} fill={EGL_COLORS.water} />
+
+          {/* HGL line */}
+          <Path d={hglD} stroke={EGL_COLORS.hgl} strokeWidth={2} fill="none" />
+
+          {/* EGL-HGL band */}
+          <Path d={eglBandD} fill={EGL_COLORS.eglFill} />
+
+          {/* EGL line (dashed) */}
+          <Path d={eglD} stroke={EGL_COLORS.egl} strokeWidth={1.5} fill="none" strokeDasharray="6,3" />
+
+          {/* Bridge deck */}
+          <Rect x={bx1} y={py(p.bridge.highChord)} width={bWidth}
+            height={Math.max(py(p.bridge.lowChordLeft) - py(p.bridge.highChord), 1)}
+            fill={EGL_COLORS.bridgeFill} stroke={EGL_COLORS.bridge} strokeWidth={0.75} opacity={0.3} />
+
+          {/* Piers */}
+          {p.bridge.piers.map((pier, i) => {
+            const span = p.bridge.stationEnd - p.bridge.stationStart;
+            const t = span > 0 ? (pier.station - p.bridge.stationStart) / span : 0.5;
+            const pierCX = bx1 + t * bWidth;
+            const pierW = Math.max((pier.width / span) * bWidth, 2);
+            const pierTop = py(p.bridge.lowChordLeft);
+            const pierBot = py(p.bridge.bedElevation);
+            return (
+              <Rect key={i} x={pierCX - pierW / 2} y={pierTop} width={pierW}
+                height={Math.max(pierBot - pierTop, 2)}
+                fill={EGL_COLORS.pier} opacity={0.35} stroke={EGL_COLORS.pier} strokeWidth={0.5} />
+            );
+          })}
+
+          {/* Section lines (dashed verticals) */}
+          {sections.map((sec, i) => (
+            <Line key={`sl${i}`} x1={px(sec.x)} y1={M.top} x2={px(sec.x)} y2={M.top + plotH}
+              stroke={EGL_COLORS.sectionLine} strokeWidth={0.5} strokeDasharray="3,2" />
+          ))}
+
+          {/* Velocity head dimension lines */}
+          {vhLines.map((vl, i) => {
+            const len = Math.abs(vl.y2 - vl.y1);
+            if (len < 3) return null;
+            const tw = 3;
+            return (
+              <G key={`vh${i}`}>
+                <Line x1={vl.sx} y1={vl.y1} x2={vl.sx} y2={vl.y2} stroke={EGL_COLORS.vh} strokeWidth={1} />
+                <Line x1={vl.sx - tw} y1={vl.y1} x2={vl.sx + tw} y2={vl.y1} stroke={EGL_COLORS.vh} strokeWidth={1} />
+                <Line x1={vl.sx - tw} y1={vl.y2} x2={vl.sx + tw} y2={vl.y2} stroke={EGL_COLORS.vh} strokeWidth={1} />
+              </G>
+            );
+          })}
+
+          {/* Total head loss dimension */}
+          {Math.abs(hl) > 0.001 ? (
+            <G>
+              <Line x1={hlX} y1={py(egl4)} x2={hlX} y2={py(egl1)} stroke={EGL_COLORS.hl} strokeWidth={1} />
+              <Line x1={hlX - 3} y1={py(egl4)} x2={hlX + 3} y2={py(egl4)} stroke={EGL_COLORS.hl} strokeWidth={1} />
+              <Line x1={hlX - 3} y1={py(egl1)} x2={hlX + 3} y2={py(egl1)} stroke={EGL_COLORS.hl} strokeWidth={1} />
+            </G>
+          ) : null}
+
+          {/* Flow direction arrow */}
+          {(() => {
+            const arrowY = py(Math.max(...sections.map(sec => sec.egl))) - 8;
+            const arrowX1 = px(totalLen * 0.12);
+            const arrowX2 = px(totalLen * 0.28);
+            return (
+              <G>
+                <Line x1={arrowX1} y1={arrowY} x2={arrowX2} y2={arrowY}
+                  stroke={EGL_COLORS.flowArrow} strokeWidth={1} />
+                <Path d={`M ${arrowX2} ${arrowY} L ${arrowX2 - 5} ${arrowY - 3} L ${arrowX2 - 5} ${arrowY + 3} Z`}
+                  fill={EGL_COLORS.flowArrow} />
+              </G>
+            );
+          })()}
+        </Svg>
+
+        {/* Y tick labels */}
+        {yTicks.map((v, i) => (
+          <Text key={`yt${i}`} style={{
+            position: 'absolute', left: 0, top: toPixel(v, yScale) - 4,
+            width: M.left - 3, textAlign: 'right', fontSize: 6, color: '#6b7280',
+          }}>{fmt(v)}</Text>
+        ))}
+
+        {/* X tick labels */}
+        {xTicks.map((v, i) => (
+          <Text key={`xt${i}`} style={{
+            position: 'absolute', left: toPixel(v, xScale) - 18, top: M.top + plotH + 2,
+            width: 36, textAlign: 'center', fontSize: 6, color: '#6b7280',
+          }}>{fmt(v)}</Text>
+        ))}
+
+        {/* Section labels at top */}
+        {sections.map((sec, i) => (
+          <Text key={`slbl${i}`} style={{
+            position: 'absolute', left: px(sec.x) - 12, top: M.top - 10,
+            width: 24, textAlign: 'center', fontSize: 7, fontFamily: 'Helvetica-Bold', color: EGL_COLORS.label,
+          }}>{sec.shortLabel}</Text>
+        ))}
+
+        {/* VH labels */}
+        {vhLines.map((vl, i) => {
+          const midY = (vl.y1 + vl.y2) / 2;
+          return (
+            <Text key={`vhlbl${i}`} style={{
+              position: 'absolute',
+              left: vl.side === 'right' ? vl.sx + 4 : vl.sx - 60,
+              top: midY - 4,
+              width: 56, textAlign: vl.side === 'right' ? 'left' : 'right',
+              fontSize: 5.5, color: EGL_COLORS.vh, fontFamily: 'Helvetica-Bold',
+            }}>{vl.label}</Text>
+          );
+        })}
+
+        {/* Head loss label */}
+        {Math.abs(hl) > 0.001 ? (
+          <Text style={{
+            position: 'absolute', left: hlX + 5, top: (py(egl4) + py(egl1)) / 2 - 4,
+            width: 60, fontSize: 5.5, color: EGL_COLORS.hl, fontFamily: 'Helvetica-Bold',
+          }}>{`Δh=${hl.toFixed(3)}`}</Text>
+        ) : null}
+
+        {/* Flow label */}
+        <Text style={{
+          position: 'absolute', left: px(totalLen * 0.12), top: py(Math.max(...sections.map(sec => sec.egl))) - 18,
+          width: 30, textAlign: 'center', fontSize: 6, color: EGL_COLORS.flowArrow,
+        }}>Flow</Text>
+
+        {/* Axis labels */}
+        <Text style={{
+          position: 'absolute', left: M.left, bottom: height - tableTop + 6,
+          width: plotW, textAlign: 'center',
+          fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#374151',
+        }}>Longitudinal Distance (ft)</Text>
+        <Text style={{
+          position: 'absolute', left: 0, top: 0,
+          width: M.left, textAlign: 'center',
+          fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#374151',
+        }}>Elev (ft)</Text>
+
+        {/* Section data table */}
+        {/* Row headers */}
+        {headers.map((h, ri) => (
+          <Text key={`rh${ri}`} style={{
+            position: 'absolute', left: 0, top: tableTop + ri * rowH,
+            width: M.left - 4, textAlign: 'right',
+            fontSize: 5.5, color: EGL_COLORS.tableText, fontFamily: 'Helvetica-Bold',
+          }}>{h}</Text>
+        ))}
+
+        {/* Section headers */}
+        {sections.map((sec, i) => (
+          <Text key={`sh${i}`} style={{
+            position: 'absolute', left: px(sec.x) - 28, top: tableTop - rowH,
+            width: 56, textAlign: 'center',
+            fontSize: 5.5, color: EGL_COLORS.tableBold, fontFamily: 'Helvetica-Bold',
+          }}>{sec.label}</Text>
+        ))}
+
+        {/* Section values */}
+        {sections.map((sec, si) => {
+          const vals = [
+            { text: `${sec.wsel.toFixed(2)} ft`, color: EGL_COLORS.hgl },
+            { text: `${sec.velocity.toFixed(2)} ft/s`, color: EGL_COLORS.tableText },
+            { text: isFinite(sec.froude) ? sec.froude.toFixed(3) : '—', color: EGL_COLORS.tableText },
+            { text: `${sec.egl.toFixed(2)} ft`, color: '#f97316' },
+          ];
+          return vals.map((v, ri) => (
+            <Text key={`sv${si}-${ri}`} style={{
+              position: 'absolute', left: px(sec.x) - 28, top: tableTop + ri * rowH,
+              width: 56, textAlign: 'center',
+              fontSize: 5.5, color: v.color, fontFamily: 'Courier',
+            }}>{v.text}</Text>
+          ));
+        })}
+      </View>
+
+      {/* Legend */}
+      <View style={cs.legend}>
+        <View style={cs.legendItem}>
+          <View style={[cs.legendDot, { backgroundColor: EGL_COLORS.hgl }]} />
+          <Text style={cs.legendText}>HGL (Water Surface)</Text>
+        </View>
+        <View style={cs.legendItem}>
+          <View style={[cs.legendDot, { backgroundColor: EGL_COLORS.egl }]} />
+          <Text style={cs.legendText}>EGL (Energy Grade)</Text>
+        </View>
+        <View style={cs.legendItem}>
+          <View style={[cs.legendDot, { backgroundColor: EGL_COLORS.vh }]} />
+          <Text style={cs.legendText}>V²/2g (Velocity Head)</Text>
+        </View>
+        <View style={cs.legendItem}>
+          <View style={[cs.legendDot, { backgroundColor: EGL_COLORS.hl }]} />
+          <Text style={cs.legendText}>Δh (Head Loss)</Text>
+        </View>
+        <View style={cs.legendItem}>
+          <View style={[cs.legendDot, { backgroundColor: EGL_COLORS.bridge }]} />
+          <Text style={cs.legendText}>Bridge Deck</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/* ─── Momentum Force Diagram (PDF) ─── */
+
+interface PdfForceDiagramProps {
+  momentumResult: MethodResult;
+  profileName: string;
+  width: number;
+  height: number;
+}
+
+interface ForceEntry {
+  label: string;
+  value: number;
+  color: string;
+  direction: 'right' | 'left';
+}
+
+export function PdfForceDiagram({ momentumResult, profileName, width, height }: PdfForceDiagramProps) {
+  // Extract forces from calculation steps
+  const steps = momentumResult.calculationSteps;
+  if (steps.length < 4) return null;
+
+  const F_ds = steps[1]?.intermediateValues?.F_ds ?? 0;
+  const M_ds = steps[1]?.intermediateValues?.M_ds ?? 0;
+  const F_drag = steps[2]?.result ?? 0;
+  const W_x = steps[3]?.intermediateValues?.W_x ?? 0;
+  const F_friction = steps[3]?.intermediateValues?.F_friction ?? 0;
+
+  // Compute upstream forces from balance
+  // At equilibrium: F_us + M_ds + W_x = F_ds + M_us + F_friction + F_drag
+  // We don't have M_us directly but can estimate from the final result
+  const usVel = momentumResult.approachVelocity;
+  const WATER_DENSITY = 1.94;
+  const Q = M_ds / (WATER_DENSITY * (steps[0]?.intermediateValues?.V ?? 1));
+  const M_us = WATER_DENSITY * Q * usVel;
+  const F_us = F_ds - M_ds + M_us - W_x + F_friction + F_drag;
+
+  const allForces: ForceEntry[] = [
+    { label: 'F_us (Hydrostatic)', value: F_us, color: '#2563eb', direction: 'right' },
+    { label: 'F_ds (Hydrostatic)', value: F_ds, color: '#dc2626', direction: 'left' },
+    { label: 'M_us (Momentum)', value: M_us, color: '#7c3aed', direction: 'right' },
+    { label: 'M_ds (Momentum)', value: M_ds, color: '#be185d', direction: 'left' },
+    { label: 'F_drag (Pier)', value: F_drag, color: '#d97706', direction: 'left' },
+    { label: 'W_x (Weight)', value: W_x, color: '#059669', direction: 'right' },
+    { label: 'F_friction', value: F_friction, color: '#64748b', direction: 'left' },
+  ];
+  const forces = allForces.filter(f => Math.abs(f.value) > 0.01);
+
+  const maxForce = Math.max(...forces.map(f => Math.abs(f.value)), 1);
+
+  const M2 = { top: 14, right: 12, bottom: 10, left: 120 };
+  const barAreaW = width - M2.left - M2.right;
+  const barH = 14;
+  const barGap = 4;
+  const totalBarsH = forces.length * (barH + barGap);
+  const chartH = Math.max(height, totalBarsH + M2.top + M2.bottom);
+
+  const centerX = M2.left + barAreaW / 2;
+  const maxBarHalf = barAreaW / 2 - 10;
+
+  return (
+    <View>
+      <View style={{ position: 'relative', width, height: chartH }}>
+        <Svg style={{ position: 'absolute', top: 0, left: 0 }} width={width} height={chartH}>
+          <Rect x={0} y={0} width={width} height={chartH} fill="white" />
+
+          {/* Center axis */}
+          <Line x1={centerX} y1={M2.top} x2={centerX} y2={M2.top + totalBarsH}
+            stroke="#d1d5db" strokeWidth={0.75} strokeDasharray="3,2" />
+
+          {/* Force bars */}
+          {forces.map((f, i) => {
+            const barY = M2.top + i * (barH + barGap);
+            const barLen = (Math.abs(f.value) / maxForce) * maxBarHalf;
+            const barX = f.direction === 'right' ? centerX : centerX - barLen;
+
+            return (
+              <G key={i}>
+                <Rect x={barX} y={barY} width={barLen} height={barH}
+                  fill={f.color} opacity={0.2} stroke={f.color} strokeWidth={0.75} />
+                {/* Arrow head */}
+                {f.direction === 'right' ? (
+                  <Path d={`M ${barX + barLen} ${barY + barH / 2} L ${barX + barLen - 4} ${barY + 2} L ${barX + barLen - 4} ${barY + barH - 2} Z`}
+                    fill={f.color} opacity={0.6} />
+                ) : (
+                  <Path d={`M ${barX} ${barY + barH / 2} L ${barX + 4} ${barY + 2} L ${barX + 4} ${barY + barH - 2} Z`}
+                    fill={f.color} opacity={0.6} />
+                )}
+              </G>
+            );
+          })}
+        </Svg>
+
+        {/* Force labels (left side) */}
+        {forces.map((f, i) => {
+          const barY = M2.top + i * (barH + barGap);
+          return (
+            <Text key={`fl${i}`} style={{
+              position: 'absolute', left: 2, top: barY + 1,
+              width: M2.left - 6, textAlign: 'right',
+              fontSize: 6.5, color: f.color, fontFamily: 'Helvetica-Bold',
+            }}>{f.label}</Text>
+          );
+        })}
+
+        {/* Force values (on bars) */}
+        {forces.map((f, i) => {
+          const barY = M2.top + i * (barH + barGap);
+          const barLen = (Math.abs(f.value) / maxForce) * maxBarHalf;
+          const valX = f.direction === 'right'
+            ? centerX + barLen + 3
+            : centerX - barLen - 40;
+          return (
+            <Text key={`fv${i}`} style={{
+              position: 'absolute', left: valX, top: barY + 1,
+              width: 40, textAlign: f.direction === 'right' ? 'left' : 'right',
+              fontSize: 6, color: '#374151', fontFamily: 'Courier',
+            }}>{Math.abs(f.value) >= 1000 ? `${(f.value / 1000).toFixed(1)}k` : f.value.toFixed(0)} lb</Text>
+          );
+        })}
+
+        {/* Direction labels */}
+        <Text style={{
+          position: 'absolute', left: centerX + 4, top: 2,
+          width: 80, fontSize: 6, color: '#9ca3af',
+        }}>→ Upstream (driving)</Text>
+        <Text style={{
+          position: 'absolute', left: centerX - 90, top: 2,
+          width: 86, textAlign: 'right', fontSize: 6, color: '#9ca3af',
+        }}>← Downstream (resisting)</Text>
+      </View>
+
+      {/* Summary line */}
+      <View style={{ flexDirection: 'row', marginTop: 3 }}>
+        <Text style={{ fontSize: 6.5, color: '#6b7280' }}>
+          Profile: {profileName} · Net balance → US WSEL = {momentumResult.upstreamWsel.toFixed(2)} ft · Afflux = {momentumResult.totalHeadLoss.toFixed(3)} ft
+        </Text>
       </View>
     </View>
   );

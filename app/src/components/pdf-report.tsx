@@ -21,11 +21,14 @@ import type { AiSummaryResponse } from '@/lib/api/ai-summary-prompt';
 import {
   PdfCrossSectionChart,
   PdfLineChart,
+  PdfEnergyGradeDiagram,
+  PdfForceDiagram,
   buildAffluxSeries,
   buildWselSeries,
   buildHecRasAffluxPoints,
   buildHecRasWselPoints,
 } from './pdf-charts';
+import { buildHydraulicProfile } from '@/engine/simulation-profile';
 
 /* ─── Constants ─── */
 
@@ -507,6 +510,36 @@ function ReportDocument({ data }: { data: PdfReportData }) {
                   />
                 </View>
               </View>
+
+              {/* Energy Grade Diagram — use first profile's energy result */}
+              {(() => {
+                const energyR = results.energy[0];
+                if (!energyR || energyR.error) return null;
+                const hydProfile = buildHydraulicProfile(crossSection, bridge, profiles[0], energyR);
+                return (
+                  <View style={s.chartWrap} wrap={false}>
+                    <Text style={s.chartLabel}>Energy Grade Line Diagram — {profiles[0].name}</Text>
+                    <View style={s.chartBorder}>
+                      <PdfEnergyGradeDiagram profile={hydProfile} width={CHART_W} height={280} />
+                    </View>
+                  </View>
+                );
+              })()}
+
+              {/* Momentum Force Diagram — use first profile's momentum result */}
+              {(() => {
+                const momR = results.momentum[0];
+                if (!momR || momR.error || momR.calculationSteps.length < 4) return null;
+                return (
+                  <View style={s.chartWrap} wrap={false}>
+                    <Text style={s.chartLabel}>Momentum Force Balance — {profiles[0].name}</Text>
+                    <Text style={s.sectionDesc}>Horizontal force components acting on the control volume. Driving forces (→) push upstream WSEL higher; resisting forces (←) oppose it.</Text>
+                    <View style={s.chartBorder}>
+                      <PdfForceDiagram momentumResult={momR} profileName={profiles[0].name} width={CHART_W} height={150} />
+                    </View>
+                  </View>
+                );
+              })()}
             </Sec>
           </>
         ) : null}
