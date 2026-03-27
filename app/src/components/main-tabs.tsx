@@ -18,7 +18,8 @@ import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
 import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
-import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal } from 'lucide-react';
+import { SimulationTab } from '@/components/simulation/simulation-tab';
+import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,6 +130,11 @@ export function MainTabs() {
               <TabsTrigger value="summary" className="rounded-md px-3.5 py-1.5 text-xs">
                 <BarChart3 className="h-3.5 w-3.5" />
                 Summary
+              </TabsTrigger>
+              <div className="h-4 w-px bg-border/50" aria-hidden="true" />
+              <TabsTrigger value="simulation" className="rounded-md px-3.5 py-1.5 text-xs">
+                <Zap className="h-3.5 w-3.5" />
+                Simulation
               </TabsTrigger>
             </TabsList>
           </div>
@@ -241,6 +247,10 @@ export function MainTabs() {
         } />
         <AffluxCharts callout={<AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
         <FreeboardCheck callout={<AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
+      </TabsContent>
+
+      <TabsContent value="simulation" className="flex-1 px-6 py-5">
+        <SimulationTab />
       </TabsContent>
     </Tabs>
   );
