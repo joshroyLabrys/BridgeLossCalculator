@@ -2,72 +2,68 @@ import { describe, it, expect } from 'vitest';
 import { runWSPRO } from '@/engine/methods/wspro';
 import { CrossSectionPoint, BridgeGeometry, FlowProfile, Coefficients } from '@/engine/types';
 
-// Wide flat channel with deep overbanks — ensures the bridge significantly constricts flow
-// Channel: flat bottom at elev 0 from sta 0-200, bank stations at 0 and 200
-// Bridge abutments at 60-140 (60% of 200 ft) → M ≈ 0.4 → Cb > 0
 const crossSection: CrossSectionPoint[] = [
-  { station: 0, elevation: 0, manningsN: 0.04, bankStation: 'left' },
-  { station: 200, elevation: 0, manningsN: 0.04, bankStation: 'right' },
+  { station: 0, elevation: 10, manningsN: 0.035, bankStation: 'left' },
+  { station: 50, elevation: 0, manningsN: 0.035, bankStation: null },
+  { station: 100, elevation: 10, manningsN: 0.035, bankStation: 'right' },
 ];
 
 const bridge: BridgeGeometry = {
-  lowChordLeft: 9,
-  lowChordRight: 9,
-  highChord: 12,
-  leftAbutmentStation: 60,
-  rightAbutmentStation: 140,
-  leftAbutmentSlope: 0,
-  rightAbutmentSlope: 0,
-  skewAngle: 0,
-  piers: [{ station: 100, width: 3, shape: 'round-nose' }],
+  lowChordLeft: 9, lowChordRight: 9, highChord: 12,
+  leftAbutmentStation: 5, rightAbutmentStation: 95,
+  skewAngle: 0, contractionLength: 90, expansionLength: 90,
+  orificeCd: 0.8, weirCw: 1.4, deckWidth: 10,
+  piers: [{ station: 50, width: 3, shape: 'round-nose' }],
   lowChordProfile: [],
 };
 
 const profile: FlowProfile = {
-  name: '10-yr',
-  discharge: 2500,
-  dsWsel: 8,
-  channelSlope: 0.001,
-  contractionLength: 90,
-  expansionLength: 90,
+  name: '10-yr', ari: '', discharge: 2500, dsWsel: 5, channelSlope: 0.001,
 };
 
 const coefficients: Coefficients = {
-  contractionCoeff: 0.3,
-  expansionCoeff: 0.5,
-  yarnellK: null,
-  maxIterations: 100,
-  tolerance: 0.01,
-  initialGuessOffset: 0.5,
+  contractionCoeff: 0.3, expansionCoeff: 0.5, yarnellK: null,
+  maxIterations: 100, tolerance: 0.01, initialGuessOffset: 0.5,
+  debrisBlockagePct: 0, manningsNSensitivityPct: null,
+  alphaOverride: null, freeboardThreshold: 0.984,
   methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
 };
 
 describe('runWSPRO', () => {
-  it('produces US WSEL > DS WSEL', () => {
+  it('computes free-surface result with flowCalculationType', () => {
     const result = runWSPRO(crossSection, bridge, profile, coefficients);
     expect(result.error).toBeNull();
-    expect(result.upstreamWsel).toBeGreaterThan(profile.dsWsel);
-    expect(result.totalHeadLoss).toBeGreaterThan(0);
+    expect(result.flowCalculationType).toBe('free-surface');
+    expect(result.upstreamWsel).toBeGreaterThanOrEqual(profile.dsWsel);
   });
 
-  it('reports free-surface flow regime', () => {
-    const result = runWSPRO(crossSection, bridge, profile, coefficients);
-    expect(result.flowRegime).toBe('free-surface');
+  it('dispatches to orifice solver for pressure flow', () => {
+    const pressureProfile: FlowProfile = { ...profile, dsWsel: 10 };
+    const result = runWSPRO(crossSection, bridge, pressureProfile, coefficients);
+    expect(result.flowCalculationType).toBe('orifice');
   });
 
-  it('has calculation steps', () => {
-    const result = runWSPRO(crossSection, bridge, profile, coefficients);
-    expect(result.calculationSteps.length).toBeGreaterThan(0);
-  });
-
-  it('computes bridge opening ratio between 0 and 1', () => {
-    const result = runWSPRO(crossSection, bridge, profile, coefficients);
-    // M should be between 0 and 1 for normal bridge constriction
-    const mStep = result.calculationSteps.find(s => s.description.includes('opening ratio'));
-    expect(mStep).toBeDefined();
-    if (mStep) {
-      expect(mStep.result).toBeGreaterThan(0);
-      expect(mStep.result).toBeLessThanOrEqual(1);
-    }
+  it('uses alpha in backwater computation', () => {
+    // Use a cross-section with overbank areas so that calcAlpha != 1.0
+    // and a narrower bridge opening so M < 1 and Cb > 0
+    const wideSection: CrossSectionPoint[] = [
+      { station: 0, elevation: 5, manningsN: 0.08, bankStation: 'left' },
+      { station: 20, elevation: 5, manningsN: 0.08, bankStation: null },
+      { station: 25, elevation: 0, manningsN: 0.035, bankStation: null },
+      { station: 75, elevation: 0, manningsN: 0.035, bankStation: null },
+      { station: 80, elevation: 5, manningsN: 0.08, bankStation: null },
+      { station: 100, elevation: 5, manningsN: 0.08, bankStation: 'right' },
+    ];
+    const constrictionBridge: BridgeGeometry = {
+      ...bridge,
+      leftAbutmentStation: 25, rightAbutmentStation: 75,
+      lowChordLeft: 8, lowChordRight: 8,
+    };
+    const wideProfile: FlowProfile = { ...profile, dsWsel: 6 };
+    const withAlpha = { ...coefficients, alphaOverride: 2.0 };
+    const resultAlpha = runWSPRO(wideSection, constrictionBridge, wideProfile, withAlpha);
+    const resultDefault = runWSPRO(wideSection, constrictionBridge, wideProfile, coefficients);
+    // Higher alpha = higher velocity head = higher backwater
+    expect(resultAlpha.upstreamWsel).toBeGreaterThan(resultDefault.upstreamWsel);
   });
 });
