@@ -10,6 +10,7 @@ import {
 } from '@/engine/types';
 import { serializeProject, parseProjectJson } from '@/lib/json-io';
 import { UnitSystem } from '@/lib/units';
+import type { AiSummaryResponse } from '@/lib/api/ai-summary-prompt';
 
 interface ProjectStore {
   crossSection: CrossSectionPoint[];
@@ -22,6 +23,9 @@ interface ProjectStore {
   sensitivityResults: SensitivityResults | null;
   projectName: string;
   activeMainTab: string;
+  aiSummary: AiSummaryResponse | null;
+  aiSummaryLoading: boolean;
+  aiSummaryError: string | null;
 
   updateCrossSection: (points: CrossSectionPoint[]) => void;
   updateBridgeGeometry: (geom: BridgeGeometry) => void;
@@ -34,6 +38,8 @@ interface ProjectStore {
   setSensitivityResults: (results: SensitivityResults | null) => void;
   setProjectName: (name: string) => void;
   setActiveMainTab: (tab: string) => void;
+  fetchAiSummary: () => Promise<void>;
+  clearAiSummary: () => void;
   exportProject: () => string;
   importProject: (json: string) => void;
   reset: () => void;
@@ -80,6 +86,9 @@ const initialState = {
   sensitivityResults: null as SensitivityResults | null,
   projectName: '' as string,
   activeMainTab: 'input' as string,
+  aiSummary: null as AiSummaryResponse | null,
+  aiSummaryLoading: false,
+  aiSummaryError: null as string | null,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -90,12 +99,102 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateFlowProfiles: (profiles) => set({ flowProfiles: profiles }),
   updateCoefficients: (coeffs) => set({ coefficients: coeffs }),
   setResults: (results) => set({ results }),
-  clearResults: () => set({ results: null }),
+  clearResults: () => set({ results: null, aiSummary: null, aiSummaryLoading: false, aiSummaryError: null }),
   updateHecRasComparison: (data) => set({ hecRasComparison: data }),
   setUnitSystem: (system) => set({ unitSystem: system }),
   setSensitivityResults: (results) => set({ sensitivityResults: results }),
   setProjectName: (name) => set({ projectName: name }),
   setActiveMainTab: (tab) => set({ activeMainTab: tab }),
+
+  clearAiSummary: () => set({ aiSummary: null, aiSummaryLoading: false, aiSummaryError: null }),
+
+  fetchAiSummary: async () => {
+    const state = get();
+    if (!state.results) return;
+
+    set({ aiSummaryLoading: true, aiSummaryError: null, aiSummary: null });
+
+    const bridge = state.bridgeGeometry;
+    const payload = {
+      bridgeGeometry: {
+        lowChordLeft: bridge.lowChordLeft,
+        lowChordRight: bridge.lowChordRight,
+        highChord: bridge.highChord,
+        span: bridge.rightAbutmentStation - bridge.leftAbutmentStation,
+        pierCount: bridge.piers.length,
+        debrisBlockagePct: state.coefficients.debrisBlockagePct,
+      },
+      flowProfiles: state.flowProfiles.map((p) => ({
+        name: p.name,
+        ari: p.ari,
+        discharge: p.discharge,
+        dsWsel: p.dsWsel,
+      })),
+      methods: Object.fromEntries(
+        (['energy', 'momentum', 'yarnell', 'wspro'] as const).map((m) => [
+          m,
+          state.results![m].map((r) => ({
+            profileName: r.profileName,
+            upstreamWsel: r.upstreamWsel,
+            totalHeadLoss: r.totalHeadLoss,
+            approachVelocity: r.approachVelocity,
+            froudeApproach: r.froudeApproach,
+            flowRegime: r.flowRegime,
+            converged: r.converged,
+            bridgeOpeningArea: r.inputEcho.bridgeOpeningArea,
+            tuflowPierFLC: r.tuflowPierFLC,
+            tuflowSuperFLC: r.tuflowSuperFLC,
+            error: r.error,
+          })),
+        ])
+      ),
+      freeboard: state.results!.energy.length > 0
+        ? (() => {
+            const energyResults = state.results!.energy;
+            return energyResults.map((r) => {
+              const lowChord = Math.min(bridge.lowChordLeft, bridge.lowChordRight);
+              const fb = lowChord - r.upstreamWsel;
+              return {
+                profileName: r.profileName,
+                freeboard: fb,
+                status: fb > 1 ? 'clear' : fb > 0 ? 'low' : r.flowRegime === 'overtopping' ? 'overtopping' : 'pressure',
+              };
+            });
+          })()
+        : null,
+      hecRasComparison: state.hecRasComparison.length > 0
+        ? state.hecRasComparison.map((c) => ({
+            profileName: c.profileName,
+            upstreamWsel: c.upstreamWsel,
+            headLoss: c.headLoss,
+          }))
+        : null,
+      sensitivityEnabled: state.coefficients.manningsNSensitivityPct != null &&
+        state.coefficients.manningsNSensitivityPct > 0,
+    };
+
+    try {
+      const response = await fetch('/api/ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Request failed' }));
+        set({ aiSummaryError: err.error || `HTTP ${response.status}`, aiSummaryLoading: false });
+        return;
+      }
+
+      const data = await response.json();
+      set({ aiSummary: data, aiSummaryLoading: false });
+    } catch (err) {
+      set({
+        aiSummaryError: err instanceof Error ? err.message : 'Network error',
+        aiSummaryLoading: false,
+      });
+    }
+  },
 
   exportProject: () => {
     const state = get();
