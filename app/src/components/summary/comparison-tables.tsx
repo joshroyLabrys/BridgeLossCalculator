@@ -123,18 +123,16 @@ export function ComparisonTables({ callout }: { callout?: ReactNode } = {}) {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex items-start gap-6">
-          <div className="flex-1 min-w-0 space-y-1">
-            <CardTitle>Method Comparison</CardTitle>
-            <CardDescription className="text-pretty">
-              Four independent methods compared side-by-side. Agreement within 5% (green) is high confidence,
-              5–10% (amber) is acceptable, and beyond 10% (red) warrants investigation. Enter HEC-RAS values
-              for percentage differences. TUFLOW FLC values are form loss coefficients for 2D models.
-            </CardDescription>
-          </div>
-          {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+      <CardHeader className="space-y-3">
+        <div className="space-y-1">
+          <CardTitle>Method Comparison</CardTitle>
+          <CardDescription className="text-pretty">
+            Four independent methods compared side-by-side. Agreement within 5% (green) is high confidence,
+            5–10% (amber) is acceptable, and beyond 10% (red) warrants investigation. Enter HEC-RAS values
+            for percentage differences. TUFLOW FLC values are form loss coefficients for 2D models.
+          </CardDescription>
         </div>
+        {callout}
       </CardHeader>
       <CardContent>
         <Table>

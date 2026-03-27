@@ -136,23 +136,27 @@ export function MainTabs() {
           <div className="flex-1" />
 
           {/* Right: utilities */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/40 px-1 py-0.5">
+          <div className="flex items-center gap-2">
+            {/* Unit toggle */}
+            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
               <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-2" />
               <button
                 onClick={() => setUnitSystem('metric')}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Metric
               </button>
               <button
                 onClick={() => setUnitSystem('imperial')}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 Imperial
               </button>
             </div>
-            <span className="text-[11px] text-muted-foreground/60 italic">Engine: US Customary internally</span>
+
+            <div className="w-px h-6 bg-border/40 mx-1" />
+
+            {/* Action buttons */}
             <input
               ref={fileInputRef}
               type="file"
@@ -160,17 +164,20 @@ export function MainTabs() {
               onChange={handleImport}
               className="hidden"
             />
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="h-4 w-4 mr-1.5" />
+            <Button variant="outline" size="default" onClick={() => fileInputRef.current?.click()}
+              className="gap-2 text-sm">
+              <Upload className="h-4 w-4" />
               Import
             </Button>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="h-4 w-4 mr-1.5" />
+            <Button variant="outline" size="default" onClick={handleExport}
+              className="gap-2 text-sm">
+              <Download className="h-4 w-4" />
               Export
             </Button>
-            <Button variant="outline" size="sm" onClick={handlePdf} disabled={pdfLoading}>
-              <FileText className="h-4 w-4 mr-1.5" />
-              {pdfLoading ? 'Generating…' : 'PDF'}
+            <Button size="default" onClick={handlePdf} disabled={pdfLoading}
+              className="gap-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+              <FileText className="h-4 w-4" />
+              {pdfLoading ? 'Generating…' : 'PDF Report'}
             </Button>
           </div>
         </div>

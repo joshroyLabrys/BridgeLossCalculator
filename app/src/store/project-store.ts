@@ -80,6 +80,8 @@ const defaultCoefficients: Coefficients = {
   },
 };
 
+let hecRasDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
 const initialState = {
   crossSection: [] as CrossSectionPoint[],
   bridgeGeometry: defaultBridgeGeometry,
@@ -107,10 +109,18 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   clearResults: () => set({ results: null, aiSummary: null, aiSummaryLoading: false, aiSummaryError: null }),
   updateHecRasComparison: (data) => {
     set({ hecRasComparison: data });
-    // Re-fetch AI summary if results exist so the analysis includes HEC-RAS comparison
+    // Only re-fetch AI when every profile has both upstreamWsel and headLoss filled
+    if (hecRasDebounceTimer) clearTimeout(hecRasDebounceTimer);
     const state = get();
-    if (state.results && data.length > 0 && data.some((c) => c.upstreamWsel !== null || c.headLoss !== null)) {
-      state.fetchAiSummary();
+    const profileCount = state.flowProfiles.length;
+    const allFilled = profileCount > 0
+      && data.length >= profileCount
+      && data.every((c) => c.upstreamWsel !== null && c.headLoss !== null);
+    if (state.results && allFilled) {
+      hecRasDebounceTimer = setTimeout(() => {
+        hecRasDebounceTimer = null;
+        get().fetchAiSummary();
+      }, 500);
     }
   },
   setUnitSystem: (system) => set({ unitSystem: system }),
