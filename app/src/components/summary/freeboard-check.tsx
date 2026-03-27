@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { computeFreeboard } from '@/engine/freeboard';
 import { unitLabel, toDisplay } from '@/lib/units';
 import { ShieldCheck } from 'lucide-react';
+import { ReactNode } from 'react';
 
 const STATUS_STYLE = {
   clear: { label: 'CLEAR', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
@@ -15,7 +16,7 @@ const STATUS_STYLE = {
   overtopping: { label: 'OVERTOPPING', className: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
 };
 
-export function FreeboardCheck() {
+export function FreeboardCheck({ callout }: { callout?: ReactNode } = {}) {
   const results = useProjectStore((s) => s.results);
   const bridge = useProjectStore((s) => s.bridgeGeometry);
   const profiles = useProjectStore((s) => s.flowProfiles);
@@ -31,14 +32,19 @@ export function FreeboardCheck() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          <CardTitle>Freeboard Check</CardTitle>
+        <div className="flex items-start gap-6">
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <CardTitle>Freeboard Check</CardTitle>
+            </div>
+            <CardDescription className="text-pretty">
+              Clearance between worst-case upstream WSEL (envelope across all methods) and the bridge
+              low chord. Positive = clearance below deck; negative = pressure flow or overtopping.
+            </CardDescription>
+          </div>
+          {callout && <div className="w-[45%] shrink-0">{callout}</div>}
         </div>
-        <CardDescription className="max-w-prose text-pretty">
-          Clearance between worst-case upstream WSEL (envelope across all methods) and the bridge
-          low chord. Positive = clearance below deck; negative = pressure flow or overtopping.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <Table>
