@@ -95,7 +95,7 @@ export function MainTabs() {
   return (
     <Tabs value={activeMainTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
       <Toaster
-        position="top-center"
+        position="bottom-right"
         theme="dark"
         toastOptions={{
           classNames: {
