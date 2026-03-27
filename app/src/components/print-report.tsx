@@ -147,7 +147,7 @@ export function PrintReport() {
 
   return (
     <div className="print-report bg-white text-black text-[11px] leading-snug"
-      style={{ fontFamily: FONT, display: 'none' }}>
+      style={{ fontFamily: FONT, position: 'absolute', left: '-9999px', width: 0, height: 0, overflow: 'hidden' }}>
 
       {/* ═══ PAGE: Cover ═══ */}
       <Page section="" page={nextPage()} date={date} reportTitle="">

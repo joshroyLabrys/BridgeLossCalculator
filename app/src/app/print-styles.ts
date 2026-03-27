@@ -10,14 +10,23 @@ export const printStyles = `
     background-image: none !important;
   }
 
-  /* Hide everything in the page wrapper except .print-report */
-  :has(> .print-report) > *:not(.print-report) {
-    display: none !important;
+  /*
+   * Strategy: visibility:hidden on body hides everything including children.
+   * Then visibility:visible on the print-report makes it (and its children) visible.
+   * This avoids display:none which collapses layout and requires re-establishing
+   * the display type for every element.
+   */
+  body {
+    visibility: hidden !important;
   }
 
   .print-report {
+    visibility: visible !important;
     display: block !important;
-    width: 100%;
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
   }
 
   /* Page template */
