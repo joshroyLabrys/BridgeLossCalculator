@@ -19,7 +19,7 @@ import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationTab } from '@/components/simulation/simulation-tab';
-import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
+import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,13 +108,58 @@ export function MainTabs() {
         }}
       />
       <header className="sticky top-0 z-50 border-b border-border/40 bg-card/80 backdrop-blur-xl shadow-sm">
-        <div className="flex items-center gap-6 px-6 py-3">
-          {/* Left: brand + main nav inline */}
-          <div className="flex items-center gap-2.5 shrink-0">
+        {/* Row 1: Brand + Utilities */}
+        <div className="flex items-center justify-between px-6 pt-2.5 pb-1.5">
+          <div className="flex items-center gap-2.5">
             <Waves className="h-5 w-5 text-primary" />
             <h1 className="text-lg font-semibold tracking-tight text-foreground">Bridge Loss Calculator</h1>
           </div>
 
+          <div className="flex items-center gap-1.5">
+            {/* Unit toggle */}
+            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
+              <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-2" />
+              <button
+                onClick={() => setUnitSystem('metric')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Metric
+              </button>
+              <button
+                onClick={() => setUnitSystem('imperial')}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Imperial
+              </button>
+            </div>
+
+            <div className="w-px h-5 bg-border/40 mx-0.5" />
+
+            {/* Icon action buttons */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleImport}
+              className="hidden"
+            />
+            <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()}
+              className="h-8 w-8" title="Import Project">
+              <FileInput className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" onClick={handleExport}
+              className="h-8 w-8" title="Export Project">
+              <FileOutput className="h-4 w-4" />
+            </Button>
+            <Button size="icon" onClick={handlePdf} disabled={pdfLoading}
+              className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" title="PDF Report">
+              <FileText className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Row 2: Centred page tabs */}
+        <div className="flex justify-center px-6 pb-2.5">
           <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
             <TabsList className="w-fit gap-0 bg-transparent p-0">
               <TabsTrigger value="input" className="rounded-md px-3.5 py-1.5 text-xs">
@@ -138,78 +183,23 @@ export function MainTabs() {
               </TabsTrigger>
             </TabsList>
           </div>
-
-          <div className="flex-1" />
-
-          {/* Right: utilities */}
-          <div className="flex items-center gap-2">
-            {/* Unit toggle */}
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
-              <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-2" />
-              <button
-                onClick={() => setUnitSystem('metric')}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Metric
-              </button>
-              <button
-                onClick={() => setUnitSystem('imperial')}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                Imperial
-              </button>
-            </div>
-
-            <div className="w-px h-6 bg-border/40 mx-1" />
-
-            {/* Action buttons */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleImport}
-              className="hidden"
-            />
-            <Button variant="outline" size="default" onClick={() => fileInputRef.current?.click()}
-              className="gap-2 text-sm">
-              <Upload className="h-4 w-4" />
-              Import
-            </Button>
-            <Button variant="outline" size="default" onClick={handleExport}
-              className="gap-2 text-sm">
-              <Download className="h-4 w-4" />
-              Export
-            </Button>
-            <Button size="default" onClick={handlePdf} disabled={pdfLoading}
-              className="gap-2 text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
-              <FileText className="h-4 w-4" />
-              {pdfLoading ? 'Generating…' : 'PDF Report'}
-            </Button>
-          </div>
         </div>
       </header>
 
       <TabsContent value="input" className="flex-1 px-6 py-5">
         <Tabs defaultValue="cross-section">
-          <div className="mb-5 inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
-            <TabsList className="w-fit gap-0 bg-transparent p-0">
-              <TabsTrigger value="cross-section" className="rounded-md px-3.5 py-1.5 text-xs">
-                <Layers className="h-3.5 w-3.5" />
+          <div className="mb-5 border-b border-border/30">
+            <TabsList variant="line" className="gap-6 pb-0">
+              <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-sm">
                 Cross-Section
               </TabsTrigger>
-              <div className="h-4 w-px bg-border/40" aria-hidden="true" />
-              <TabsTrigger value="bridge" className="rounded-md px-3.5 py-1.5 text-xs">
-                <Landmark className="h-3.5 w-3.5" />
+              <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-sm">
                 Bridge Geometry
               </TabsTrigger>
-              <div className="h-4 w-px bg-border/40" aria-hidden="true" />
-              <TabsTrigger value="profiles" className="rounded-md px-3.5 py-1.5 text-xs">
-                <Activity className="h-3.5 w-3.5" />
+              <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-sm">
                 Flow Profiles
               </TabsTrigger>
-              <div className="h-4 w-px bg-border/40" aria-hidden="true" />
-              <TabsTrigger value="coefficients" className="rounded-md px-3.5 py-1.5 text-xs">
-                <SlidersHorizontal className="h-3.5 w-3.5" />
+              <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-sm">
                 Coefficients
               </TabsTrigger>
             </TabsList>
