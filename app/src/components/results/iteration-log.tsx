@@ -6,11 +6,14 @@ import { useProjectStore } from '@/store/project-store';
 import { toDisplay, unitLabel } from '@/lib/units';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ChevronRight, ChevronDown } from 'lucide-react';
+import { ChevronRight, ChevronDown, TrendingDown } from 'lucide-react';
+import { ConvergenceChart } from './convergence-chart';
 
 export function IterationLog({ log }: { log: IterationStep[] }) {
   const [open, setOpen] = useState(false);
+  const [showChart, setShowChart] = useState(true);
   const us = useProjectStore((s) => s.unitSystem);
+  const tolerance = useProjectStore((s) => s.coefficients.tolerance);
   const len = unitLabel('length', us);
 
   if (log.length === 0) return null;
@@ -20,8 +23,20 @@ export function IterationLog({ log }: { log: IterationStep[] }) {
         {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         Iteration Log ({log.length} iterations)
       </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="mt-2 rounded-lg border overflow-auto max-h-[200px]">
+      <CollapsibleContent className="space-y-3 mt-2">
+        {showChart && (
+          <ConvergenceChart log={log} tolerance={tolerance} />
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowChart(!showChart)}
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <TrendingDown className="h-3 w-3" />
+            {showChart ? 'Hide chart' : 'Show chart'}
+          </button>
+        </div>
+        <div className="rounded-lg border overflow-auto max-h-[200px]">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30 hover:bg-muted/30">
