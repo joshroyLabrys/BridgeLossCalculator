@@ -14,6 +14,8 @@ import { ComparisonTables } from '@/components/summary/comparison-tables';
 import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { FreeboardCheck } from '@/components/summary/freeboard-check';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
+import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
+import { AiCallout } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
 import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal } from 'lucide-react';
 
@@ -25,6 +27,8 @@ export function MainTabs() {
   const setUnitSystem = useProjectStore((s) => s.setUnitSystem);
   const activeMainTab = useProjectStore((s) => s.activeMainTab);
   const setActiveMainTab = useProjectStore((s) => s.setActiveMainTab);
+  const aiSummary = useProjectStore((s) => s.aiSummary);
+  const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
 
   const handleTabChange = useCallback((value: string | number | null) => {
     if (typeof value === 'string') setActiveMainTab(value);
@@ -177,10 +181,31 @@ export function MainTabs() {
       </TabsContent>
 
       <TabsContent value="summary" className="flex-1 px-6 py-5 space-y-8">
-        <FreeboardCheck />
-        <ComparisonTables />
-        <RegimeMatrix />
-        <AffluxCharts />
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">Assessment Summary</h2>
+          <p className="text-sm text-muted-foreground max-w-prose text-pretty">
+            Independent bridge loss calculations for QA verification. Four methods are compared —
+            significant divergence may indicate a flow regime transition and warrants investigation.
+          </p>
+        </div>
+        <AiSummaryBanner />
+        <div>
+          <RegimeMatrix />
+          <AiCallout text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />
+        </div>
+        <div>
+          <ComparisonTables />
+          <AiCallout text={aiSummary?.callouts.comparison ?? null} loading={aiLoading} />
+          <AiCallout text={aiSummary?.callouts.hecras ?? null} loading={aiLoading} />
+        </div>
+        <div>
+          <AffluxCharts />
+          <AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />
+        </div>
+        <div>
+          <FreeboardCheck />
+          <AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />
+        </div>
       </TabsContent>
     </Tabs>
   );
