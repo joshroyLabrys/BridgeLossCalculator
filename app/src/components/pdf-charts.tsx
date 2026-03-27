@@ -256,10 +256,25 @@ export function PdfCrossSectionChart({ crossSection, bridge, results, profileInd
     ` L ${toPixel(crossSection[crossSection.length - 1].station, xScale)} ${M.top + plotH}` +
     ` L ${toPixel(crossSection[0].station, xScale)} ${M.top + plotH} Z`;
 
-  const deckLeft = toPixel(bridge.leftAbutmentStation, xScale);
-  const deckRight = toPixel(bridge.rightAbutmentStation, xScale);
-  const deckTop = toPixel(bridge.highChord, yScale);
-  const lowChordY = toPixel(Math.min(bridge.lowChordLeft, bridge.lowChordRight), yScale);
+  // Interpolate ground elevation at a station
+  const interpGround = (sta: number): number => {
+    for (let i = 0; i < crossSection.length - 1; i++) {
+      if (crossSection[i].station <= sta && crossSection[i + 1].station >= sta) {
+        const t = (sta - crossSection[i].station) / (crossSection[i + 1].station - crossSection[i].station);
+        return crossSection[i].elevation + t * (crossSection[i + 1].elevation - crossSection[i].elevation);
+      }
+    }
+    return crossSection[crossSection.length - 1]?.elevation ?? 0;
+  };
+
+  const span = bridge.rightAbutmentStation - bridge.leftAbutmentStation;
+  const deckLeftPx = toPixel(bridge.leftAbutmentStation, xScale);
+  const deckRightPx = toPixel(bridge.rightAbutmentStation, xScale);
+  const highChordPx = toPixel(bridge.highChord, yScale);
+  const lowChordLeftPx = toPixel(bridge.lowChordLeft, yScale);
+  const lowChordRightPx = toPixel(bridge.lowChordRight, yScale);
+  const leftGroundPx = toPixel(interpGround(bridge.leftAbutmentStation), yScale);
+  const rightGroundPx = toPixel(interpGround(bridge.rightAbutmentStation), yScale);
 
   return (
     <View>
@@ -283,33 +298,48 @@ export function PdfCrossSectionChart({ crossSection, bridge, results, profileInd
               stroke="#3b82f6" strokeWidth={0.75} strokeDasharray="4,2" opacity={0.5} />
           ) : null}
 
-          {/* Method WSEL lines */}
+          {/* Method WSEL lines — upstream of bridge only (x=0 to left abutment) */}
           {results ? METHODS.map((m) => {
             const r = results[m][profileIndex];
             if (!r || r.error) return null;
             const py = toPixel(r.upstreamWsel, yScale);
             return (
               <Line key={m}
-                x1={toPixel(bridge.leftAbutmentStation, xScale) - 15} y1={py}
-                x2={toPixel(bridge.rightAbutmentStation, xScale) + 15} y2={py}
+                x1={M.left} y1={py}
+                x2={deckLeftPx} y2={py}
                 stroke={METHOD_COLORS[m]} strokeWidth={1} strokeDasharray="3,2" />
             );
           }) : null}
 
-          {/* Bridge deck */}
-          <Rect x={deckLeft} y={deckTop} width={deckRight - deckLeft} height={Math.max(lowChordY - deckTop, 1)}
-            fill="#fecaca" stroke="#dc2626" strokeWidth={0.75} opacity={0.6} />
-          <Line x1={deckLeft} y1={lowChordY} x2={deckRight} y2={lowChordY} stroke="#dc2626" strokeWidth={1} />
-          <Line x1={deckLeft} y1={deckTop} x2={deckLeft} y2={M.top + plotH} stroke="#dc2626" strokeWidth={1} />
-          <Line x1={deckRight} y1={deckTop} x2={deckRight} y2={M.top + plotH} stroke="#dc2626" strokeWidth={1} />
+          {/* Bridge deck (thin band: high chord to low chord) */}
+          <Rect x={deckLeftPx} y={highChordPx} width={deckRightPx - deckLeftPx}
+            height={Math.max(lowChordLeftPx - highChordPx, 1)}
+            fill="#fecaca" stroke="#dc2626" strokeWidth={0.75} opacity={0.15} />
+          {/* Low chord line */}
+          <Line x1={deckLeftPx} y1={lowChordLeftPx} x2={deckRightPx} y2={lowChordRightPx}
+            stroke="#dc2626" strokeWidth={2} />
+          {/* High chord line (dashed) */}
+          <Line x1={deckLeftPx} y1={highChordPx} x2={deckRightPx} y2={highChordPx}
+            stroke="#dc2626" strokeWidth={1} strokeDasharray="4,2" />
+          {/* Abutment walls — from high chord down to ground */}
+          <Line x1={deckLeftPx} y1={highChordPx} x2={deckLeftPx} y2={leftGroundPx}
+            stroke="#dc2626" strokeWidth={2} />
+          <Line x1={deckRightPx} y1={highChordPx} x2={deckRightPx} y2={rightGroundPx}
+            stroke="#dc2626" strokeWidth={2} />
 
-          {/* Piers */}
+          {/* Piers — from low chord (interpolated) down to ground */}
           {bridge.piers.map((pier, i) => {
             const px = toPixel(pier.station, xScale);
-            const halfW = Math.max((pier.width / (sMax - sMin)) * plotW / 2, 1.5);
+            const pierX1 = toPixel(pier.station - pier.width / 2, xScale);
+            const pierX2 = toPixel(pier.station + pier.width / 2, xScale);
+            const pierW = Math.max(pierX2 - pierX1, 2);
+            const pierGround = toPixel(interpGround(pier.station), yScale);
+            const t = span > 0 ? (pier.station - bridge.leftAbutmentStation) / span : 0;
+            const lowChordAtPier = toPixel(bridge.lowChordLeft + t * (bridge.lowChordRight - bridge.lowChordLeft), yScale);
             return (
-              <Rect key={i} x={px - halfW} y={deckTop} width={halfW * 2} height={Math.max(lowChordY - deckTop + 10, 2)}
-                fill="#fca5a5" stroke="#dc2626" strokeWidth={0.5} />
+              <Rect key={i} x={pierX1} y={lowChordAtPier} width={pierW}
+                height={Math.max(pierGround - lowChordAtPier, 2)}
+                fill="#dc2626" opacity={0.35} stroke="#dc2626" strokeWidth={0.5} />
             );
           })}
 
