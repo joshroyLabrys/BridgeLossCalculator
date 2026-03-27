@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { CrossSectionPoint, FlowRegime } from '@/engine/types';
@@ -18,6 +18,21 @@ const REGIME_COLORS: Record<FlowRegime, { base: string; highlight: string; foam:
   'pressure':     { base: '#92400e', highlight: '#fbbf24', foam: '#fef3c7' },
   'overtopping':  { base: '#991b1b', highlight: '#f87171', foam: '#fecaca' },
 };
+
+/**
+ * Convert actual approach velocity (ft/s) to a shader scroll speed.
+ * A typical channel velocity of ~5 ft/s should produce a gentle visible flow.
+ * We scale relative to the channel length so the visual rate makes sense
+ * regardless of model size.
+ */
+function velocityToShaderSpeed(velocity: number, channelLength: number): number {
+  // Normalise: how many channel-lengths per second does the water travel?
+  // Then scale down for a pleasant visual (full traversal in ~4-8 seconds)
+  if (channelLength <= 0) return 0.3;
+  const traversalsPerSec = velocity / channelLength;
+  // Clamp to a reasonable visual range
+  return Math.max(0.15, Math.min(1.2, traversalsPerSec * 2));
+}
 
 export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, velocity }: WaterMeshProps) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
@@ -54,30 +69,38 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
   const geometry = useMemo(() => {
     const width = rightStation - leftStation;
     if (width <= 0) return null;
-
-    // High resolution for convincing waves
-    const segX = 64;
-    const segZ = 48;
-    const geo = new THREE.PlaneGeometry(width, channelLength, segX, segZ);
+    const geo = new THREE.PlaneGeometry(width, channelLength, 64, 48);
     geo.rotateX(-Math.PI / 2);
     geo.translate(leftStation + width / 2, wsel, channelLength / 2);
     return geo;
   }, [leftStation, rightStation, wsel, channelLength]);
 
-  const colors = REGIME_COLORS[flowRegime];
-
-  const uniforms = useMemo(() => ({
+  // Create uniforms once, update values imperatively so uTime never resets
+  const uniformsRef = useRef({
     uTime: { value: 0 },
-    uBaseColor: { value: new THREE.Color(colors.base) },
-    uHighlightColor: { value: new THREE.Color(colors.highlight) },
-    uFoamColor: { value: new THREE.Color(colors.foam) },
-    uVelocity: { value: Math.max(velocity * 0.15, 0.5) },
+    uBaseColor: { value: new THREE.Color(REGIME_COLORS[flowRegime].base) },
+    uHighlightColor: { value: new THREE.Color(REGIME_COLORS[flowRegime].highlight) },
+    uFoamColor: { value: new THREE.Color(REGIME_COLORS[flowRegime].foam) },
+    uVelocity: { value: velocityToShaderSpeed(velocity, channelLength) },
     uRegime: { value: flowRegime === 'free-surface' ? 0.0 : flowRegime === 'pressure' ? 1.0 : 2.0 },
-  }), [colors, velocity, flowRegime]);
+  });
+
+  // Update uniform values when props change — without recreating the object
+  useEffect(() => {
+    const u = uniformsRef.current;
+    const colors = REGIME_COLORS[flowRegime];
+    u.uBaseColor.value.set(colors.base);
+    u.uHighlightColor.value.set(colors.highlight);
+    u.uFoamColor.value.set(colors.foam);
+    u.uVelocity.value = velocityToShaderSpeed(velocity, channelLength);
+    u.uRegime.value = flowRegime === 'free-surface' ? 0.0 : flowRegime === 'pressure' ? 1.0 : 2.0;
+  }, [flowRegime, velocity, channelLength]);
 
   useFrame((_, delta) => {
+    uniformsRef.current.uTime.value += delta;
+    // Also push to material ref in case React replaced it
     if (matRef.current) {
-      matRef.current.uniforms.uTime.value += delta;
+      matRef.current.uniforms.uTime.value = uniformsRef.current.uTime.value;
     }
   });
 
@@ -87,7 +110,7 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
     <mesh geometry={geometry} renderOrder={1}>
       <shaderMaterial
         ref={matRef}
-        uniforms={uniforms}
+        uniforms={uniformsRef.current}
         transparent
         depthWrite={false}
         side={THREE.DoubleSide}
@@ -100,7 +123,6 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
           varying float vWaveHeight;
           varying vec3 vNormal;
 
-          // Simple noise
           float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
           }
@@ -122,35 +144,28 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
             vWorldPos = pos;
 
             float speed = uVelocity;
-            float turbulence = uRegime < 0.5 ? 1.0 : uRegime < 1.5 ? 2.0 : 3.0;
-
-            // Multi-octave waves flowing downstream (along Z)
+            float turb = uRegime < 0.5 ? 1.0 : uRegime < 1.5 ? 1.8 : 2.8;
             float t = uTime;
 
-            // Primary wave — large, slow swell
-            float w1 = sin(pos.z * 1.5 - t * speed * 2.0 + pos.x * 0.3) * 0.12 * turbulence;
-
-            // Secondary — medium ripples
-            float w2 = sin(pos.z * 3.0 - t * speed * 3.0 + pos.x * 1.2) * 0.06 * turbulence;
-
-            // Tertiary — small chop
-            float w3 = sin(pos.z * 7.0 - t * speed * 5.0 - pos.x * 2.0) * 0.025 * turbulence;
-
-            // Cross-waves (perpendicular disturbance)
-            float w4 = sin(pos.x * 4.0 + t * 1.2) * 0.02 * turbulence;
-
-            // Noise-based detail
-            float n = noise(vec2(pos.x * 2.0 + t * 0.3, pos.z * 2.0 - t * speed)) * 0.04 * turbulence;
+            // Primary swell (downstream)
+            float w1 = sin(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 0.10 * turb;
+            // Medium ripples
+            float w2 = sin(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 0.05 * turb;
+            // Small chop
+            float w3 = sin(pos.z * 7.0 - t * speed * 3.0 - pos.x * 2.0) * 0.02 * turb;
+            // Cross-wave
+            float w4 = sin(pos.x * 4.0 + t * 0.8) * 0.015 * turb;
+            // Noise detail
+            float n = noise(vec2(pos.x * 2.0 + t * 0.2, pos.z * 2.0 - t * speed * 0.6)) * 0.03 * turb;
 
             float totalWave = w1 + w2 + w3 + w4 + n;
             pos.y += totalWave;
             vWaveHeight = totalWave;
 
-            // Compute approximate normal for lighting
-            float dx = cos(pos.z * 1.5 - t * speed * 2.0 + pos.x * 0.3) * 0.3 * 0.12 * turbulence
-                      + cos(pos.z * 3.0 - t * speed * 3.0 + pos.x * 1.2) * 1.2 * 0.06 * turbulence;
-            float dz = cos(pos.z * 1.5 - t * speed * 2.0 + pos.x * 0.3) * 1.5 * 0.12 * turbulence
-                      + cos(pos.z * 3.0 - t * speed * 3.0 + pos.x * 1.2) * 3.0 * 0.06 * turbulence;
+            float dx = cos(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 0.3 * 0.10 * turb
+                      + cos(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 1.2 * 0.05 * turb;
+            float dz = cos(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 1.5 * 0.10 * turb
+                      + cos(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 3.0 * 0.05 * turb;
             vNormal = normalize(vec3(-dx, 1.0, -dz));
 
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -186,38 +201,37 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
           void main() {
             float speed = uVelocity;
 
-            // --- Flow streaks (scrolling along Z) ---
-            float flowUV = vWorldPos.z * 3.0 - uTime * speed * 2.0;
+            // Flow streaks scrolling downstream
+            float flowUV = vWorldPos.z * 3.0 - uTime * speed * 1.4;
             float streak = noise(vec2(vWorldPos.x * 4.0, flowUV * 2.0));
             streak = smoothstep(0.35, 0.65, streak);
 
-            // --- Foam / whitecaps on wave peaks ---
-            float foam = smoothstep(0.06, 0.14, vWaveHeight);
-            foam *= noise(vec2(vWorldPos.x * 8.0 + uTime * 0.5, vWorldPos.z * 8.0 - uTime * speed));
+            // Foam on wave peaks
+            float foam = smoothstep(0.05, 0.12, vWaveHeight);
+            foam *= noise(vec2(vWorldPos.x * 8.0 + uTime * 0.3, vWorldPos.z * 8.0 - uTime * speed * 0.7));
             foam = smoothstep(0.3, 0.7, foam);
 
-            // --- Caustic-like pattern ---
-            float c1 = noise(vec2(vWorldPos.x * 6.0 + uTime * 0.4, vWorldPos.z * 6.0 - uTime * speed * 0.8));
-            float c2 = noise(vec2(vWorldPos.x * 6.0 - uTime * 0.3, vWorldPos.z * 6.0 + uTime * speed * 0.6));
-            float caustic = smoothstep(0.3, 0.7, abs(c1 - c2)) * 0.3;
+            // Caustic pattern
+            float c1 = noise(vec2(vWorldPos.x * 6.0 + uTime * 0.25, vWorldPos.z * 6.0 - uTime * speed * 0.5));
+            float c2 = noise(vec2(vWorldPos.x * 6.0 - uTime * 0.2, vWorldPos.z * 6.0 + uTime * speed * 0.4));
+            float caustic = smoothstep(0.3, 0.7, abs(c1 - c2)) * 0.25;
 
-            // --- Fresnel-like edge darkening ---
+            // Edge fade
             float edgeFade = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
 
-            // --- Simple directional light on the normal ---
+            // Lighting
             vec3 lightDir = normalize(vec3(0.3, 1.0, 0.5));
             float diffuse = max(dot(vNormal, lightDir), 0.0);
             float specular = pow(max(dot(reflect(-lightDir, vNormal), vec3(0.0, 1.0, 0.0)), 0.0), 32.0);
 
-            // --- Compose ---
-            vec3 col = mix(uBaseColor, uHighlightColor, streak * 0.5 + diffuse * 0.3);
+            // Compose
+            vec3 col = mix(uBaseColor, uHighlightColor, streak * 0.4 + diffuse * 0.3);
             col += caustic * uHighlightColor;
-            col += specular * 0.25;
-            col = mix(col, uFoamColor, foam * 0.6);
+            col += specular * 0.2;
+            col = mix(col, uFoamColor, foam * 0.5);
 
-            // Alpha: solid in center, fade at edges
-            float alpha = 0.65 * edgeFade + foam * 0.2 + specular * 0.1;
-            alpha = clamp(alpha, 0.0, 0.85);
+            float alpha = 0.6 * edgeFade + foam * 0.15 + specular * 0.08;
+            alpha = clamp(alpha, 0.0, 0.82);
 
             gl_FragColor = vec4(col, alpha);
           }

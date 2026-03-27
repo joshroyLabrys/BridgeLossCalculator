@@ -1,9 +1,8 @@
 'use client';
 
-import { useMemo, Suspense } from 'react';
+import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, Text } from '@react-three/drei';
-import * as THREE from 'three';
+import { OrbitControls } from '@react-three/drei';
 import type { HydraulicProfile } from '@/engine/simulation-profile';
 import { TerrainMesh } from './terrain-mesh';
 import { WaterMesh } from './water-mesh';
@@ -17,41 +16,45 @@ function SceneContent({ profile }: SimulationSceneProps) {
   const cs = profile.crossSection;
   const bridge = profile.bridge;
 
-  // Channel length along Z — proportional to the span width for good proportions
   const span = cs[cs.length - 1].station - cs[0].station;
-  const channelLength = span * 0.6;
+  // Channel length: proportional to span, enough to see flow
+  const channelLength = Math.max(span * 0.6, 20);
 
-  // Center the scene
+  // A real bridge road is roughly 8-12m (26-40ft) wide.
+  // Default to ~30% of span if deckWidth isn't set, minimum 8 units.
+  const bridgeDeckWidth = bridge.deckWidth > 0
+    ? bridge.deckWidth
+    : Math.max(span * 0.3, 8);
+
   const centerX = (cs[0].station + cs[cs.length - 1].station) / 2;
   const minElev = Math.min(...cs.map(p => p.elevation));
-  const maxElev = Math.max(profile.bridge.highChord, profile.usWsel);
+  const maxElev = Math.max(bridge.highChord, profile.usWsel);
   const centerY = (minElev + maxElev) / 2;
   const centerZ = channelLength / 2;
-
-  // Camera target and distance
   const sceneSize = Math.max(span, maxElev - minElev, channelLength);
 
   return (
     <>
       {/* Lighting */}
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.5} />
       <directionalLight
         position={[centerX + span, maxElev + 20, centerZ + channelLength]}
-        intensity={0.8}
+        intensity={0.9}
         castShadow
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
       />
       <directionalLight
         position={[centerX - span * 0.5, maxElev + 10, centerZ - channelLength * 0.5]}
-        intensity={0.3}
+        intensity={0.35}
+      />
+      {/* Fill light from below/side for better terrain visibility */}
+      <hemisphereLight
+        args={['#8cacb8', '#4a3728', 0.3]}
       />
 
       {/* Terrain */}
-      <TerrainMesh
-        crossSection={cs}
-        channelLength={channelLength}
-      />
+      <TerrainMesh crossSection={cs} channelLength={channelLength} />
 
       {/* Water */}
       <WaterMesh
@@ -65,14 +68,13 @@ function SceneContent({ profile }: SimulationSceneProps) {
       {/* Bridge */}
       <BridgeMesh
         bridge={{
-          ...({} as any),
           lowChordLeft: bridge.lowChordLeft,
           lowChordRight: bridge.lowChordRight,
           highChord: bridge.highChord,
           leftAbutmentStation: bridge.stationStart,
           rightAbutmentStation: bridge.stationEnd,
-          deckWidth: bridge.deckWidth || channelLength * 0.15,
-          piers: bridge.piers,
+          deckWidth: bridgeDeckWidth,
+          piers: bridge.piers.map(p => ({ ...p, shape: 'round-nose' as const })),
           skewAngle: 0,
           contractionLength: 0,
           expansionLength: 0,
@@ -82,21 +84,6 @@ function SceneContent({ profile }: SimulationSceneProps) {
         }}
         crossSection={cs}
         channelLength={channelLength}
-      />
-
-      {/* Grid floor */}
-      <Grid
-        args={[span * 2, channelLength * 3]}
-        position={[centerX, minElev - 2, centerZ]}
-        cellSize={span * 0.05}
-        cellThickness={0.5}
-        cellColor="#333344"
-        sectionSize={span * 0.2}
-        sectionThickness={1}
-        sectionColor="#444466"
-        fadeDistance={sceneSize * 3}
-        fadeStrength={1}
-        infiniteGrid
       />
 
       {/* Camera controls */}
@@ -118,7 +105,7 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
   const minElev = Math.min(...cs.map(p => p.elevation));
   const maxElev = Math.max(profile.bridge.highChord, profile.usWsel);
   const centerX = (cs[0].station + cs[cs.length - 1].station) / 2;
-  const channelLength = span * 0.6;
+  const channelLength = Math.max(span * 0.6, 20);
   const centerZ = channelLength / 2;
   const sceneSize = Math.max(span, maxElev - minElev, channelLength);
 
