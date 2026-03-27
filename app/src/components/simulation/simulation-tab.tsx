@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useProjectStore } from '@/store/project-store';
 import { buildHydraulicProfile } from '@/engine/simulation-profile';
 import { runAllMethods } from '@/engine';
-import { HydraulicProfileChart } from './hydraulic-profile-chart';
+import { SimulationScene } from './scene-3d/simulation-scene';
 import { SimulationControls } from './simulation-controls';
 import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-if-controls';
 import { toDisplay, unitLabel } from '@/lib/units';
@@ -42,8 +42,8 @@ export function SimulationTab() {
 
   const [selectedProfileIdx, setSelectedProfileIdx] = useState(0);
   const [selectedMethod, setSelectedMethod] = useState<string>('energy');
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [speed, setSpeed] = useState(1);
+  const [isPlaying, setIsPlaying] = useState(true); // kept for controls API
+  const [speed, setSpeed] = useState(1); // kept for controls API
 
   const defaults: WhatIfOverrides = {
     manningsNMultiplier: 1.0,
@@ -119,36 +119,17 @@ export function SimulationTab() {
       <div className="flex gap-4 items-start">
         {/* Main chart area */}
         <div className="flex-1 min-w-0 space-y-3">
-          <Card>
-            <CardHeader className="pb-3">
-              <SimulationControls
-                profiles={flowProfiles}
-                selectedProfileIdx={selectedProfileIdx}
-                onProfileChange={setSelectedProfileIdx}
-                methods={activeMethods}
-                selectedMethod={selectedMethod}
-                onMethodChange={setSelectedMethod}
-                isPlaying={isPlaying}
-                onPlayingChange={setIsPlaying}
-                speed={speed}
-                onSpeedChange={setSpeed}
-              />
-            </CardHeader>
-            <CardContent>
-              {hydraulicProfile ? (
-                <HydraulicProfileChart
-                  profile={hydraulicProfile}
-                  isPlaying={isPlaying}
-                  speed={speed}
-                  particleCount={40}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-[420px] text-muted-foreground text-sm">
+          {hydraulicProfile ? (
+            <SimulationScene profile={hydraulicProfile} />
+          ) : (
+            <Card>
+              <CardContent>
+                <div className="flex items-center justify-center h-[500px] text-muted-foreground text-sm">
                   Select a profile and method with results to view the simulation
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Status bar */}
           {hydraulicProfile && (
