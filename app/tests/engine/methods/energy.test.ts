@@ -17,8 +17,9 @@ const bridge: BridgeGeometry = {
   lowChordProfile: [],
 };
 
+// Low discharge that stays comfortably in free-surface (US WSEL well below low chord of 9)
 const freeSurfaceProfile: FlowProfile = {
-  name: 'Free', ari: '', discharge: 2500, dsWsel: 5, channelSlope: 0.001,
+  name: 'Free', ari: '', discharge: 500, dsWsel: 5, channelSlope: 0.001,
 };
 
 const pressureProfile: FlowProfile = {
@@ -39,15 +40,24 @@ describe('runEnergy', () => {
     expect(result.error).toBeNull();
     expect(result.flowCalculationType).toBe('free-surface');
     expect(result.upstreamWsel).toBeGreaterThan(freeSurfaceProfile.dsWsel);
+    expect(result.upstreamWsel).toBeLessThan(9); // stays below low chord
   });
 
-  it('dispatches to pressure flow when WSEL > low chord', () => {
+  it('dispatches to pressure flow when DS WSEL > low chord', () => {
     const result = runEnergy(crossSection, bridge, pressureProfile, coefficients);
     expect(result.flowCalculationType).toBe('orifice');
     expect(result.flowRegime).toBe('pressure');
   });
 
-  it('respects alpha override', () => {
+  it('transitions to pressure when free-surface solver overshoots low chord', () => {
+    // High discharge with low DS WSEL — free-surface solver will overshoot
+    const highQ: FlowProfile = { name: 'HighQ', ari: '', discharge: 2500, dsWsel: 5, channelSlope: 0.001 };
+    const result = runEnergy(crossSection, bridge, highQ, coefficients);
+    // Should detect the overshoot and fall back to pressure/overtopping
+    expect(result.flowCalculationType).not.toBe('free-surface');
+  });
+
+  it('respects alpha override for free-surface flow', () => {
     const withAlpha = { ...coefficients, alphaOverride: 1.5 };
     const resultOverride = runEnergy(crossSection, bridge, freeSurfaceProfile, withAlpha);
     const resultAuto = runEnergy(crossSection, bridge, freeSurfaceProfile, coefficients);

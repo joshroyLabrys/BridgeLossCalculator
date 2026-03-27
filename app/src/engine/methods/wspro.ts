@@ -220,6 +220,18 @@ export function runWSPRO(
     unit: 'ft',
   });
 
+  // Regime re-evaluation: if backwater pushes WSEL above low chord,
+  // fall back to pressure/overtopping solver.
+  if (usWsel > lowChord) {
+    const postRegime = detectFlowRegime(usWsel, lowChord, bridge.highChord);
+    if (postRegime === 'pressure') {
+      return runPressureFlow(crossSection, bridge, profile, coefficients);
+    }
+    if (postRegime === 'overtopping') {
+      return runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+    }
+  }
+
   // Upstream properties
   const usArea = calcFlowArea(crossSection, usWsel);
   const usTopWidth = calcTopWidth(crossSection, usWsel);

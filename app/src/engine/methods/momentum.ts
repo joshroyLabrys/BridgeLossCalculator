@@ -157,6 +157,19 @@ export function runMomentum(
   });
 
   const usWsel = solverResult.solution;
+
+  // Regime re-evaluation: if free-surface solver overshoots low chord,
+  // fall back to pressure/overtopping solver.
+  if (usWsel > lowChord) {
+    const postRegime = detectFlowRegime(usWsel, lowChord, bridge.highChord);
+    if (postRegime === 'pressure') {
+      return runPressureFlow(crossSection, bridge, profile, coefficients);
+    }
+    if (postRegime === 'overtopping') {
+      return runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+    }
+  }
+
   const usArea = calcFlowArea(crossSection, usWsel);
   const usTopWidth = calcTopWidth(crossSection, usWsel);
   const usVelocity = calcVelocity(Q, usArea);

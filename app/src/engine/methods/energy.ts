@@ -129,6 +129,20 @@ export function runEnergy(
   });
 
   const usWsel = solverResult.solution;
+
+  // Regime re-evaluation: if the free-surface solver produced a WSEL above
+  // the low chord, the result is physically invalid — transition to pressure
+  // or overtopping flow solver.
+  if (usWsel > lowChord) {
+    const postRegime = detectFlowRegime(usWsel, lowChord, bridge.highChord);
+    if (postRegime === 'pressure') {
+      return runPressureFlow(crossSection, bridge, profile, coefficients);
+    }
+    if (postRegime === 'overtopping') {
+      return runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+    }
+  }
+
   const usArea = calcFlowArea(crossSection, usWsel);
   const usTopWidth = calcTopWidth(crossSection, usWsel);
   const usConveyance = calcConveyance(crossSection, usWsel);
