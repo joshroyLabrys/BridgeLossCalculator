@@ -14,9 +14,12 @@ const bridge: BridgeGeometry = {
   highChord: 12,
   leftAbutmentStation: 60,
   rightAbutmentStation: 140,
-  leftAbutmentSlope: 0,
-  rightAbutmentSlope: 0,
   skewAngle: 0,
+  contractionLength: 90,
+  expansionLength: 90,
+  orificeCd: 0.8,
+  weirCw: 1.4,
+  deckWidth: 10,
   piers: [{ station: 100, width: 3, shape: 'round-nose' }],
   lowChordProfile: [],
 };
@@ -24,19 +27,17 @@ const bridge: BridgeGeometry = {
 const profiles: FlowProfile[] = [
   {
     name: '10-yr',
+    ari: '10% AEP',
     discharge: 2500,
     dsWsel: 8,
     channelSlope: 0.001,
-    contractionLength: 90,
-    expansionLength: 90,
   },
   {
     name: '100-yr',
+    ari: '1% AEP',
     discharge: 5000,
     dsWsel: 8.5,
     channelSlope: 0.001,
-    contractionLength: 90,
-    expansionLength: 90,
   },
 ];
 
@@ -47,6 +48,10 @@ const coefficients: Coefficients = {
   maxIterations: 100,
   tolerance: 0.01,
   initialGuessOffset: 0.5,
+  debrisBlockagePct: 0,
+  manningsNSensitivityPct: null,
+  alphaOverride: null,
+  freeboardThreshold: 0.3,
   methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
 };
 
