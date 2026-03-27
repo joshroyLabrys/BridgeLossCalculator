@@ -21,4 +21,16 @@ describe('calcTuflowSuperFLC', () => {
   it('computes FLC for pressure flow', () => {
     expect(calcTuflowSuperFLC(0.5, 7.0, 'pressure')).toBeCloseTo(0.657, 2);
   });
+
+  it('computes non-zero superstructure FLC for pressure flow', () => {
+    const result = calcTuflowSuperFLC(2.5, 6.0, 'pressure');
+    // FLC = 2.5 / (6²/(2×32.174)) = 2.5 / 0.559 ≈ 4.47
+    expect(result).toBeCloseTo(4.47, 1);
+  });
+
+  it('computes non-zero superstructure FLC for overtopping', () => {
+    const result = calcTuflowSuperFLC(1.0, 4.0, 'overtopping');
+    expect(result).not.toBeNull();
+    expect(result).toBeGreaterThan(0);
+  });
 });
