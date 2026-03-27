@@ -8,6 +8,7 @@ import { useProjectStore } from '@/store/project-store';
 import { buildHydraulicProfile } from '@/engine/simulation-profile';
 import { runAllMethods } from '@/engine';
 import { SimulationScene } from './scene-3d/simulation-scene';
+import { EnergyGradeDiagram } from './energy-grade-diagram';
 import { SimulationControls } from './simulation-controls';
 import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-if-controls';
 import { toDisplay, unitLabel } from '@/lib/units';
@@ -155,6 +156,15 @@ export function SimulationTab() {
                 </span>
               )}
             </div>
+          )}
+
+          {/* Energy Grade Line Diagram */}
+          {hydraulicProfile && (
+            <Card>
+              <CardContent className="pt-4">
+                <EnergyGradeDiagram profile={hydraulicProfile} />
+              </CardContent>
+            </Card>
           )}
         </div>
 
