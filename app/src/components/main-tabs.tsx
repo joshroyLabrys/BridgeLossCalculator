@@ -19,8 +19,7 @@ import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationTab } from '@/components/simulation/simulation-tab';
-import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Lightbulb } from 'lucide-react';
-import { WhatIfPanel } from '@/components/what-if/what-if-panel';
+import { Waves, Upload, Download, Ruler, Settings2, FlaskConical, BarChart3, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +40,6 @@ export function MainTabs() {
   const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
 
   const [pdfLoading, setPdfLoading] = useState(false);
-  const [showWhatIf, setShowWhatIf] = useState(false);
 
   const handleTabChange = useCallback((value: string | number | null) => {
     if (typeof value === 'string') setActiveMainTab(value);
@@ -162,21 +160,6 @@ export function MainTabs() {
               </button>
             </div>
 
-            {results && (
-              <>
-                <div className="w-px h-6 bg-border/40 mx-1" />
-                <Button
-                  variant={showWhatIf ? 'default' : 'outline'}
-                  size="default"
-                  onClick={() => setShowWhatIf(!showWhatIf)}
-                  className="gap-2 text-sm"
-                >
-                  <Lightbulb className="h-4 w-4" />
-                  What If?
-                </Button>
-              </>
-            )}
-
             <div className="w-px h-6 bg-border/40 mx-1" />
 
             {/* Action buttons */}
@@ -270,7 +253,6 @@ export function MainTabs() {
         <SimulationTab />
       </TabsContent>
 
-      {showWhatIf && results && <WhatIfPanel onClose={() => setShowWhatIf(false)} />}
     </Tabs>
   );
 }
