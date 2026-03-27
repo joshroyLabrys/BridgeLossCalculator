@@ -100,8 +100,8 @@ export function PrintReport() {
   const nextPage = () => ++pageNum;
 
   return (
-    <div className="print-report hidden print:block bg-white text-black text-[11px] leading-snug"
-      style={{ fontFamily: FONT }}>
+    <div className="print-report bg-white text-black text-[11px] leading-snug"
+      style={{ fontFamily: FONT, display: 'none' }}>
 
       {/* ═══ PAGE: Cover ═══ */}
       <Page section="" page={nextPage()} date={date} reportTitle="">
