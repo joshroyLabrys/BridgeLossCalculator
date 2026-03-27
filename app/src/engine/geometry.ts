@@ -188,6 +188,62 @@ function calcSubsectionProperties(
   return { area, perim, avgN: totalWtN / totalWtLen };
 }
 
+interface SubsectionResult {
+  area: number;
+  conveyance: number;
+}
+
+/**
+ * Computes subsection conveyances for LOB, channel, ROB.
+ */
+export function calcSubsectionConveyances(
+  crossSection: CrossSectionPoint[],
+  wsel: number
+): SubsectionResult[] {
+  const [leftIdx, rightIdx] = findBankIndices(crossSection);
+
+  const subsections = [
+    crossSection.slice(0, leftIdx + 1),
+    crossSection.slice(leftIdx, rightIdx + 1),
+    crossSection.slice(rightIdx),
+  ];
+
+  return subsections.map((sub) => {
+    const props = calcSubsectionProperties(sub, wsel);
+    if (!props) return { area: 0, conveyance: 0 };
+    const r = props.area / props.perim;
+    const k = (1.486 / props.avgN) * props.area * Math.pow(r, 2 / 3);
+    return { area: props.area, conveyance: k };
+  });
+}
+
+/**
+ * Computes velocity distribution coefficient alpha.
+ * α = Σ(Kᵢ³/Aᵢ²) / (K_total³/A_total²)
+ */
+export function calcAlpha(
+  crossSection: CrossSectionPoint[],
+  wsel: number
+): number {
+  const subs = calcSubsectionConveyances(crossSection, wsel);
+  const totalK = subs.reduce((sum, s) => sum + s.conveyance, 0);
+  const totalA = subs.reduce((sum, s) => sum + s.area, 0);
+
+  if (totalK <= 0 || totalA <= 0) return 1.0;
+
+  let numerator = 0;
+  for (const s of subs) {
+    if (s.area > 0 && s.conveyance > 0) {
+      numerator += (s.conveyance ** 3) / (s.area ** 2);
+    }
+  }
+
+  const denominator = (totalK ** 3) / (totalA ** 2);
+  if (denominator <= 0) return 1.0;
+
+  return numerator / denominator;
+}
+
 /**
  * Computes total conveyance K (cfs) using Manning's equation.
  * Splits cross-section into LOB, channel, ROB subsections by bank stations.
@@ -197,24 +253,6 @@ export function calcConveyance(
   crossSection: CrossSectionPoint[],
   wsel: number
 ): number {
-  const [leftIdx, rightIdx] = findBankIndices(crossSection);
-
-  const subsections = [
-    crossSection.slice(0, leftIdx + 1),       // LOB
-    crossSection.slice(leftIdx, rightIdx + 1), // Channel
-    crossSection.slice(rightIdx),              // ROB
-  ];
-
-  let totalK = 0;
-
-  for (const sub of subsections) {
-    const props = calcSubsectionProperties(sub, wsel);
-    if (!props) continue;
-
-    const r = props.area / props.perim;
-    const k = (1.486 / props.avgN) * props.area * Math.pow(r, 2 / 3);
-    totalK += k;
-  }
-
-  return totalK;
+  return calcSubsectionConveyances(crossSection, wsel)
+    .reduce((sum, s) => sum + s.conveyance, 0);
 }
