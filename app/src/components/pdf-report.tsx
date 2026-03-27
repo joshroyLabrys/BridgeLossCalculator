@@ -5,7 +5,6 @@ import {
   Page,
   Text,
   View,
-  Image,
   StyleSheet,
   pdf,
 } from '@react-pdf/renderer';
@@ -19,7 +18,14 @@ import type {
   HecRasComparison,
 } from '@/engine/types';
 import type { AiSummaryResponse } from '@/lib/api/ai-summary-prompt';
-import { captureCharts, CapturedChart } from './pdf-chart-capture';
+import {
+  PdfCrossSectionChart,
+  PdfLineChart,
+  buildAffluxSeries,
+  buildWselSeries,
+  buildHecRasAffluxPoints,
+  buildHecRasWselPoints,
+} from './pdf-charts';
 
 /* ─── Constants ─── */
 
@@ -115,7 +121,6 @@ const s = StyleSheet.create({
   /* Charts */
   chartWrap: { marginBottom: 8 },
   chartLabel: { fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#374151', marginBottom: 3 },
-  chartImg: { width: '100%', objectFit: 'contain' },
   chartBorder: { borderWidth: 0.5, borderColor: C.border, borderRadius: 2, overflow: 'hidden', backgroundColor: C.white },
 
   /* Bullets */
@@ -224,19 +229,18 @@ export interface PdfReportData {
   results: CalculationResults | null;
   hecRasComparison: HecRasComparison[];
   aiSummary: AiSummaryResponse | null;
-  charts: CapturedChart[];
 }
 
 /* ─── Document ─── */
 
 function ReportDocument({ data }: { data: PdfReportData }) {
-  const { projectName, crossSection, bridge, profiles, coefficients, results, hecRasComparison, aiSummary, charts } = data;
+  const { projectName, crossSection, bridge, profiles, coefficients, results, hecRasComparison, aiSummary } = data;
   const date = new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
   const title = projectName || 'Bridge Hydraulic Loss Assessment';
   const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
-  const xsChart = charts.find((c) => c.id === 'cross-section');
-  const otherCharts = charts.filter((c) => c.id !== 'cross-section');
   const hasHecRas = hecRasComparison.length > 0 && hecRasComparison.some((c) => c.upstreamWsel !== null || c.headLoss !== null);
+  const CHART_W = 510; // A4 width minus margins
+  const CHART_H = 200;
 
   let sn = 0;
   const next = () => ++sn;
@@ -300,13 +304,21 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         </Sec>
 
         {/* ── Cross-Section Chart ── */}
-        {xsChart ? (
+        {crossSection.length >= 2 ? (
           <View wrap={false}>
             <Divider />
             <View style={s.chartWrap}>
               <Text style={s.chartLabel}>Cross-Section Profile</Text>
               <View style={s.chartBorder}>
-                <Image style={s.chartImg} src={xsChart.dataUrl} />
+                <PdfCrossSectionChart
+                  crossSection={crossSection}
+                  bridge={bridge}
+                  results={results}
+                  profileIndex={0}
+                  dsWsel={profiles[0]?.dsWsel}
+                  width={CHART_W}
+                  height={CHART_H}
+                />
               </View>
             </View>
           </View>
@@ -465,18 +477,36 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         ) : null}
 
         {/* ── 7. Charts ── */}
-        {otherCharts.length > 0 ? (
+        {results ? (
           <>
             <Divider />
-            <Sec num={next()} title="Charts" desc="Afflux rating curve and upstream WSEL trend.">
-              {otherCharts.map((chart) => (
-                <View key={chart.id} style={s.chartWrap} wrap={false}>
-                  <Text style={s.chartLabel}>{chart.label}</Text>
-                  <View style={s.chartBorder}>
-                    <Image style={s.chartImg} src={chart.dataUrl} />
-                  </View>
+            <Sec num={next()} title="Charts" desc="Afflux rating curve and upstream WSEL trend across flow profiles.">
+              <View style={s.chartWrap} wrap={false}>
+                <Text style={s.chartLabel}>Head Loss (Afflux) vs Discharge</Text>
+                <View style={s.chartBorder}>
+                  <PdfLineChart
+                    series={buildAffluxSeries(results, profiles)}
+                    hecRasPoints={hasHecRas ? buildHecRasAffluxPoints(hecRasComparison, profiles) : undefined}
+                    width={CHART_W}
+                    height={CHART_H}
+                    xLabel="Discharge (Q)"
+                    yLabel="Head Loss"
+                  />
                 </View>
-              ))}
+              </View>
+              <View style={s.chartWrap} wrap={false}>
+                <Text style={s.chartLabel}>Upstream WSEL vs Discharge</Text>
+                <View style={s.chartBorder}>
+                  <PdfLineChart
+                    series={buildWselSeries(results, profiles)}
+                    hecRasPoints={hasHecRas ? buildHecRasWselPoints(hecRasComparison, profiles) : undefined}
+                    width={CHART_W}
+                    height={CHART_H}
+                    xLabel="Discharge (Q)"
+                    yLabel="US WSEL"
+                  />
+                </View>
+              </View>
             </Sec>
           </>
         ) : null}
@@ -538,10 +568,8 @@ function ReportDocument({ data }: { data: PdfReportData }) {
 
 /* ─── Public API ─── */
 
-export async function generatePdf(data: Omit<PdfReportData, 'charts'>): Promise<void> {
-  const charts = await captureCharts();
-  const reportData: PdfReportData = { ...data, charts };
-  const blob = await pdf(<ReportDocument data={reportData} />).toBlob();
+export async function generatePdf(data: PdfReportData): Promise<void> {
+  const blob = await pdf(<ReportDocument data={data} />).toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

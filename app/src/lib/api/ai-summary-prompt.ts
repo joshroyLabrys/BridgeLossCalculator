@@ -36,6 +36,7 @@ Rules:
 - Flag convergence failures, regime transitions, method divergence >10%, low/negative freeboard.
 - Note if Yarnell results should be disregarded (only valid for free-surface flow).
 - Return null for any callout where there is nothing noteworthy.
+- For hecras: ONLY comment if HEC-RAS comparison data was actually provided in the input. If hecRasComparison is null or empty, you MUST return null for hecras. Do NOT mention the absence of HEC-RAS data.
 - Return ONLY valid JSON. No markdown, no code fences.`;
 
 export interface AiSummaryPayload {

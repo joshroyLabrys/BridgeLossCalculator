@@ -105,7 +105,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   updateCoefficients: (coeffs) => set({ coefficients: coeffs }),
   setResults: (results) => set({ results }),
   clearResults: () => set({ results: null, aiSummary: null, aiSummaryLoading: false, aiSummaryError: null }),
-  updateHecRasComparison: (data) => set({ hecRasComparison: data }),
+  updateHecRasComparison: (data) => {
+    set({ hecRasComparison: data });
+    // Re-fetch AI summary if results exist so the analysis includes HEC-RAS comparison
+    const state = get();
+    if (state.results && data.length > 0 && data.some((c) => c.upstreamWsel !== null || c.headLoss !== null)) {
+      state.fetchAiSummary();
+    }
+  },
   setUnitSystem: (system) => set({ unitSystem: system }),
   setSensitivityResults: (results) => set({ sensitivityResults: results }),
   setProjectName: (name) => set({ projectName: name }),
