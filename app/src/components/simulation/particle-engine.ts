@@ -1,26 +1,34 @@
 // src/components/simulation/particle-engine.ts
 import type { HydraulicProfile } from '@/engine/simulation-profile';
+import { interpGroundElev } from '@/engine/simulation-profile';
 
 interface Particle {
   x: number;           // pixel x
   y: number;           // pixel y
   vx: number;          // pixels per frame
-  stage: 'approach' | 'bridge' | 'exit';
-  progress: number;    // 0-1 within stage
+  vy: number;          // pixels per frame (slight drift)
   opacity: number;
+  size: number;        // radius
 }
 
 interface ScaleInfo {
-  /** Convert longitudinal station to pixel x */
   xScale: (station: number) => number;
-  /** Convert elevation to pixel y */
   yScale: (elevation: number) => number;
 }
 
 const REGIME_COLORS = {
-  'free-surface': { particle: '#60a5fa', glow: 'rgba(96, 165, 250, 0.3)' },
-  'pressure':     { particle: '#fbbf24', glow: 'rgba(251, 191, 36, 0.3)' },
-  'overtopping':  { particle: '#f87171', glow: 'rgba(248, 113, 113, 0.3)' },
+  'free-surface': {
+    particles: ['#93c5fd', '#60a5fa', '#3b82f6'],
+    glow: 'rgba(59, 130, 246, 0.15)',
+  },
+  'pressure': {
+    particles: ['#fde68a', '#fbbf24', '#f59e0b'],
+    glow: 'rgba(251, 191, 36, 0.15)',
+  },
+  'overtopping': {
+    particles: ['#fca5a5', '#f87171', '#ef4444'],
+    glow: 'rgba(248, 113, 113, 0.15)',
+  },
 } as const;
 
 export class ParticleEngine {
@@ -75,29 +83,99 @@ export class ParticleEngine {
     this.particleCount = count;
   }
 
+  /** Get pixel bounds of the water at a given pixel x */
+  private getWaterBoundsAtX(pixelX: number): { top: number; bottom: number; inWater: boolean } {
+    const p = this.profile!;
+    const s = this.scales!;
+
+    // Invert x to get station
+    const firstSta = p.crossSection[0].station;
+    const lastSta = p.crossSection[p.crossSection.length - 1].station;
+    const x0 = s.xScale(firstSta);
+    const x1 = s.xScale(lastSta);
+    if (x1 === x0) return { top: 0, bottom: 0, inWater: false };
+
+    const station = firstSta + ((pixelX - x0) / (x1 - x0)) * (lastSta - firstSta);
+    if (station < firstSta || station > lastSta) return { top: 0, bottom: 0, inWater: false };
+
+    const groundElev = interpGroundElev(p.crossSection, station);
+    const wsel = p.usWsel;
+
+    if (groundElev >= wsel) return { top: 0, bottom: 0, inWater: false };
+
+    return {
+      top: s.yScale(wsel),
+      bottom: s.yScale(groundElev),
+      inWater: true,
+    };
+  }
+
   private seedParticles() {
     if (!this.profile || !this.scales) return;
     for (let i = 0; i < this.particleCount; i++) {
-      this.particles.push(this.spawnParticle(Math.random()));
+      const particle = this.spawnParticle(true);
+      if (particle) this.particles.push(particle);
     }
   }
 
-  private spawnParticle(initialProgress?: number): Particle {
+  private spawnParticle(randomX: boolean): Particle | null {
     const p = this.profile!;
     const s = this.scales!;
-    const progress = initialProgress ?? 0;
+    const cs = p.crossSection;
+    const firstSta = cs[0].station;
+    const lastSta = cs[cs.length - 1].station;
 
-    const x = s.xScale(p.approach.stationStart + progress * (p.exit.stationEnd - p.approach.stationStart));
-    const wsel = p.approach.wsel;
-    const bed = p.approach.bedElevation;
-    const yFrac = 0.2 + Math.random() * 0.6;
-    const elev = bed + yFrac * (wsel - bed);
-    const y = s.yScale(elev);
+    // Find a station where there is water (ground < WSEL)
+    // If randomX, place anywhere in the wetted area. Otherwise, place at the left edge.
+    const maxAttempts = 20;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      let station: number;
+      if (randomX) {
+        station = firstSta + Math.random() * (lastSta - firstSta);
+      } else {
+        // Find the leftmost wetted station and spawn there
+        station = firstSta;
+        for (const pt of cs) {
+          if (pt.elevation < p.usWsel) {
+            station = pt.station;
+            break;
+          }
+        }
+        // Add small random offset so particles don't all stack
+        station += Math.random() * (lastSta - firstSta) * 0.05;
+      }
 
-    const pixelsPerStation = Math.abs(s.xScale(1) - s.xScale(0));
-    const baseSpeed = p.approach.velocity * pixelsPerStation * 0.02;
+      const groundElev = interpGroundElev(cs, station);
+      if (groundElev >= p.usWsel) continue; // Dry here
 
-    return { x, y, vx: baseSpeed, stage: 'approach', progress, opacity: 1 };
+      const depth = p.usWsel - groundElev;
+      // Place particle within the water column, biased toward center
+      const yFrac = 0.15 + Math.random() * 0.7;
+      const elev = groundElev + yFrac * depth;
+
+      const pixelX = s.xScale(station);
+      const pixelY = s.yScale(elev);
+
+      // Base speed: deeper water = faster (simplified velocity distribution)
+      const depthFrac = depth / Math.max(p.approach.depth, 0.1);
+      const baseVelocity = p.approach.velocity * Math.min(depthFrac, 2);
+
+      // Convert velocity to pixels per frame
+      const stationRange = lastSta - firstSta;
+      const pixelRange = s.xScale(lastSta) - s.xScale(firstSta);
+      const pixelsPerUnit = pixelRange / stationRange;
+      const vx = baseVelocity * pixelsPerUnit * 0.012;
+
+      return {
+        x: pixelX,
+        y: pixelY,
+        vx: Math.max(vx, 0.3),
+        vy: (Math.random() - 0.5) * 0.15,
+        opacity: 0.6 + Math.random() * 0.4,
+        size: 1.5 + Math.random() * 2,
+      };
+    }
+    return null;
   }
 
   private tick = () => {
@@ -110,54 +188,75 @@ export class ParticleEngine {
   private update() {
     const p = this.profile!;
     const s = this.scales!;
-    const totalWidth = s.xScale(p.exit.stationEnd) - s.xScale(p.approach.stationStart);
+    const lastSta = p.crossSection[p.crossSection.length - 1].station;
+    const rightEdge = s.xScale(lastSta) + 20;
 
     for (let i = 0; i < this.particles.length; i++) {
       const particle = this.particles[i];
 
-      let velocityMult = 1;
+      // Check if in bridge zone — speed up
       const bridgeX1 = s.xScale(p.bridge.stationStart);
       const bridgeX2 = s.xScale(p.bridge.stationEnd);
+      let velocityMult = 1;
 
       if (particle.x >= bridgeX1 && particle.x <= bridgeX2) {
-        particle.stage = 'bridge';
         velocityMult = p.approach.velocity > 0
-          ? p.bridge.velocity / p.approach.velocity
+          ? Math.max(p.bridge.velocity / p.approach.velocity, 1.2)
           : 2;
-      } else if (particle.x > bridgeX2) {
-        particle.stage = 'exit';
-        velocityMult = p.approach.velocity > 0
-          ? p.exit.velocity / p.approach.velocity
-          : 0.8;
-      } else {
-        particle.stage = 'approach';
-        velocityMult = 1;
       }
 
-      let turbY = 0;
-      if (particle.stage === 'bridge') {
+      // Move particle
+      particle.x += particle.vx * velocityMult * this.speedMultiplier;
+
+      // Gentle vertical drift + constrain to water
+      particle.vy += (Math.random() - 0.5) * 0.05;
+      particle.vy *= 0.95; // damping
+
+      // Add turbulence in bridge zone for pressure/overtopping
+      if (particle.x >= bridgeX1 && particle.x <= bridgeX2) {
         if (p.flowRegime === 'pressure') {
-          turbY = (Math.random() - 0.5) * 2 * this.speedMultiplier;
+          particle.vy += (Math.random() - 0.5) * 0.8 * this.speedMultiplier;
         } else if (p.flowRegime === 'overtopping') {
-          turbY = (Math.random() - 0.5) * 3 * this.speedMultiplier;
+          particle.vy += (Math.random() - 0.5) * 1.2 * this.speedMultiplier;
         }
       }
 
-      particle.x += particle.vx * velocityMult * this.speedMultiplier;
-      particle.y += turbY;
-      particle.progress = (particle.x - s.xScale(p.approach.stationStart)) / totalWidth;
+      particle.y += particle.vy;
 
-      if (particle.progress > 0.85) {
-        particle.opacity = Math.max(0, (1 - particle.progress) / 0.15);
+      // Constrain to water bounds
+      const bounds = this.getWaterBoundsAtX(particle.x);
+      if (bounds.inWater) {
+        const margin = 3;
+        if (particle.y < bounds.top + margin) {
+          particle.y = bounds.top + margin;
+          particle.vy = Math.abs(particle.vy) * 0.3;
+        }
+        if (particle.y > bounds.bottom - margin) {
+          particle.y = bounds.bottom - margin;
+          particle.vy = -Math.abs(particle.vy) * 0.3;
+        }
       }
 
-      if (particle.progress >= 1 || particle.x > s.xScale(p.exit.stationEnd) + 10) {
-        this.particles[i] = this.spawnParticle(0);
+      // Fade out near right edge
+      const fadeStart = rightEdge - 60;
+      if (particle.x > fadeStart) {
+        particle.opacity = Math.max(0, (rightEdge - particle.x) / 60);
+      }
+
+      // Recycle particles that leave the frame or hit dry ground
+      if (particle.x > rightEdge || !bounds.inWater || particle.opacity <= 0) {
+        const newParticle = this.spawnParticle(false);
+        if (newParticle) {
+          this.particles[i] = newParticle;
+        }
       }
     }
 
+    // Maintain particle count
     while (this.particles.length < this.particleCount) {
-      this.particles.push(this.spawnParticle(Math.random()));
+      const p = this.spawnParticle(true);
+      if (p) this.particles.push(p);
+      else break;
     }
     while (this.particles.length > this.particleCount) {
       this.particles.pop();
@@ -175,16 +274,20 @@ export class ParticleEngine {
     for (const particle of this.particles) {
       if (particle.opacity <= 0) continue;
 
-      ctx.globalAlpha = particle.opacity * 0.8;
+      const color = colors.particles[Math.floor(Math.random() * 100) % colors.particles.length];
 
+      ctx.globalAlpha = particle.opacity * 0.7;
+
+      // Soft glow
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, 5, 0, Math.PI * 2);
+      ctx.arc(particle.x, particle.y, particle.size + 2, 0, Math.PI * 2);
       ctx.fillStyle = colors.glow;
       ctx.fill();
 
+      // Core dot
       ctx.beginPath();
-      ctx.arc(particle.x, particle.y, 2.5, 0, Math.PI * 2);
-      ctx.fillStyle = colors.particle;
+      ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
     }
 

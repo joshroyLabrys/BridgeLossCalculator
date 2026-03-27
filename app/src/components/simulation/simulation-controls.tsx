@@ -45,7 +45,7 @@ export function SimulationControls({
         <select
           value={selectedProfileIdx}
           onChange={(e) => onProfileChange(Number(e.target.value))}
-          className="rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 text-xs"
+          className="rounded-md border border-border/50 bg-card text-foreground px-2.5 py-1.5 text-xs [&_option]:bg-card [&_option]:text-foreground"
         >
           {profiles.map((p, i) => (
             <option key={i} value={i}>

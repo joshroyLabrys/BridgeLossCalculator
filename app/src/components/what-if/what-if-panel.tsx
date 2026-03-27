@@ -92,7 +92,7 @@ export function WhatIfPanel({ onClose }: { onClose: () => void }) {
           <select
             value={selectedProfileIdx}
             onChange={(e) => setSelectedProfileIdx(Number(e.target.value))}
-            className="flex-1 rounded border border-border/50 bg-muted/30 px-2 py-1 text-xs"
+            className="flex-1 rounded border border-border/50 bg-card text-foreground px-2 py-1 text-xs [&_option]:bg-card [&_option]:text-foreground"
           >
             {flowProfiles.map((p, i) => (
               <option key={i} value={i}>{p.name}</option>
@@ -104,7 +104,7 @@ export function WhatIfPanel({ onClose }: { onClose: () => void }) {
           <select
             value={selectedMethod}
             onChange={(e) => setSelectedMethod(e.target.value as keyof CalculationResults)}
-            className="flex-1 rounded border border-border/50 bg-muted/30 px-2 py-1 text-xs"
+            className="flex-1 rounded border border-border/50 bg-card text-foreground px-2 py-1 text-xs [&_option]:bg-card [&_option]:text-foreground"
           >
             {(['energy', 'momentum', 'yarnell', 'wspro'] as const)
               .filter((m) => coefficients.methodsToRun[m])

@@ -19,6 +19,8 @@ export interface ProfileZone {
 }
 
 export interface HydraulicProfile {
+  /** The raw cross-section points for accurate terrain rendering */
+  crossSection: CrossSectionPoint[];
   approach: ProfileZone;
   bridge: {
     stationStart: number;
@@ -38,6 +40,22 @@ export interface HydraulicProfile {
   dsWsel: number;
   usWsel: number;
   totalHeadLoss: number;
+}
+
+/**
+ * Interpolates ground elevation at any station from cross-section data.
+ */
+export function interpGroundElev(crossSection: CrossSectionPoint[], sta: number): number {
+  if (crossSection.length === 0) return 0;
+  if (sta <= crossSection[0].station) return crossSection[0].elevation;
+  if (sta >= crossSection[crossSection.length - 1].station) return crossSection[crossSection.length - 1].elevation;
+  for (let i = 0; i < crossSection.length - 1; i++) {
+    if (crossSection[i].station <= sta && crossSection[i + 1].station >= sta) {
+      const t = (sta - crossSection[i].station) / (crossSection[i + 1].station - crossSection[i].station);
+      return crossSection[i].elevation + t * (crossSection[i + 1].elevation - crossSection[i].elevation);
+    }
+  }
+  return crossSection[crossSection.length - 1].elevation;
 }
 
 function minBedElevation(
@@ -76,6 +94,7 @@ export function buildHydraulicProfile(
   const exitDepth = exitTw > 0 ? exitArea / exitTw : 0;
 
   return {
+    crossSection,
     approach: {
       stationStart: firstSta,
       stationEnd: bridge.leftAbutmentStation,

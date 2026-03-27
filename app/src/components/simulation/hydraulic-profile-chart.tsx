@@ -6,7 +6,9 @@ import { scaleLinear } from 'd3-scale';
 import { axisBottom, axisLeft } from 'd3-axis';
 import { area as d3area, line as d3line } from 'd3-shape';
 import { select } from 'd3-selection';
+import { min, max } from 'd3-array';
 import type { HydraulicProfile } from '@/engine/simulation-profile';
+import type { CrossSectionPoint } from '@/engine/types';
 import { ParticleEngine } from './particle-engine';
 import { useProjectStore } from '@/store/project-store';
 import { unitLabel } from '@/lib/units';
@@ -21,12 +23,13 @@ interface HydraulicProfileChartProps {
 const THEME = {
   ground: '#71717a',
   groundFill: 'oklch(0.22 0.02 230)',
+  groundDot: '#a1a1aa',
   bridge: '#ef4444',
   grid: 'oklch(0.26 0.02 230)',
   axis: 'oklch(0.50 0.01 260)',
-  waterFree: 'rgba(59, 130, 246, 0.12)',
-  waterPressure: 'rgba(251, 191, 36, 0.12)',
-  waterOvertopping: 'rgba(248, 113, 113, 0.12)',
+  waterFree: 'rgba(59, 130, 246, 0.08)',
+  waterPressure: 'rgba(251, 191, 36, 0.08)',
+  waterOvertopping: 'rgba(248, 113, 113, 0.08)',
   waterLineFree: '#3b82f6',
   waterLinePressure: '#fbbf24',
   waterLineOvertopping: '#f87171',
@@ -36,6 +39,16 @@ function waterColors(regime: string) {
   if (regime === 'pressure') return { fill: THEME.waterPressure, line: THEME.waterLinePressure };
   if (regime === 'overtopping') return { fill: THEME.waterOvertopping, line: THEME.waterLineOvertopping };
   return { fill: THEME.waterFree, line: THEME.waterLineFree };
+}
+
+function interpGround(crossSection: CrossSectionPoint[], sta: number): number {
+  for (let i = 0; i < crossSection.length - 1; i++) {
+    if (crossSection[i].station <= sta && crossSection[i + 1].station >= sta) {
+      const t = (sta - crossSection[i].station) / (crossSection[i + 1].station - crossSection[i].station);
+      return crossSection[i].elevation + t * (crossSection[i + 1].elevation - crossSection[i].elevation);
+    }
+  }
+  return crossSection[crossSection.length - 1]?.elevation ?? 0;
 }
 
 export function HydraulicProfileChart({ profile, isPlaying, speed, particleCount }: HydraulicProfileChartProps) {
@@ -94,33 +107,27 @@ export function HydraulicProfileChart({ profile, isPlaying, speed, particleCount
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     const p = profile;
-    const stations = [
-      { sta: p.approach.stationStart, bed: p.approach.bedElevation },
-      { sta: p.approach.stationEnd,   bed: p.approach.bedElevation },
-      { sta: p.bridge.stationStart,   bed: p.bridge.bedElevation },
-      { sta: p.bridge.stationEnd,     bed: p.bridge.bedElevation },
-      { sta: p.exit.stationStart,     bed: p.exit.bedElevation },
-      { sta: p.exit.stationEnd,       bed: p.exit.bedElevation },
-    ];
+    const cs = p.crossSection;
 
-    const allSta = stations.map(s => s.sta);
-    const allElev = [
-      ...stations.map(s => s.bed),
+    // Scales — use actual cross-section data
+    const allStations = cs.map(d => d.station);
+    const staPad = (max(allStations)! - min(allStations)!) * 0.03 || 10;
+    const allElevs = [
+      ...cs.map(d => d.elevation),
       p.bridge.highChord,
       p.bridge.lowChordLeft,
       p.bridge.lowChordRight,
       p.usWsel,
       p.dsWsel,
     ];
-    const staPad = (Math.max(...allSta) - Math.min(...allSta)) * 0.05 || 10;
     const elevPad = 3;
 
     const x = scaleLinear()
-      .domain([Math.min(...allSta) - staPad, Math.max(...allSta) + staPad])
+      .domain([min(allStations)! - staPad, max(allStations)! + staPad])
       .range([0, width]);
 
     const y = scaleLinear()
-      .domain([Math.min(...allElev) - elevPad, Math.max(...allElev) + elevPad])
+      .domain([min(allElevs)! - elevPad, max(allElevs)! + elevPad])
       .range([height, 0]);
 
     // Grid
@@ -138,7 +145,7 @@ export function HydraulicProfileChart({ profile, isPlaying, speed, particleCount
     // Axes
     svg.append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(axisBottom(x).ticks(Math.max(4, Math.floor(width / 100))))
+      .call(axisBottom(x).ticks(Math.max(4, Math.floor(width / 80))))
       .call(g => { g.selectAll('text').attr('fill', THEME.axis).attr('font-size', 11); g.selectAll('line,path').attr('stroke', THEME.grid); });
 
     svg.append('g')
@@ -157,122 +164,116 @@ export function HydraulicProfileChart({ profile, isPlaying, speed, particleCount
       .attr('text-anchor', 'middle').attr('fill', THEME.axis).attr('font-size', 11)
       .text(`Elevation (${lenUnit})`);
 
-    // Ground fill
-    const groundArea = d3area<{ sta: number; bed: number }>()
-      .x(d => x(d.sta))
+    // --- GROUND FILL (actual cross-section) ---
+    const groundArea = d3area<CrossSectionPoint>()
+      .x(d => x(d.station))
       .y0(height)
-      .y1(d => y(d.bed));
+      .y1(d => y(d.elevation));
 
     svg.append('path')
-      .datum(stations)
+      .datum(cs)
       .attr('d', groundArea)
-      .attr('fill', THEME.groundFill);
+      .attr('fill', THEME.groundFill)
+      .attr('stroke', 'none');
 
-    // Ground line
-    const groundLine = d3line<{ sta: number; bed: number }>()
-      .x(d => x(d.sta))
-      .y(d => y(d.bed));
+    // --- WATER SURFACE FILL ---
+    const wc = waterColors(p.flowRegime);
+    const wsel = p.usWsel; // Use upstream WSEL for the water surface
+
+    // Build water polygon clipped to ground (same technique as cross-section-chart)
+    const waterPath: { station: number; elevation: number }[] = [];
+    for (let i = 0; i < cs.length; i++) {
+      const curr = cs[i];
+      const prev = i > 0 ? cs[i - 1] : null;
+      if (prev) {
+        if ((prev.elevation > wsel && curr.elevation <= wsel) || (prev.elevation <= wsel && curr.elevation > wsel)) {
+          const t = (wsel - prev.elevation) / (curr.elevation - prev.elevation);
+          waterPath.push({ station: prev.station + t * (curr.station - prev.station), elevation: wsel });
+        }
+      }
+      if (curr.elevation <= wsel) {
+        waterPath.push({ station: curr.station, elevation: curr.elevation });
+      }
+    }
+    if (waterPath.length > 1) {
+      const poly = [
+        ...waterPath.map(pt => `${x(pt.station)},${y(wsel)}`),
+        ...[...waterPath].reverse().map(pt => `${x(pt.station)},${y(pt.elevation)}`),
+      ];
+      svg.append('polygon')
+        .attr('points', poly.join(' '))
+        .attr('fill', wc.fill);
+    }
+
+    // --- GROUND LINE ---
+    const groundLine = d3line<CrossSectionPoint>()
+      .x(d => x(d.station))
+      .y(d => y(d.elevation));
 
     svg.append('path')
-      .datum(stations)
+      .datum(cs)
       .attr('d', groundLine)
       .attr('fill', 'none')
       .attr('stroke', THEME.ground)
       .attr('stroke-width', 2);
 
-    // Water surface fill
-    const wc = waterColors(p.flowRegime);
+    // --- BRIDGE STRUCTURE ---
+    const bridge = p.bridge;
+    const deckX1 = x(bridge.stationStart);
+    const deckX2 = x(bridge.stationEnd);
 
-    // Approach water
-    const approachWaterPts = [
-      [x(p.approach.stationStart), y(p.usWsel)],
-      [x(p.approach.stationEnd), y(p.usWsel)],
-      [x(p.approach.stationEnd), y(p.approach.bedElevation)],
-      [x(p.approach.stationStart), y(p.approach.bedElevation)],
-    ];
-    svg.append('polygon')
-      .attr('points', approachWaterPts.map(pt => pt.join(',')).join(' '))
-      .attr('fill', wc.fill);
-
-    // Bridge water
-    const bridgeWselCapped = Math.min(p.usWsel, p.bridge.lowChordLeft);
-    const bridgeWaterPts = [
-      [x(p.bridge.stationStart), y(bridgeWselCapped)],
-      [x(p.bridge.stationEnd), y(bridgeWselCapped)],
-      [x(p.bridge.stationEnd), y(p.bridge.bedElevation)],
-      [x(p.bridge.stationStart), y(p.bridge.bedElevation)],
-    ];
-    svg.append('polygon')
-      .attr('points', bridgeWaterPts.map(pt => pt.join(',')).join(' '))
-      .attr('fill', wc.fill);
-
-    // Exit water
-    const exitWaterPts = [
-      [x(p.exit.stationStart), y(p.dsWsel)],
-      [x(p.exit.stationEnd), y(p.dsWsel)],
-      [x(p.exit.stationEnd), y(p.exit.bedElevation)],
-      [x(p.exit.stationStart), y(p.exit.bedElevation)],
-    ];
-    svg.append('polygon')
-      .attr('points', exitWaterPts.map(pt => pt.join(',')).join(' '))
-      .attr('fill', wc.fill);
-
-    // Water surface lines
-    svg.append('line')
-      .attr('x1', x(p.approach.stationStart)).attr('y1', y(p.usWsel))
-      .attr('x2', x(p.approach.stationEnd)).attr('y2', y(p.usWsel))
-      .attr('stroke', wc.line).attr('stroke-width', 2);
-
-    svg.append('line')
-      .attr('x1', x(p.exit.stationStart)).attr('y1', y(p.dsWsel))
-      .attr('x2', x(p.exit.stationEnd)).attr('y2', y(p.dsWsel))
-      .attr('stroke', wc.line).attr('stroke-width', 2);
-
-    // Head loss indicator
-    svg.append('line')
-      .attr('x1', x(p.bridge.stationStart)).attr('y1', y(p.usWsel))
-      .attr('x2', x(p.bridge.stationEnd)).attr('y2', y(p.dsWsel))
-      .attr('stroke', wc.line).attr('stroke-width', 1.5).attr('stroke-dasharray', '6 4');
-
-    // Bridge structure
-    const deckX1 = x(p.bridge.stationStart);
-    const deckX2 = x(p.bridge.stationEnd);
-
+    // Deck rectangle
     svg.append('rect')
       .attr('x', deckX1)
-      .attr('y', y(p.bridge.highChord))
+      .attr('y', y(bridge.highChord))
       .attr('width', deckX2 - deckX1)
-      .attr('height', y(p.bridge.lowChordLeft) - y(p.bridge.highChord))
+      .attr('height', y(bridge.lowChordLeft) - y(bridge.highChord))
       .attr('fill', THEME.bridge)
-      .attr('fill-opacity', 0.2)
+      .attr('fill-opacity', 0.15)
       .attr('stroke', THEME.bridge)
-      .attr('stroke-width', 2)
+      .attr('stroke-width', 1.5)
       .attr('rx', 1);
 
-    // Abutment walls
+    // Low chord line
     svg.append('line')
-      .attr('x1', deckX1).attr('y1', y(p.bridge.highChord))
-      .attr('x2', deckX1).attr('y2', y(p.bridge.bedElevation))
+      .attr('x1', deckX1).attr('y1', y(bridge.lowChordLeft))
+      .attr('x2', deckX2).attr('y2', y(bridge.lowChordRight))
+      .attr('stroke', THEME.bridge).attr('stroke-width', 2.5);
+
+    // High chord line (dashed)
+    svg.append('line')
+      .attr('x1', deckX1).attr('y1', y(bridge.highChord))
+      .attr('x2', deckX2).attr('y2', y(bridge.highChord))
+      .attr('stroke', THEME.bridge).attr('stroke-width', 1.5).attr('stroke-dasharray', '6 3');
+
+    // Abutment walls
+    const leftGround = interpGround(cs, bridge.stationStart);
+    const rightGround = interpGround(cs, bridge.stationEnd);
+
+    svg.append('line')
+      .attr('x1', deckX1).attr('y1', y(bridge.highChord))
+      .attr('x2', deckX1).attr('y2', y(leftGround))
       .attr('stroke', THEME.bridge).attr('stroke-width', 2.5);
 
     svg.append('line')
-      .attr('x1', deckX2).attr('y1', y(p.bridge.highChord))
-      .attr('x2', deckX2).attr('y2', y(p.bridge.bedElevation))
+      .attr('x1', deckX2).attr('y1', y(bridge.highChord))
+      .attr('x2', deckX2).attr('y2', y(rightGround))
       .attr('stroke', THEME.bridge).attr('stroke-width', 2.5);
 
     // Piers
-    const span = p.bridge.stationEnd - p.bridge.stationStart;
-    for (const pier of p.bridge.piers) {
+    const span = bridge.stationEnd - bridge.stationStart;
+    for (const pier of bridge.piers) {
       const pierX = x(pier.station - pier.width / 2);
       const pierW = x(pier.station + pier.width / 2) - pierX;
-      const t = span > 0 ? (pier.station - p.bridge.stationStart) / span : 0;
-      const lowChordAtPier = p.bridge.lowChordLeft + t * (p.bridge.lowChordRight - p.bridge.lowChordLeft);
+      const pierGround = interpGround(cs, pier.station);
+      const t = span > 0 ? (pier.station - bridge.stationStart) / span : 0;
+      const lowChordAtPier = bridge.lowChordLeft + t * (bridge.lowChordRight - bridge.lowChordLeft);
 
       svg.append('rect')
         .attr('x', pierX)
         .attr('y', y(lowChordAtPier))
         .attr('width', Math.max(pierW, 2))
-        .attr('height', y(p.bridge.bedElevation) - y(lowChordAtPier))
+        .attr('height', y(pierGround) - y(lowChordAtPier))
         .attr('fill', THEME.bridge)
         .attr('fill-opacity', 0.4)
         .attr('stroke', THEME.bridge)
@@ -283,9 +284,9 @@ export function HydraulicProfileChart({ profile, isPlaying, speed, particleCount
     if (p.flowRegime === 'pressure' || p.flowRegime === 'overtopping') {
       svg.append('rect')
         .attr('x', deckX1)
-        .attr('y', y(p.bridge.highChord))
+        .attr('y', y(bridge.highChord))
         .attr('width', deckX2 - deckX1)
-        .attr('height', y(p.bridge.lowChordLeft) - y(p.bridge.highChord))
+        .attr('height', y(bridge.lowChordLeft) - y(bridge.highChord))
         .attr('fill', 'none')
         .attr('stroke', wc.line)
         .attr('stroke-width', 1)
@@ -295,40 +296,88 @@ export function HydraulicProfileChart({ profile, isPlaying, speed, particleCount
 
     // Overtopping indicator
     if (p.flowRegime === 'overtopping') {
-      const overY = y(p.bridge.highChord) - 8;
       svg.append('text')
         .attr('x', (deckX1 + deckX2) / 2)
-        .attr('y', overY)
+        .attr('y', y(bridge.highChord) - 8)
         .attr('text-anchor', 'middle')
         .attr('fill', THEME.waterLineOvertopping)
         .attr('font-size', 11)
         .attr('font-weight', 600)
-        .text('▼ OVERTOPPING ▼');
+        .text('OVERTOPPING');
     }
 
-    // Head loss annotation
-    const midBridgeX = (deckX1 + deckX2) / 2;
+    // --- WSEL LINE ---
     svg.append('line')
-      .attr('x1', midBridgeX - 30).attr('y1', y(p.usWsel))
-      .attr('x2', midBridgeX - 30).attr('y2', y(p.dsWsel))
-      .attr('stroke', '#a1a1aa').attr('stroke-width', 1);
+      .attr('x1', 0).attr('y1', y(wsel))
+      .attr('x2', width).attr('y2', y(wsel))
+      .attr('stroke', wc.line).attr('stroke-width', 1.5).attr('stroke-dasharray', '8 4');
 
+    // --- GROUND DOTS ---
+    svg.selectAll('.ground-dot')
+      .data(cs)
+      .enter()
+      .append('circle')
+      .attr('cx', d => x(d.station))
+      .attr('cy', d => y(d.elevation))
+      .attr('r', 3)
+      .attr('fill', THEME.groundDot)
+      .attr('stroke', THEME.groundFill)
+      .attr('stroke-width', 1.5);
+
+    // --- LABELS ---
+    // WSEL label
     svg.append('text')
-      .attr('x', midBridgeX - 34)
-      .attr('y', y((p.usWsel + p.dsWsel) / 2))
-      .attr('text-anchor', 'end')
+      .attr('x', 4).attr('y', y(wsel) - 5)
+      .attr('fill', wc.line).attr('font-size', 10).attr('font-weight', 600)
+      .text(`WSEL ${wsel.toFixed(2)}`);
+
+    // Head loss annotation near bridge
+    const midBridgeX = (deckX1 + deckX2) / 2;
+    svg.append('text')
+      .attr('x', midBridgeX)
+      .attr('y', y(bridge.highChord) - 20)
+      .attr('text-anchor', 'middle')
       .attr('fill', '#a1a1aa')
       .attr('font-size', 10)
       .text(`Δh = ${p.totalHeadLoss.toFixed(3)}`);
 
-    // Configure particle engine
+    // --- LEGEND ---
+    const items = [
+      { label: 'Ground', color: THEME.ground, dashed: false },
+      { label: 'Bridge', color: THEME.bridge, dashed: false },
+      { label: 'WSEL', color: wc.line, dashed: true },
+      { label: p.flowRegime.replace('-', ' ').toUpperCase(), color: wc.line, dashed: false },
+    ];
+    const legendG = svg.append('g')
+      .attr('transform', `translate(${width / 2}, ${height + 54})`);
+
+    const itemWidth = 90;
+    const startX = -(items.length * itemWidth) / 2;
+    items.forEach((item, i) => {
+      const g = legendG.append('g').attr('transform', `translate(${startX + i * itemWidth}, 0)`);
+      if (item.dashed) {
+        g.append('line').attr('x1', 0).attr('y1', 0).attr('x2', 14).attr('y2', 0)
+          .attr('stroke', item.color).attr('stroke-width', 2).attr('stroke-dasharray', '3 2');
+      } else {
+        g.append('rect').attr('x', 0).attr('y', -1.5).attr('width', 14).attr('height', 3)
+          .attr('fill', item.color).attr('rx', 1);
+      }
+      g.append('text').attr('x', 18).attr('y', 0).attr('dy', '0.35em')
+        .attr('fill', THEME.axis).attr('font-size', 10).text(item.label);
+    });
+
+    // Configure particle engine with actual terrain data
     const engine = engineRef.current;
     if (engine && canvas) {
       engine.attach(canvas);
-      engine.configure(profile, {
-        xScale: (sta: number) => x(sta) + margin.left,
-        yScale: (elev: number) => y(elev) + margin.top,
-      }, particleCount);
+      engine.configure(
+        profile,
+        {
+          xScale: (sta: number) => x(sta) + margin.left,
+          yScale: (elev: number) => y(elev) + margin.top,
+        },
+        particleCount,
+      );
       if (isPlaying) engine.play();
     }
   }, [profile, lenUnit, particleCount, isPlaying]);
