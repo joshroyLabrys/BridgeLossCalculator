@@ -1,7 +1,7 @@
-// src/components/simulation/simulation-controls.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Play, Pause } from 'lucide-react';
 import type { FlowProfile } from '@/engine/types';
 
@@ -25,6 +25,10 @@ const METHOD_DOTS: Record<string, string> = {
   wspro: 'bg-purple-500',
 };
 
+function methodLabel(m: string) {
+  return m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1);
+}
+
 export function SimulationControls({
   profiles,
   selectedProfileIdx,
@@ -38,57 +42,55 @@ export function SimulationControls({
   onSpeedChange,
 }: SimulationControlsProps) {
   return (
-    <div className="flex items-center gap-4 flex-wrap">
-      {/* Flow profile selector */}
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-muted-foreground font-medium">Profile</label>
-        <select
-          value={selectedProfileIdx}
-          onChange={(e) => onProfileChange(Number(e.target.value))}
-          className="rounded-md border border-border/50 bg-card text-foreground px-2.5 py-1.5 text-xs [&_option]:bg-card [&_option]:text-foreground"
-        >
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Flow profile */}
+      <Select value={String(selectedProfileIdx)} onValueChange={(v) => onProfileChange(Number(v))}>
+        <SelectTrigger size="sm" className="text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
           {profiles.map((p, i) => (
-            <option key={i} value={i}>
-              {p.name} — {p.ari} ({p.discharge.toFixed(0)} cfs)
-            </option>
+            <SelectItem key={i} value={String(i)}>
+              {p.name} — {p.ari}
+            </SelectItem>
           ))}
-        </select>
-      </div>
+        </SelectContent>
+      </Select>
 
-      {/* Method selector */}
-      <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
+      {/* Method pills */}
+      <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
         {methods.map((m) => (
           <button
             key={m}
             onClick={() => onMethodChange(m)}
-            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all ${
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
               selectedMethod === m
                 ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            <span className={`h-2 w-2 rounded-full ${METHOD_DOTS[m] ?? 'bg-gray-500'}`} />
-            {m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1)}
+            <span className={`h-1.5 w-1.5 rounded-full ${METHOD_DOTS[m] ?? 'bg-gray-500'}`} />
+            {methodLabel(m)}
           </button>
         ))}
       </div>
 
-      <div className="w-px h-6 bg-border/40" />
+      <div className="w-px h-5 bg-border/40" />
 
       {/* Play/Pause */}
       <Button
         variant="outline"
         size="sm"
         onClick={() => onPlayingChange(!isPlaying)}
-        className="gap-1.5"
+        className="gap-1.5 h-7 px-2.5 text-xs"
       >
-        {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+        {isPlaying ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
         {isPlaying ? 'Pause' : 'Play'}
       </Button>
 
-      {/* Speed slider */}
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-muted-foreground">Speed</label>
+      {/* Speed */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-muted-foreground">Speed</span>
         <input
           type="range"
           min={0.25}
@@ -96,9 +98,9 @@ export function SimulationControls({
           step={0.25}
           value={speed}
           onChange={(e) => onSpeedChange(parseFloat(e.target.value))}
-          className="w-20 accent-primary"
+          className="w-16 accent-primary h-1"
         />
-        <span className="text-xs font-mono text-muted-foreground w-8">{speed}x</span>
+        <span className="text-[10px] font-mono text-muted-foreground w-6">{speed}x</span>
       </div>
     </div>
   );

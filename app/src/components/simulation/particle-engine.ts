@@ -54,11 +54,14 @@ export class ParticleEngine {
   }
 
   configure(profile: HydraulicProfile, scales: ScaleInfo, count?: number) {
+    const wasPlaying = this.playing;
+    this.pause();
     this.profile = profile;
     this.scales = scales;
     if (count !== undefined) this.particleCount = count;
     this.particles = [];
     this.seedParticles();
+    if (wasPlaying) this.play();
   }
 
   play() {

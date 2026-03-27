@@ -1,9 +1,9 @@
-// src/components/simulation/simulation-tab.tsx
 'use client';
 
 import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useProjectStore } from '@/store/project-store';
 import { buildHydraulicProfile } from '@/engine/simulation-profile';
 import { runAllMethods } from '@/engine';
@@ -12,9 +12,13 @@ import { SimulationControls } from './simulation-controls';
 import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-if-controls';
 import { toDisplay, unitLabel } from '@/lib/units';
 import type { CalculationResults } from '@/engine/types';
-import { Waves, FlaskConical, RotateCcw, ChevronRight, ChevronDown } from 'lucide-react';
+import { Waves, FlaskConical, RotateCcw } from 'lucide-react';
 
 const METHOD_KEYS = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
+
+function methodLabel(m: string) {
+  return m === 'wspro' ? 'WSPRO' : m.charAt(0).toUpperCase() + m.slice(1);
+}
 
 function Delta({ baseline, modified, unit }: { baseline: number; modified: number; unit: string }) {
   const diff = modified - baseline;
@@ -40,7 +44,6 @@ export function SimulationTab() {
   const [selectedMethod, setSelectedMethod] = useState<string>('energy');
   const [isPlaying, setIsPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
-  const [whatIfOpen, setWhatIfOpen] = useState(false);
 
   const defaults: WhatIfOverrides = {
     manningsNMultiplier: 1.0,
@@ -78,13 +81,11 @@ export function SimulationTab() {
     return runAllMethods(modifiedXs, bridgeGeometry, modifiedProfiles, modifiedCoeffs);
   }, [crossSection, bridgeGeometry, flowProfiles, coefficients, overrides, hasChanges]);
 
-  // Use modified results if What-If is active, otherwise baseline
   const activeResults = hasChanges ? modifiedResults : results;
   const baselineResult = results?.[selectedMethod as keyof CalculationResults]?.[selectedProfileIdx];
   const activeResult = activeResults?.[selectedMethod as keyof CalculationResults]?.[selectedProfileIdx];
   const flowProfile = flowProfiles[selectedProfileIdx];
 
-  // Build profile from whichever results are active — use modified cross-section if What-If
   const hydraulicProfile = useMemo(() => {
     if (!activeResult || !flowProfile || crossSection.length < 2) return null;
     const xs = hasChanges
@@ -111,15 +112,15 @@ export function SimulationTab() {
       <div className="space-y-1">
         <h2 className="text-lg font-semibold tracking-tight">Hydraulic Simulation</h2>
         <p className="text-sm text-muted-foreground max-w-prose text-pretty">
-          Animated cross-section with flow visualization. Adjust &ldquo;What If&rdquo; parameters to see impacts in real-time.
+          Animated cross-section with flow visualization. Adjust parameters to see impacts in real-time.
         </p>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 items-start">
         {/* Main chart area */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 space-y-3">
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <SimulationControls
                 profiles={flowProfiles}
                 selectedProfileIdx={selectedProfileIdx}
@@ -151,120 +152,137 @@ export function SimulationTab() {
 
           {/* Status bar */}
           {hydraulicProfile && (
-            <div className="flex items-center gap-3 text-xs mt-3">
-              <span className={`px-2 py-1 rounded-md font-medium ${
+            <div className="flex items-center gap-3 text-xs">
+              <span className={`px-2 py-0.5 rounded font-medium text-[11px] ${
                 hydraulicProfile.flowRegime === 'free-surface'
-                  ? 'bg-blue-500/15 text-blue-400'
+                  ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
                   : hydraulicProfile.flowRegime === 'pressure'
-                  ? 'bg-orange-500/15 text-orange-400'
-                  : 'bg-red-500/15 text-red-400'
+                  ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
+                  : 'bg-red-500/15 text-red-400 border border-red-500/30'
               }`}>
                 {hydraulicProfile.flowRegime.toUpperCase().replace('-', ' ')}
               </span>
-              <span className="text-muted-foreground font-mono">
-                WSEL {toDisplay(hydraulicProfile.usWsel, 'length', us).toFixed(2)} {len}
+              <span className="text-muted-foreground">
+                WSEL <span className="font-mono text-foreground">{toDisplay(hydraulicProfile.usWsel, 'length', us).toFixed(2)}</span> {len}
               </span>
-              <span className="text-muted-foreground font-mono">
-                Δh {toDisplay(hydraulicProfile.totalHeadLoss, 'length', us).toFixed(3)} {len}
+              <span className="text-muted-foreground">
+                Δh <span className="font-mono text-foreground">{toDisplay(hydraulicProfile.totalHeadLoss, 'length', us).toFixed(3)}</span> {len}
               </span>
               {hasChanges && baselineResult && activeResult && (
-                <span className="ml-auto text-muted-foreground">
-                  vs baseline: <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
+                <span className="ml-auto">
+                  <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
                 </span>
               )}
             </div>
           )}
         </div>
 
-        {/* What-If sidebar */}
-        <div className={`shrink-0 transition-all duration-200 ${whatIfOpen ? 'w-64' : 'w-10'}`}>
-          {whatIfOpen ? (
-            <Card className="h-full">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FlaskConical className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-semibold">What If?</span>
-                  </div>
-                  <button
-                    onClick={() => setWhatIfOpen(false)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <WhatIfControls overrides={overrides} defaults={defaults} onChange={setOverrides} />
+        {/* What-If sidebar — always visible */}
+        <Card className="w-64 shrink-0">
+          <CardHeader className="pb-2 pt-3 px-4">
+            <div className="flex items-center gap-2">
+              <FlaskConical className="h-3.5 w-3.5 text-primary" />
+              <span className="text-xs font-semibold uppercase tracking-wide">What If?</span>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-3 space-y-4">
+            {/* Scenario selectors */}
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Profile</label>
+                <Select value={String(selectedProfileIdx)} onValueChange={(v) => setSelectedProfileIdx(Number(v))}>
+                  <SelectTrigger size="sm" className="w-full text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {flowProfiles.map((p, i) => (
+                      <SelectItem key={i} value={String(i)}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-wide">Method</label>
+                <Select value={selectedMethod} onValueChange={(v) => { if (v) setSelectedMethod(v); }}>
+                  <SelectTrigger size="sm" className="w-full text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeMethods.map((m) => (
+                      <SelectItem key={m} value={m}>{methodLabel(m)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-                {/* Impact deltas */}
-                {hasChanges && baselineResult && activeResult && (
-                  <div className="border-t border-border/40 pt-3 space-y-1.5">
-                    <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Impact</div>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">US WSEL</span>
-                        <div className="text-right">
-                          <span className="font-mono">{toDisplay(activeResult.upstreamWsel, 'length', us).toFixed(3)} {len}</span>
-                          <div><Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} /></div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Head Loss</span>
-                        <div className="text-right">
-                          <span className="font-mono">{toDisplay(activeResult.totalHeadLoss, 'length', us).toFixed(3)} {len}</span>
-                          <div><Delta baseline={baselineResult.totalHeadLoss} modified={activeResult.totalHeadLoss} unit={len} /></div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Velocity</span>
-                        <div className="text-right">
-                          <span className="font-mono">{toDisplay(activeResult.approachVelocity, 'velocity', us).toFixed(2)} {vel}</span>
-                          <div><Delta baseline={baselineResult.approachVelocity} modified={activeResult.approachVelocity} unit={vel} /></div>
-                        </div>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Froude</span>
-                        <div className="text-right">
-                          <span className="font-mono">{activeResult.froudeApproach.toFixed(3)}</span>
-                          <div><Delta baseline={baselineResult.froudeApproach} modified={activeResult.froudeApproach} unit="" /></div>
-                        </div>
+            <div className="h-px bg-border/40" />
+
+            {/* Sliders */}
+            <WhatIfControls overrides={overrides} defaults={defaults} onChange={setOverrides} />
+
+            {/* Impact deltas */}
+            {hasChanges && baselineResult && activeResult && (
+              <>
+                <div className="h-px bg-border/40" />
+                <div className="space-y-1.5">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Impact</div>
+                  <div className="space-y-1 text-xs">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-muted-foreground">US WSEL</span>
+                      <div className="text-right">
+                        <span className="font-mono text-foreground">{toDisplay(activeResult.upstreamWsel, 'length', us).toFixed(3)}</span>
+                        <span className="text-muted-foreground"> {len} </span>
+                        <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
                       </div>
                     </div>
-
-                    {activeResult.flowRegime !== baselineResult.flowRegime && (
-                      <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 text-[11px] text-amber-400">
-                        Regime: {baselineResult.flowRegime} → <span className="font-semibold">{activeResult.flowRegime}</span>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-muted-foreground">Head Loss</span>
+                      <div className="text-right">
+                        <span className="font-mono text-foreground">{toDisplay(activeResult.totalHeadLoss, 'length', us).toFixed(3)}</span>
+                        <span className="text-muted-foreground"> {len} </span>
+                        <Delta baseline={baselineResult.totalHeadLoss} modified={activeResult.totalHeadLoss} unit={len} />
                       </div>
-                    )}
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-muted-foreground">Velocity</span>
+                      <div className="text-right">
+                        <span className="font-mono text-foreground">{toDisplay(activeResult.approachVelocity, 'velocity', us).toFixed(2)}</span>
+                        <span className="text-muted-foreground"> {vel} </span>
+                        <Delta baseline={baselineResult.approachVelocity} modified={activeResult.approachVelocity} unit={vel} />
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-muted-foreground">Froude</span>
+                      <div className="text-right">
+                        <span className="font-mono text-foreground">{activeResult.froudeApproach.toFixed(3)}</span>
+                        {' '}
+                        <Delta baseline={baselineResult.froudeApproach} modified={activeResult.froudeApproach} unit="" />
+                      </div>
+                    </div>
                   </div>
-                )}
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full text-xs"
-                  disabled={!hasChanges}
-                  onClick={() => setOverrides(defaults)}
-                >
-                  <RotateCcw className="h-3 w-3 mr-1.5" />
-                  Reset to Baseline
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <button
-              onClick={() => setWhatIfOpen(true)}
-              className="h-full w-10 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors flex flex-col items-center justify-center gap-2"
-              title="Open What If? panel"
+                  {activeResult.flowRegime !== baselineResult.flowRegime && (
+                    <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 text-[11px] text-amber-400 mt-2">
+                      {baselineResult.flowRegime} → <span className="font-semibold">{activeResult.flowRegime}</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs h-7"
+              disabled={!hasChanges}
+              onClick={() => setOverrides(defaults)}
             >
-              <FlaskConical className="h-4 w-4 text-primary" />
-              <span className="text-[10px] text-muted-foreground font-medium [writing-mode:vertical-lr] rotate-180">
-                What If?
-              </span>
-            </button>
-          )}
-        </div>
+              <RotateCcw className="h-3 w-3 mr-1.5" />
+              Reset to Baseline
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
