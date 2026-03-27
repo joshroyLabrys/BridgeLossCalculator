@@ -41,7 +41,7 @@ export async function callOpenAI(systemPrompt: string, userPrompt: string): Prom
     body: JSON.stringify({
       model: 'gpt-5.4',
       instructions: systemPrompt,
-      input: userPrompt,
+      input: [{ role: 'user', content: userPrompt }],
       text: { format: { type: 'json_object' } },
       temperature: 0.3,
     }),

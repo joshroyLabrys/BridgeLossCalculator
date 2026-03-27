@@ -270,7 +270,11 @@ export function AffluxCharts() {
       <Card>
         <CardHeader>
           <CardTitle>Afflux Rating Curve</CardTitle>
-          <CardDescription>Head loss by method across discharge scenarios{sensitivityResults ? ' (shaded bands show Manning\'s n sensitivity)' : ''}</CardDescription>
+          <CardDescription className="max-w-prose text-pretty">
+            Head loss by method across discharge scenarios.
+            {sensitivityResults ? ' Shaded bands show Manning\'s n sensitivity — where bands are wider than method spread, roughness dominates.' : ''}
+            {' '}Converging lines = consistent methods; divergence at higher flows may signal pressure flow transition.
+          </CardDescription>
           <CardAction>
             <Button variant="outline" size="sm" onClick={exportCsv}>
               <Download className="h-3.5 w-3.5 mr-1.5" />
@@ -286,7 +290,10 @@ export function AffluxCharts() {
       <Card>
         <CardHeader>
           <CardTitle>Upstream WSEL vs Discharge</CardTitle>
-          <CardDescription>Water surface elevation trend across discharge scenarios</CardDescription>
+          <CardDescription className="max-w-prose text-pretty">
+            Upstream water surface elevation trend across discharge scenarios. A sharp WSEL increase
+            may indicate onset of pressure flow or backwater from the bridge constriction.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div ref={wselRef} className="h-[320px] w-full" />

@@ -64,6 +64,7 @@ function MethodRows({ methods, results, getValue, profileCount }: {
               {r.error ? <span className="text-destructive">ERR</span> : getValue(r)}
             </TableCell>
           ))}
+          <TableCell />
         </TableRow>
       ))}
     </>
@@ -106,27 +107,37 @@ export function ComparisonTables() {
 
   const profileNames = flowProfiles.map((p) => p.name);
   const methods = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
-  const colSpan = 1 + profileNames.length;
+  const colSpan = 2 + profileNames.length; // +1 for spacer column
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Method Comparison</CardTitle>
-        <CardDescription>All methods compared across flow profiles</CardDescription>
+        <CardDescription className="max-w-prose text-pretty">
+          Four independent methods compared side-by-side. Agreement within 5% (green) is high confidence,
+          5–10% (amber) is acceptable, and beyond 10% (red) warrants investigation. Enter HEC-RAS values
+          for percentage differences. TUFLOW FLC values are form loss coefficients for 2D models.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Table>
+          <colgroup>
+            <col className="w-[180px]" />
+            {profileNames.map((n) => <col key={n} className="w-[110px]" />)}
+            <col />
+          </colgroup>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="text-xs w-[180px]">Method</TableHead>
-              {profileNames.map((n) => <TableHead key={n} className="text-xs text-right min-w-[100px]">{n}</TableHead>)}
+              <TableHead className="text-xs">Method</TableHead>
+              {profileNames.map((n) => <TableHead key={n} className="text-xs text-right">{n}</TableHead>)}
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {/* Upstream WSEL */}
             <SectionDivider label={`Upstream WSEL (${len})`} colSpan={colSpan} />
             <MethodRows methods={methods} results={results} getValue={(r) => toDisplay(r.upstreamWsel, 'length', us).toFixed(2)} profileCount={profileNames.length} />
-            <HecRasInputRow profileNames={profileNames} field="upstreamWsel" />
+            <HecRasInputRow profileNames={profileNames} field="upstreamWsel" spacer />
             <TableRow className="bg-muted/10 hover:bg-muted/10">
               <TableCell className="text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</TableCell>
               {profileNames.map((name, i) => {
@@ -140,12 +151,28 @@ export function ComparisonTables() {
                   : null;
                 return <TableCell key={name} className="text-right">{pctDiffBadge(pct)}</TableCell>;
               })}
+              <TableCell />
             </TableRow>
 
             {/* Head Loss */}
             <SectionDivider label={`Head Loss (${len})`} colSpan={colSpan} />
             <MethodRows methods={methods} results={results} getValue={(r) => toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} profileCount={profileNames.length} />
-            <HecRasInputRow profileNames={profileNames} field="headLoss" />
+            <HecRasInputRow profileNames={profileNames} field="headLoss" spacer />
+            <TableRow className="bg-muted/10 hover:bg-muted/10">
+              <TableCell className="text-xs text-muted-foreground">% Diff (Energy vs HEC-RAS)</TableCell>
+              {profileNames.map((name, i) => {
+                const hecEntry = comparison.find((c) => c.profileName === name);
+                const energyResult = results.energy[i];
+                if (!hecEntry?.headLoss || !energyResult || energyResult.error) {
+                  return <TableCell key={name} className="text-right">—</TableCell>;
+                }
+                const pct = hecEntry.headLoss !== 0
+                  ? ((energyResult.totalHeadLoss - hecEntry.headLoss) / hecEntry.headLoss) * 100
+                  : null;
+                return <TableCell key={name} className="text-right">{pctDiffBadge(pct)}</TableCell>;
+              })}
+              <TableCell />
+            </TableRow>
 
             {/* Approach Velocity */}
             <SectionDivider label={`Approach Velocity (${vel})`} colSpan={colSpan} />
@@ -162,12 +189,12 @@ export function ComparisonTables() {
             {/* TUFLOW Pier FLC */}
             <SectionDivider label="TUFLOW Pier FLC" colSpan={colSpan} />
             <MethodRows methods={methods} results={results} getValue={(r) => r.tuflowPierFLC.toFixed(3)} profileCount={profileNames.length} />
-            <HecRasInputRow profileNames={profileNames} field="pierFLC" />
+            <HecRasInputRow profileNames={profileNames} field="pierFLC" spacer />
 
             {/* TUFLOW Superstructure FLC */}
             <SectionDivider label="TUFLOW Superstructure FLC" colSpan={colSpan} />
             <MethodRows methods={methods} results={results} getValue={(r) => r.tuflowSuperFLC !== null ? r.tuflowSuperFLC.toFixed(3) : 'N/A'} profileCount={profileNames.length} />
-            <HecRasInputRow profileNames={profileNames} field="superFLC" />
+            <HecRasInputRow profileNames={profileNames} field="superFLC" spacer />
           </TableBody>
         </Table>
       </CardContent>

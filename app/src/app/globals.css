@@ -170,24 +170,68 @@ input[type="number"] {
 }
 
 @media print {
+  /* ── Nuclear hide: only .print-report is visible ── */
   body {
     background: white !important;
     background-image: none !important;
   }
 
-  .print-report {
-    display: block !important;
-  }
-
-  /* Hide everything except the print report */
-  body > div > div > .flex-1.flex.flex-col > *:not(.print-report),
-  body > div > div > header,
-  body > div > div > .sticky {
+  /* Hide the interactive app — everything that isn't .print-report */
+  body > div > div > *:not(.print-report) {
     display: none !important;
   }
 
+  /* Also catch the Tabs wrapper and any stray elements */
+  [data-slot="tabs"],
+  header,
+  .sticky,
+  [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  .print-report {
+    display: block !important;
+    width: 100%;
+  }
+
+  /* ── Page template ── */
+  .print-page {
+    page-break-after: always;
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+
+  .print-page-content {
+    flex: 1;
+  }
+
+  .print-page-footer {
+    margin-top: auto;
+  }
+
+  /* ── Table and SVG overflow ── */
+  .print-report table {
+    table-layout: fixed;
+    word-break: break-word;
+    max-width: 100%;
+  }
+
+  .print-report svg {
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: hidden;
+    display: block;
+  }
+
   @page {
-    margin: 1.5cm;
+    margin: 15mm 15mm;
     size: A4;
   }
 }

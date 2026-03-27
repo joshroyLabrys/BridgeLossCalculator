@@ -76,16 +76,16 @@ describe('callOpenAI', () => {
 
     const result = await callOpenAI('sys', 'user');
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      'https://chatgpt.com/backend-api/codex/responses',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer jwt-token-abc',
-          'chatgpt-account-id': 'acct-123',
-        }),
-      })
-    );
+    const callArgs = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(callArgs[0]).toBe('https://chatgpt.com/backend-api/codex/responses');
+    expect(callArgs[1].method).toBe('POST');
+    expect(callArgs[1].headers).toMatchObject({
+      Authorization: 'Bearer jwt-token-abc',
+      'chatgpt-account-id': 'acct-123',
+    });
+    const body = JSON.parse(callArgs[1].body);
+    expect(body.input).toEqual([{ role: 'user', content: 'user' }]);
+    expect(body.instructions).toBe('sys');
     expect(result).toBe('{"summary":"bridge"}');
   });
 

@@ -5,9 +5,10 @@ import { TableCell, TableRow } from '@/components/ui/table';
 import { useProjectStore } from '@/store/project-store';
 import { HecRasComparison } from '@/engine/types';
 
-export function HecRasInputRow({ profileNames, field }: {
+export function HecRasInputRow({ profileNames, field, spacer }: {
   profileNames: string[];
   field: 'upstreamWsel' | 'headLoss' | 'pierFLC' | 'superFLC';
+  spacer?: boolean;
 }) {
   const comparison = useProjectStore((s) => s.hecRasComparison);
   const update = useProjectStore((s) => s.updateHecRasComparison);
@@ -46,6 +47,7 @@ export function HecRasInputRow({ profileNames, field }: {
           </TableCell>
         );
       })}
+      {spacer && <TableCell />}
     </TableRow>
   );
 }
