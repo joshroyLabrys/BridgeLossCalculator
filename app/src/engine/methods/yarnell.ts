@@ -46,6 +46,7 @@ export function runYarnell(
       froudeApproach: 0,
       froudeBridge: 0,
       flowRegime: regime,
+      flowCalculationType: 'free-surface',
       iterationLog: [],
       converged: true,
       calculationSteps: [],
@@ -66,6 +67,8 @@ export function runYarnell(
   const dsTopWidth = calcTopWidth(crossSection, dsWsel);
   const dsVelocity = calcVelocity(profile.discharge, dsArea);
   const dsVh = calcVelocityHead(dsVelocity);
+  const dsHydDepth = dsTopWidth > 0 ? dsArea / dsTopWidth : 0;
+  const Fr3 = calcFroudeNumber(dsVelocity, dsArea, dsTopWidth);
 
   steps.push({
     stepNumber: 1,
@@ -101,19 +104,21 @@ export function runYarnell(
     unit: '',
   });
 
-  // Step 4: Apply Yarnell equation
-  // Δy = K * (K + 5 - 0.6) * (α + 15α⁴) * (V²/2g)
-  const dy = K * (K + 5 - 0.6) * (alpha + 15 * Math.pow(alpha, 4)) * dsVh;
+  // Step 4: Apply corrected Yarnell equation (HEC-RAS / Austroads standard)
+  const Fr3sq = Fr3 * Fr3;
+  const dy = K * Fr3sq * (K + 5 * Fr3sq - 0.6) * (alpha + 15 * Math.pow(alpha, 4)) * dsHydDepth;
 
   steps.push({
     stepNumber: 4,
-    description: 'Yarnell backwater equation',
-    formula: 'Δy = K × (K + 5 - 0.6) × (α + 15α⁴) × (V²/2g)',
+    description: 'Yarnell backwater equation (Froude-based)',
+    formula: 'Δy = K × Fr₃² × (K + 5·Fr₃² − 0.6) × (α + 15α⁴) × y₃',
     intermediateValues: {
       K,
-      'K+5-0.6': K + 5 - 0.6,
+      Fr3: Fr3,
+      'Fr₃²': Fr3sq,
+      'K+5Fr²−0.6': K + 5 * Fr3sq - 0.6,
       'α+15α⁴': alpha + 15 * Math.pow(alpha, 4),
-      'V²/2g': dsVh,
+      y3: dsHydDepth,
     },
     result: dy,
     unit: 'ft',
@@ -147,6 +152,7 @@ export function runYarnell(
     froudeApproach: froudeUs,
     froudeBridge: froudeDs,
     flowRegime: regime,
+    flowCalculationType: 'free-surface',
     iterationLog: [],
     converged: true,
     calculationSteps: steps,

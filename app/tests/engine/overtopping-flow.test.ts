@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runMomentum } from '@/engine/methods/momentum';
+import { runOvertoppingFlow } from '@/engine/overtopping-flow';
 import { CrossSectionPoint, BridgeGeometry, FlowProfile, Coefficients } from '@/engine/types';
 
 const crossSection: CrossSectionPoint[] = [
@@ -18,7 +18,7 @@ const bridge: BridgeGeometry = {
 };
 
 const profile: FlowProfile = {
-  name: '10-yr', ari: '', discharge: 2500, dsWsel: 5, channelSlope: 0.001,
+  name: 'Overtopping', ari: '', discharge: 5000, dsWsel: 13, channelSlope: 0.001,
 };
 
 const coefficients: Coefficients = {
@@ -29,22 +29,26 @@ const coefficients: Coefficients = {
   methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
 };
 
-describe('runMomentum', () => {
-  it('computes free-surface result with flowCalculationType', () => {
-    const result = runMomentum(crossSection, bridge, profile, coefficients);
+describe('runOvertoppingFlow', () => {
+  it('computes upstream WSEL > ds WSEL for overtopping flow', () => {
+    const result = runOvertoppingFlow(crossSection, bridge, profile, coefficients);
     expect(result.error).toBeNull();
-    expect(result.flowCalculationType).toBe('free-surface');
+    expect(result.converged).toBe(true);
+    expect(result.flowCalculationType).toBe('orifice+weir');
     expect(result.upstreamWsel).toBeGreaterThan(profile.dsWsel);
   });
 
-  it('dispatches to orifice solver for pressure flow', () => {
-    const pressureProfile: FlowProfile = { ...profile, dsWsel: 10 };
-    const result = runMomentum(crossSection, bridge, pressureProfile, coefficients);
-    expect(result.flowCalculationType).toBe('orifice');
+  it('splits flow between orifice and weir', () => {
+    const result = runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+    const stepDescs = result.calculationSteps.map(s => s.description.toLowerCase());
+    expect(stepDescs.some(d => d.includes('orifice'))).toBe(true);
+    expect(stepDescs.some(d => d.includes('weir'))).toBe(true);
   });
 
-  it('converges within max iterations', () => {
-    const result = runMomentum(crossSection, bridge, profile, coefficients);
-    expect(result.converged).toBe(true);
+  it('produces higher WSEL with smaller deckWidth (less weir capacity)', () => {
+    const narrowDeck: BridgeGeometry = { ...bridge, deckWidth: 3 };
+    const resultNarrow = runOvertoppingFlow(crossSection, narrowDeck, profile, coefficients);
+    const resultWide = runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+    expect(resultNarrow.upstreamWsel).toBeGreaterThan(resultWide.upstreamWsel);
   });
 });

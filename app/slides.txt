@@ -1,0 +1,113 @@
+Here is the scrape from the website. 
+Does it change anything?
+
+SellNOW - Investor Pitch Deck | Blockchain-Verified Real Estate Platform
+Source: https://propertydisruptor.app/
+Meta Description: SellNOW - Australia's First Blockchain-Verified Agent Performance Platform. Transforming property transactions with transparency and verified performance data.
+Keywords: SellNOW, real estate, blockchain, property, investment, PropTech, Australia
+
+
+Seed Round Feb 2026 | Investment Opportunity
+
+The Future of Property Transactions
+13 AI Bots. One Platform. Unlimited Growth.
+Every bot. Every transaction. All sovereign. All yours.
+Key Highlights
+
+AI-Powered Agent Matching
+Blockchain-Verified Performance
+$12.65B Market Opportunity
+
+
+Hero Metrics
+MetricValueNoteSeed Round$10MAUDPre-Money Valuation$40MAUDAI Bots13Risk-Adj. ROI32×3yr Base Case
+
+The $3.1 Billion Problem Nobody's Solving
+StatValueDescriptionAverage Vendor Loss$35K–$85KFrom poor agent selectionAuction Pass-In Rate25–36%Properties fail to sellPrice Reduction After Pass-In7–12%Below initial expectationsAdditional Days on Market45–90Extended selling timeWasted Marketing$12K–$25KPer failed campaignUnderquoted Properties30%Sold 10%+ above quote
+
+Current industry revenue comes from agent advertising, not vendor success.
+
+
+Market Opportunity
+Total Addressable Market — $12.65B AUD
+SegmentValue ($B AUD)Residential Agent Commissions10.6Buyers Agent Services0.85Developer & Investment Sales1.2
+Supporting Stats
+MetricValueDescriptionRevenue Streams8Compounding sourcesAvg Property Value$863,667Capital city medianAgent Commission2.2%Market averageAI Bots Active13Full ecosystem
+
+The 13 AI Bots
+Bot NameRoleIsabellaMatching EngineHannahOutbound GrowthBettyCompliance AILizReceptionist AIAllyProperty ManagementBridieLead ProspectingAndrewContract & OffersParkerVendor CommsKatBuyer & Investor Search AIHugoBuyer's Agent AIStormVendor Intelligence AI
+
+Consumer Property AI — Investment Region Finder
+How it works:
+
+Capture Intent — Budget, funding type (cash, equity, SMSF or combo), yield vs growth preference, risk tolerance, timeline
+AI Analysis — Cross-references CoreLogic, PEXA, ABS, Domain API and infrastructure pipelines across every postcode
+Region Shortlist — Ranked suburbs with AI-generated investment case — yield data, vacancy rates, growth history, risks
+Swipe & Decide — Properties in recommended regions surface in the swipe interface, filtered to investor's funding structure
+
+
+Revenue Streams (8 Total)
+Revenue StreamModelRateSell — Matched Agent Leads25% of agent commission on settled sale25%Buy — Buyer's Agent Matching25% of buyer's agent commission25%Invest — Off-Plan Developer5% of purchase price on settlement5%Pipeline (Tier 2)15% of commission on pipeline leads15%Outreach (Tier 3)20% of commission on database outreach20%Full Suite (Tier 4)25% of commission on all suite activity25%Consumer AI PremiumMonthly consumer subscription — Kat, Hugo, StormSaaSProperty Management (Ally)Monthly add-on per PM portfolioSaaS
+
+Vendor-to-agent & buyer-to-agent matching via verified performance data.
+
+
+Data Sovereignty
+PrincipleDetailData ResidencyAWS Sydney & Melbourne only. Zero offshore nodes.Agent IsolationNo cross-agent data access, sharing, or benchmarking.EncryptionAES-256 at rest. TLS 1.3 in transit. Keys stay in Australia.RegulatoryPrivacy Act 1988, APP Guidelines & NDB scheme compliant.OwnershipAgents own their data. Full export on request or cancellation.Investor EdgeOffshore SaaS competitors cannot match this commitment.
+
+Competitive Moat
+"Every transaction makes SellNOW harder to beat."
+
+Isabella improves — Every matched transaction feeds back into the AI. The more agents use it, the sharper the matching. Competitors can't replicate a dataset they don't have.
+Sovereign data is sticky — Agents' client lists, campaign data, and PM records live on SellNOW's Australian infrastructure. Switching costs grow with every month of use.
+Ecosystem lock-in — Rewards points, consumer AI tools, and agent bots create a flywheel. One transaction leads to the next. Every party earns inside the SellNOW ecosystem.
+Regulatory tailwind — Privacy Act reform and the Consumer Data Right expansion favour platforms with sovereign data built in. Offshore competitors face an increasing compliance gap.
+
+
+Financial Projections
+YearRevenue ($M)EBITDA ($M)Gross MarginAgentsTransactions124.2-4.555%1,5004,700248.612.868%4,0009,800372.132.572%7,10014,100
+
+Expected Returns Analysis
+ScenarioProbabilityRevenue ($M)MultipleValuation ($M)Return MultipleIRR (%)Bear Case (80%)20%57.73×1739×208Base Case50%72.15×360.532×391Bull Case (120%)25%86.57×605.740×627Best Case (140%)5%100.910×1,009.471×964
+
+Investment Terms
+TermDetailCapital Raise$10,000,000 AUDPre-Money Valuation$40,000,000 AUDPost-Money Valuation$50,000,000 AUDEquity Offering20%Security TypePreferred EquityMinimum Investment$100K (first 5) / $250K (standard)Maximum Investors40 sophisticated investorsTarget Close< 3 months
+
+A World-Class Team
+Leadership
+Andrew Grace — Chairman (GAICD)
+Seasoned executive with 25+ years building and scaling high-growth companies across Australia. Successfully led a national Telco through Series A funding and a strategic buyout exit. Graduate of the Australian Institute of Company Directors.
+Mark Hand — CEO
+One of Australia's most senior banking executives. Former Group Executive of Australian Retail & Commercial Banking at ANZ (1988–2023), overseeing $200B+ in assets. Non-Executive Director of Great Southern Bank. 35+ years leading large-scale transformation, risk management and corporate strategy.
+Daniel Hayward — Founder
+Award-winning lead generation strategist behind campaigns for Virgin, Qantas, RAMS Home Loans, Suncorp, ANZ, CommBank, Channel 9 (Nine Rewards), Ticketek and more. Built Budget Dentistry into the fastest-growing dental brand on the planet in 2012/13. Trusted consultant to major corporates on AI-driven customer acquisition and digital transformation.
+Board Advisors
+Janette Kendall — Board Advisor (FAICD)
+One of Australia's most distinguished board directors. Currently Non-Executive Director at Vicinity Centres, Tabcorp and Costa Group (all ASX-listed). Former CMO of Crown Resorts and SVP Marketing at Galaxy Entertainment. Fellow of the Australian Institute of Company Directors with 25+ years of governance experience.
+Shareholders & Advisors
+Leigh Smart — Shareholder & Advisor
+Accomplished media executive with a distinguished career at The Age and multiple ASX-listed companies. Former senior executive at Fairfax Media and Aus Stereo. Founder of Smart Comm, a leading communications consultancy.
+Jeremy Cabral — Shareholder & Advisor
+Co-founder of Finder, Australia's largest personal finance comparison platform with 3M+ monthly visitors. Recognised thought leader in scaling consumer technology businesses from startup to market dominance.
+Strategy & Advisory
+Cam Cegniz — Advisor & Strategy (BDO)
+Partner at BDO, one of the world's largest accounting and advisory networks. Provides high-level strategic and financial advisory to technology companies navigating growth, capital raises and governance.
+Legal Counsel (Sierra Legal)
+Mike Jeffery — Senior Partner at Sierra Legal, a premier Australian law firm. Specialises in corporate governance, compliance and capital raises for high-growth technology companies.
+Luke Pilgrim — Sierra Legal advisor specialising in technology law, intellectual property and startup transactions. Trusted counsel to some of Australia's fastest-growing ventures.
+Ellie Sanford — Sierra Legal advisor with deep expertise in corporate transactions, regulatory matters and investor protections across the technology and financial services sectors.
+
+The Full Picture
+SellNOW is building the operating system for Australian real estate. 13 AI bots. 8 revenue streams. 100% Australian data. A platform that gets smarter with every transaction and more defensible with every agent relationship.
+Summary Metrics
+MetricValueAI Bots13Year 3 Revenue$72.1MRevenue Multiple5×Year 3 Valuation$360MSeed Round$10MPre-Money Valuation$40MRisk-Adj. ROI32×Revenue Streams8
+
+Investment Process
+
+Review & Due Diligence
+Confirm Status
+Commit Investment
+
+
+Navigation Sections
+Hero, Video, AI Ecosystem, The Problem, Agent Suite, Ally PM, Consumer AI, Region Finder, Data Sovereignty, Market, Revenue, Financials, Investment, Full Picture

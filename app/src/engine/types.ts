@@ -22,9 +22,12 @@ export interface BridgeGeometry {
   highChord: number;
   leftAbutmentStation: number;
   rightAbutmentStation: number;
-  leftAbutmentSlope: number;
-  rightAbutmentSlope: number;
   skewAngle: number;
+  contractionLength: number;
+  expansionLength: number;
+  orificeCd: number;
+  weirCw: number;
+  deckWidth: number;
   piers: Pier[];
   lowChordProfile: LowChordPoint[];
 }
@@ -35,8 +38,6 @@ export interface FlowProfile {
   discharge: number;
   dsWsel: number;
   channelSlope: number;
-  contractionLength: number;
-  expansionLength: number;
 }
 
 export interface Coefficients {
@@ -48,6 +49,8 @@ export interface Coefficients {
   initialGuessOffset: number;
   debrisBlockagePct: number;       // 0-100, default 0
   manningsNSensitivityPct: number | null; // null or 0 = off, e.g. 20 means ±20%
+  alphaOverride: number | null;
+  freeboardThreshold: number;
   methodsToRun: {
     energy: boolean;
     momentum: boolean;
@@ -83,6 +86,7 @@ export interface MethodResult {
   froudeApproach: number;
   froudeBridge: number;
   flowRegime: FlowRegime;
+  flowCalculationType: 'free-surface' | 'orifice' | 'orifice+weir';
   iterationLog: IterationStep[];
   converged: boolean;
   calculationSteps: CalculationStep[];

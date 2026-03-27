@@ -11,6 +11,7 @@ import {
   calcTopWidth,
   calcConveyance,
   calcHydraulicRadius,
+  calcAlpha,
 } from '../geometry';
 import { interpolateLowChord, calcNetBridgeArea, calcPierBlockage } from '../bridge-geometry';
 import {
@@ -20,6 +21,8 @@ import {
 } from '../hydraulics';
 import { detectFlowRegime } from '../flow-regime';
 import { calcTuflowPierFLC, calcTuflowSuperFLC } from '../tuflow-flc';
+import { runPressureFlow } from '../pressure-flow';
+import { runOvertoppingFlow } from '../overtopping-flow';
 
 /**
  * Look up base backwater coefficient Cb from bridge opening ratio M.
@@ -71,6 +74,16 @@ export function runWSPRO(
   const midStation = (bridge.leftAbutmentStation + bridge.rightAbutmentStation) / 2;
   const lowChord = interpolateLowChord(bridge, midStation);
   const regime = detectFlowRegime(dsWsel, lowChord, bridge.highChord);
+
+  if (regime === 'pressure') {
+    return runPressureFlow(crossSection, bridge, profile, coefficients);
+  }
+  if (regime === 'overtopping') {
+    return runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+  }
+
+  // Compute alpha
+  const alpha = coefficients.alphaOverride ?? calcAlpha(crossSection, dsWsel);
 
   // Step 1: Total section conveyance
   const K_total = calcConveyance(crossSection, dsWsel);
@@ -182,16 +195,15 @@ export function runWSPRO(
   });
 
   // Step 7: Compute backwater
-  const alpha1 = 1.0; // velocity distribution coefficient
-  const dsVh = calcVelocityHead(dsVelocity, alpha1);
+  const dsVh = calcVelocityHead(dsVelocity, alpha);
   const C = Cb * froudeCorrection * eccentricityCorrection;
-  const dh = C * alpha1 * dsVh;
+  const dh = C * alpha * dsVh;
 
   steps.push({
     stepNumber: 5,
     description: 'Backwater computation',
     formula: 'Δh = C × α₁ × (V₁²/2g)',
-    intermediateValues: { C, alpha1, 'V²/2g': dsVh },
+    intermediateValues: { C, alpha, 'V²/2g': dsVh },
     result: dh,
     unit: 'ft',
   });
@@ -228,6 +240,7 @@ export function runWSPRO(
     froudeApproach: froudeUs,
     froudeBridge: Fr,
     flowRegime: regime,
+    flowCalculationType: 'free-surface',
     iterationLog: [],
     converged: true,
     calculationSteps: steps,

@@ -44,6 +44,7 @@ export async function callOpenAI(systemPrompt: string, userPrompt: string): Prom
       input: [{ role: 'user', content: userPrompt }],
       text: { format: { type: 'json_object' } },
       temperature: 0.3,
+      store: false,
     }),
   });
 

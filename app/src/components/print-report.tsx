@@ -85,7 +85,8 @@ export function PrintReport() {
   const aiSummary = useProjectStore((s) => s.aiSummary);
   const aiSummaryLoading = useProjectStore((s) => s.aiSummaryLoading);
 
-  const freeboard = results?.energy ? computeFreeboard(results.energy, bridge, profiles) : null;
+  const methods = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
+  const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
   const date = new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
   const title = projectName || 'Bridge Hydraulic Loss Assessment';
 

@@ -48,6 +48,11 @@ export function ActionButtons() {
       highChord: m2i(bg.highChord, 'length'),
       leftAbutmentStation: m2i(bg.leftAbutmentStation, 'length'),
       rightAbutmentStation: m2i(bg.rightAbutmentStation, 'length'),
+      contractionLength: m2i(bg.contractionLength, 'length'),
+      expansionLength: m2i(bg.expansionLength, 'length'),
+      deckWidth: m2i(bg.deckWidth, 'length'),
+      orificeCd: bg.orificeCd,
+      weirCw: bg.weirCw,
       piers: bg.piers.map((p) => ({ ...p, station: m2i(p.station, 'length'), width: m2i(p.width, 'length') })),
       lowChordProfile: bg.lowChordProfile.map((p) => ({ station: m2i(p.station, 'length'), elevation: m2i(p.elevation, 'length') })),
     });
@@ -56,14 +61,14 @@ export function ActionButtons() {
       ...fp,
       discharge: m2i(fp.discharge, 'discharge'),
       dsWsel: m2i(fp.dsWsel, 'length'),
-      contractionLength: m2i(fp.contractionLength, 'length'),
-      expansionLength: m2i(fp.expansionLength, 'length'),
     })));
 
     updateCoefficients({
       ...bridge.coefficients,
       tolerance: m2i(bridge.coefficients.tolerance, 'length'),
       initialGuessOffset: m2i(bridge.coefficients.initialGuessOffset, 'length'),
+      alphaOverride: bridge.coefficients.alphaOverride,
+      freeboardThreshold: bridge.coefficients.freeboardThreshold,
     });
 
     clearResults();
@@ -72,9 +77,10 @@ export function ActionButtons() {
   }
 
   function handleRunAll() {
-    const validationErrors = validateInputs(crossSection, bridgeGeometry, flowProfiles);
-    if (validationErrors.length > 0) { setErrors(validationErrors.map((e) => e.message)); return; }
-    setErrors([]);
+    const validationResults = validateInputs(crossSection, bridgeGeometry, flowProfiles);
+    const blockingErrors = validationResults.filter(e => e.severity === 'error');
+    if (blockingErrors.length > 0) { setErrors(blockingErrors.map(e => e.message)); return; }
+    setErrors(validationResults.filter(e => e.severity === 'warning').map(e => e.message));
     clearAiSummary();
     setIsProcessing(true);
 

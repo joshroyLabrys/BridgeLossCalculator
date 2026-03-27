@@ -120,6 +120,7 @@ export function MainTabs() {
                 Imperial
               </button>
             </div>
+            <span className="text-[11px] text-muted-foreground/60 italic">Engine: US Customary internally</span>
             <input
               ref={fileInputRef}
               type="file"

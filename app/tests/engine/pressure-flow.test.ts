@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { runMomentum } from '@/engine/methods/momentum';
+import { runPressureFlow } from '@/engine/pressure-flow';
 import { CrossSectionPoint, BridgeGeometry, FlowProfile, Coefficients } from '@/engine/types';
 
 const crossSection: CrossSectionPoint[] = [
@@ -18,7 +18,7 @@ const bridge: BridgeGeometry = {
 };
 
 const profile: FlowProfile = {
-  name: '10-yr', ari: '', discharge: 2500, dsWsel: 5, channelSlope: 0.001,
+  name: 'Pressure', ari: '', discharge: 2500, dsWsel: 10, channelSlope: 0.001,
 };
 
 const coefficients: Coefficients = {
@@ -29,22 +29,26 @@ const coefficients: Coefficients = {
   methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
 };
 
-describe('runMomentum', () => {
-  it('computes free-surface result with flowCalculationType', () => {
-    const result = runMomentum(crossSection, bridge, profile, coefficients);
+describe('runPressureFlow', () => {
+  it('computes upstream WSEL > ds WSEL for pressure flow', () => {
+    const result = runPressureFlow(crossSection, bridge, profile, coefficients);
     expect(result.error).toBeNull();
-    expect(result.flowCalculationType).toBe('free-surface');
-    expect(result.upstreamWsel).toBeGreaterThan(profile.dsWsel);
-  });
-
-  it('dispatches to orifice solver for pressure flow', () => {
-    const pressureProfile: FlowProfile = { ...profile, dsWsel: 10 };
-    const result = runMomentum(crossSection, bridge, pressureProfile, coefficients);
-    expect(result.flowCalculationType).toBe('orifice');
-  });
-
-  it('converges within max iterations', () => {
-    const result = runMomentum(crossSection, bridge, profile, coefficients);
     expect(result.converged).toBe(true);
+    expect(result.flowCalculationType).toBe('orifice');
+    expect(result.upstreamWsel).toBeGreaterThan(profile.dsWsel);
+    expect(result.totalHeadLoss).toBeGreaterThan(0);
+  });
+
+  it('produces higher upstream WSEL with lower Cd', () => {
+    const lowCd: BridgeGeometry = { ...bridge, orificeCd: 0.5 };
+    const resultLow = runPressureFlow(crossSection, lowCd, profile, coefficients);
+    const resultHigh = runPressureFlow(crossSection, bridge, profile, coefficients);
+    expect(resultLow.upstreamWsel).toBeGreaterThan(resultHigh.upstreamWsel);
+  });
+
+  it('returns calculation steps documenting the orifice equation', () => {
+    const result = runPressureFlow(crossSection, bridge, profile, coefficients);
+    expect(result.calculationSteps.length).toBeGreaterThan(0);
+    expect(result.calculationSteps.some(s => s.description.toLowerCase().includes('orifice'))).toBe(true);
   });
 });

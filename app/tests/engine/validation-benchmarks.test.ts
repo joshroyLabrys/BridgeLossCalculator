@@ -68,20 +68,22 @@ const baseBridge: BridgeGeometry = {
   highChord: 12,
   leftAbutmentStation: 5,
   rightAbutmentStation: 95,
-  leftAbutmentSlope: 0,
-  rightAbutmentSlope: 0,
   skewAngle: 0,
+  contractionLength: 90,
+  expansionLength: 90,
+  orificeCd: 0.8,
+  weirCw: 1.4,
+  deckWidth: 10,
   piers: [{ station: 50, width: 4, shape: 'round-nose' }],
   lowChordProfile: [],
 };
 
 const baseProfile: FlowProfile = {
   name: 'benchmark',
+  ari: 'benchmark',
   discharge: 500,
   dsWsel: 5,
   channelSlope: 0.001,
-  contractionLength: 90,
-  expansionLength: 90,
 };
 
 const baseCoeffs: Coefficients = {
@@ -91,6 +93,10 @@ const baseCoeffs: Coefficients = {
   maxIterations: 100,
   tolerance: 0.01,
   initialGuessOffset: 0.5,
+  debrisBlockagePct: 0,
+  manningsNSensitivityPct: null,
+  alphaOverride: null,
+  freeboardThreshold: 0.3,
   methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
 };
 
@@ -200,21 +206,26 @@ describe('1. Geometry: V-Channel Hand Calculations', () => {
 // =========================================================================
 describe('2. Yarnell: Analytical Verification', () => {
   // Pre-computed values for V-channel at WSEL=5, Q=500:
-  //   A = 125 sq ft, V = 4.0 ft/s, V²/2g = 0.24865 ft
+  //   A = 125 sq ft, TopWidth = 50 ft, HydDepth D = A/T = 2.5 ft
+  //   V = 500/125 = 4.0 ft/s
+  //   Fr = V/sqrt(g*D) = 4.0/sqrt(32.174*2.5)
   //   Pier: station 50, width 4, depth 5 → blockage = 20
   //   α = 20/125 = 0.16
-  //   α⁴ = 0.00065536, 15α⁴ = 0.0098304
-  //   α + 15α⁴ = 0.1698304
+  //
+  //   New Yarnell formula (HEC-RAS / Austroads standard):
+  //   Δy = K × Fr² × (K + 5·Fr² − 0.6) × (α + 15α⁴) × D
   const dsArea = 125;
+  const dsTopWidth = 50;
+  const dsHydDepth = dsArea / dsTopWidth; // 2.5 ft
   const dsVelocity = 4.0;
-  const dsVh = dsVelocity ** 2 / (2 * G);
+  const Fr3 = dsVelocity / Math.sqrt(G * dsHydDepth);
+  const Fr3sq = Fr3 * Fr3;
   const alpha = 20 / 125; // 0.16
   const alphaFactor = alpha + 15 * alpha ** 4; // 0.1698304
 
-  it('round-nose pier (K=0.9): Δy ≈ 0.2014 ft', () => {
+  it('round-nose pier (K=0.9): positive head loss', () => {
     const K = 0.9;
-    const expectedDy = K * (K + 5 - 0.6) * alphaFactor * dsVh;
-    // expectedDy = 0.9 × 5.3 × 0.1698304 × 0.24865 ≈ 0.2014
+    const expectedDy = K * Fr3sq * (K + 5 * Fr3sq - 0.6) * alphaFactor * dsHydDepth;
 
     const result = runYarnell(vChannel, baseBridge, baseProfile, baseCoeffs);
 
@@ -224,10 +235,9 @@ describe('2. Yarnell: Analytical Verification', () => {
     expect(result.upstreamWsel).toBeCloseTo(5 + expectedDy, 3);
   });
 
-  it('square pier (K=1.25): Δy ≈ 0.2982 ft', () => {
+  it('square pier (K=1.25): positive head loss', () => {
     const K = 1.25;
-    const expectedDy = K * (K + 5 - 0.6) * alphaFactor * dsVh;
-    // 1.25 × 5.65 × 0.1698304 × 0.24865 ≈ 0.2982
+    const expectedDy = K * Fr3sq * (K + 5 * Fr3sq - 0.6) * alphaFactor * dsHydDepth;
 
     const squareBridge = {
       ...baseBridge,
@@ -239,9 +249,9 @@ describe('2. Yarnell: Analytical Verification', () => {
     expect(result.totalHeadLoss).toBeCloseTo(expectedDy, 3);
   });
 
-  it('cylindrical pier (K=1.0): Δy ≈ 0.2280 ft', () => {
+  it('cylindrical pier (K=1.0): positive head loss', () => {
     const K = 1.0;
-    const expectedDy = K * (K + 5 - 0.6) * alphaFactor * dsVh;
+    const expectedDy = K * Fr3sq * (K + 5 * Fr3sq - 0.6) * alphaFactor * dsHydDepth;
 
     const cylBridge = {
       ...baseBridge,
@@ -253,9 +263,9 @@ describe('2. Yarnell: Analytical Verification', () => {
     expect(result.totalHeadLoss).toBeCloseTo(expectedDy, 3);
   });
 
-  it('sharp pier (K=0.7): Δy ≈ 0.1507 ft', () => {
+  it('sharp pier (K=0.7): positive head loss', () => {
     const K = 0.7;
-    const expectedDy = K * (K + 5 - 0.6) * alphaFactor * dsVh;
+    const expectedDy = K * Fr3sq * (K + 5 * Fr3sq - 0.6) * alphaFactor * dsHydDepth;
 
     const sharpBridge = {
       ...baseBridge,
@@ -269,7 +279,7 @@ describe('2. Yarnell: Analytical Verification', () => {
 
   it('manual K override works correctly', () => {
     const K = 1.5; // arbitrary override
-    const expectedDy = K * (K + 5 - 0.6) * alphaFactor * dsVh;
+    const expectedDy = K * Fr3sq * (K + 5 * Fr3sq - 0.6) * alphaFactor * dsHydDepth;
 
     const overrideCoeffs = { ...baseCoeffs, yarnellK: 1.5 };
     const result = runYarnell(vChannel, baseBridge, baseProfile, overrideCoeffs);
@@ -305,9 +315,9 @@ describe('2. Yarnell: Analytical Verification', () => {
     expect(result.totalHeadLoss).toBe(0);
   });
 
-  it('higher velocity produces proportionally more backwater', () => {
-    // Yarnell Δy is proportional to V²/2g
-    // Doubling Q (at same WSEL) doubles V, quadruples V²/2g and ~quadruples Δy
+  it('higher velocity produces more backwater', () => {
+    // Yarnell Δy increases with velocity (Fr² terms in new formula)
+    // Doubling Q at same WSEL → more head loss
     const result1x = runYarnell(vChannel, baseBridge, baseProfile, baseCoeffs);
     const result2x = runYarnell(
       vChannel,
@@ -316,12 +326,8 @@ describe('2. Yarnell: Analytical Verification', () => {
       baseCoeffs
     );
 
-    // The relationship isn't exactly 4× because α changes slightly with
-    // pier blockage staying constant while using the same WSEL,
-    // but V²/2g quadruples so Δy should be ~4× larger
-    const ratio = result2x.totalHeadLoss / result1x.totalHeadLoss;
-    expect(ratio).toBeGreaterThan(3.5);
-    expect(ratio).toBeLessThan(4.5);
+    // Higher discharge produces strictly more backwater
+    expect(result2x.totalHeadLoss).toBeGreaterThan(result1x.totalHeadLoss);
   });
 
   it('no piers produces zero backwater', () => {
@@ -355,27 +361,28 @@ describe('2. Yarnell: Analytical Verification', () => {
 describe('3. Yarnell: Higher Flow Benchmark', () => {
   const highFlowProfile: FlowProfile = {
     name: 'high-flow',
+    ari: 'high-flow',
     discharge: 2500,
     dsWsel: 8,
     channelSlope: 0.001,
-    contractionLength: 90,
-    expansionLength: 90,
   };
 
-  // At WSEL=8: Area = 0.5 × 80 × 8 = 320 sq ft
+  // At WSEL=8: Area = 0.5 × 80 × 8 = 320 sq ft, TopWidth = 80 ft, D = 4 ft
   // V = 2500/320 = 7.8125 ft/s
-  // V²/2g = 61.035/64.348 = 0.94853 ft
+  // Fr = 7.8125/sqrt(32.174*4)
   // Pier blockage = 4 × 8 = 32, α = 32/320 = 0.1
-  // α⁴ = 0.0001, 15α⁴ = 0.0015, α + 15α⁴ = 0.1015
-  // K=0.9: Δy = 0.9 × 5.3 × 0.1015 × 0.94853 = 0.4592 ft
+  // New Yarnell formula: Δy = K × Fr² × (K + 5·Fr² − 0.6) × (α + 15α⁴) × D
 
-  it('Δy ≈ 0.459 ft for round-nose at high flow', () => {
+  it('positive head loss for round-nose at high flow', () => {
     const A = 320;
+    const T = 80;
+    const D = A / T; // 4 ft
     const V = 2500 / A;
-    const Vh = V ** 2 / (2 * G);
+    const Fr = V / Math.sqrt(G * D);
+    const Fr2 = Fr * Fr;
     const alpha = 32 / A;
     const K = 0.9;
-    const expectedDy = K * (K + 5 - 0.6) * (alpha + 15 * alpha ** 4) * Vh;
+    const expectedDy = K * Fr2 * (K + 5 * Fr2 - 0.6) * (alpha + 15 * alpha ** 4) * D;
 
     const result = runYarnell(vChannel, baseBridge, highFlowProfile, baseCoeffs);
 
@@ -430,12 +437,12 @@ describe('4. Energy Method: Convergence Verification', () => {
 
   it('shorter reach reduces Energy head loss toward Yarnell', () => {
     // With minimal reach length, friction → 0 and Energy approaches pier-only loss
-    const shortReach: FlowProfile = {
-      ...baseProfile,
+    const shortBridge = {
+      ...baseBridge,
       contractionLength: 1,
       expansionLength: 1,
     };
-    const eShort = runEnergy(vChannel, baseBridge, shortReach, baseCoeffs);
+    const eShort = runEnergy(vChannel, shortBridge, baseProfile, baseCoeffs);
     const eLong = runEnergy(vChannel, baseBridge, baseProfile, baseCoeffs);
     expect(eShort.totalHeadLoss).toBeLessThan(eLong.totalHeadLoss);
   });
@@ -547,8 +554,8 @@ describe('6. WSPRO Method: Convergence Verification', () => {
 // =========================================================================
 describe('7. Cross-Method Consistency', () => {
   // Use short reach to minimize friction (makes methods more comparable)
-  const shortReachProfile: FlowProfile = {
-    ...baseProfile,
+  const shortReachBridge: BridgeGeometry = {
+    ...baseBridge,
     contractionLength: 10,
     expansionLength: 10,
   };
@@ -561,9 +568,9 @@ describe('7. Cross-Method Consistency', () => {
   };
 
   it('Yarnell, Energy, and Momentum all produce positive backwater', () => {
-    const y = runYarnell(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const e = runEnergy(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const m = runMomentum(vChannel, baseBridge, shortReachProfile, baseCoeffs);
+    const y = runYarnell(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const e = runEnergy(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const m = runMomentum(vChannel, shortReachBridge, baseProfile, baseCoeffs);
 
     expect(y.totalHeadLoss).toBeGreaterThan(0);
     expect(e.totalHeadLoss).toBeGreaterThan(0);
@@ -588,19 +595,21 @@ describe('7. Cross-Method Consistency', () => {
       highChord: 16,
       leftAbutmentStation: 120,
       rightAbutmentStation: 380,
-      leftAbutmentSlope: 2,
-      rightAbutmentSlope: 2,
       skewAngle: 0,
+      contractionLength: 50,
+      expansionLength: 50,
+      orificeCd: 0.8,
+      weirCw: 1.4,
+      deckWidth: 10,
       piers: [{ station: 250, width: 4, shape: 'round-nose' }],
       lowChordProfile: [],
     };
     const fpProfile: FlowProfile = {
       name: 'fp-test',
+      ari: 'fp-test',
       discharge: 20000,
       dsWsel: 10,
       channelSlope: 0.001,
-      contractionLength: 50,
-      expansionLength: 50,
     };
 
     const y = runYarnell(floodplain, fpBridge, fpProfile, baseCoeffs);
@@ -613,9 +622,9 @@ describe('7. Cross-Method Consistency', () => {
   });
 
   it('Yarnell, Energy, Momentum within same order of magnitude', () => {
-    const y = runYarnell(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const e = runEnergy(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const m = runMomentum(vChannel, baseBridge, shortReachProfile, baseCoeffs);
+    const y = runYarnell(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const e = runEnergy(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const m = runMomentum(vChannel, shortReachBridge, baseProfile, baseCoeffs);
 
     const losses = [y.totalHeadLoss, e.totalHeadLoss, m.totalHeadLoss];
     const maxLoss = Math.max(...losses);
@@ -626,10 +635,10 @@ describe('7. Cross-Method Consistency', () => {
   });
 
   it('all methods agree on flow regime', () => {
-    const y = runYarnell(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const e = runEnergy(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const m = runMomentum(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const w = runWSPRO(vChannel, baseBridge, shortReachProfile, baseCoeffs);
+    const y = runYarnell(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const e = runEnergy(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const m = runMomentum(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const w = runWSPRO(vChannel, shortReachBridge, baseProfile, baseCoeffs);
 
     expect(y.flowRegime).toBe('free-surface');
     expect(e.flowRegime).toBe('free-surface');
@@ -638,8 +647,8 @@ describe('7. Cross-Method Consistency', () => {
   });
 
   it('all iterative methods converge', () => {
-    const e = runEnergy(vChannel, baseBridge, shortReachProfile, baseCoeffs);
-    const m = runMomentum(vChannel, baseBridge, shortReachProfile, baseCoeffs);
+    const e = runEnergy(vChannel, shortReachBridge, baseProfile, baseCoeffs);
+    const m = runMomentum(vChannel, shortReachBridge, baseProfile, baseCoeffs);
 
     expect(e.converged).toBe(true);
     expect(m.converged).toBe(true);
@@ -733,15 +742,23 @@ describe('9. Multi-Pier Yarnell Benchmark', () => {
     expect(twoResult.error).toBeNull();
     expect(twoResult.totalHeadLoss).toBeGreaterThan(0);
 
-    // Verify: compute expected α for two piers
+    // Verify: compute expected α for two piers using new Yarnell formula
+    // Δy = K × Fr² × (K + 5·Fr² − 0.6) × (α + 15α⁴) × D
     const expectedBlockage = 4 * 2 + 4 * 2; // 16
     const expectedAlpha = expectedBlockage / 125;
     const K = 0.9;
+    const dsA = 125;
+    const dsT = 50;
+    const dsD = dsA / dsT; // 2.5
+    const dsV = 500 / dsA; // 4.0
+    const dsFr = dsV / Math.sqrt(G * dsD);
+    const dsFr2 = dsFr * dsFr;
     const expectedDy =
       K *
-      (K + 5 - 0.6) *
+      dsFr2 *
+      (K + 5 * dsFr2 - 0.6) *
       (expectedAlpha + 15 * expectedAlpha ** 4) *
-      (4.0 ** 2 / (2 * G));
+      dsD;
 
     expect(twoResult.totalHeadLoss).toBeCloseTo(expectedDy, 3);
   });
@@ -788,6 +805,15 @@ describe('11. Test Bridge Expected Results', () => {
     momentum: runMomentum,
     wspro: runWSPRO,
   };
+
+  // Placeholder: expectedResults are populated per-bridge when known-good values exist
+  it('TEST_BRIDGES are defined and have required fields', () => {
+    expect(TEST_BRIDGES.length).toBeGreaterThan(0);
+    for (const bridge of TEST_BRIDGES) {
+      expect(bridge.crossSection.length).toBeGreaterThan(0);
+      expect(bridge.flowProfiles.length).toBeGreaterThan(0);
+    }
+  });
 
   for (const bridge of TEST_BRIDGES) {
     if (!bridge.expectedResults?.length) continue;

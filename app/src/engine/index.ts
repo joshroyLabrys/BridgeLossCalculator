@@ -15,6 +15,8 @@ export { runEnergy } from './methods/energy';
 export { runMomentum } from './methods/momentum';
 export { runYarnell } from './methods/yarnell';
 export { runWSPRO } from './methods/wspro';
+export { runPressureFlow } from './pressure-flow';
+export { runOvertoppingFlow } from './overtopping-flow';
 
 /**
  * Runs all selected calculation methods for all flow profiles.

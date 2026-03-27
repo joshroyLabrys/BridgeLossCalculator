@@ -6,6 +6,7 @@ import {
   calcTopWidth,
   calcHydraulicRadius,
   calcConveyance,
+  calcAlpha,
 } from '@/engine/geometry';
 import { CrossSectionPoint } from '@/engine/types';
 
@@ -91,5 +92,38 @@ describe('calcConveyance', () => {
   it('computes ~33815 cfs for V-channel at WSEL=8, n=0.035', () => {
     const k = calcConveyance(vChannel, 8);
     expect(k).toBeCloseTo(33815, -2); // within ~200
+  });
+});
+
+describe('calcAlpha', () => {
+  const uniformChannel: CrossSectionPoint[] = [
+    { station: 0, elevation: 10, manningsN: 0.035, bankStation: 'left' },
+    { station: 50, elevation: 0, manningsN: 0.035, bankStation: null },
+    { station: 100, elevation: 10, manningsN: 0.035, bankStation: 'right' },
+  ];
+
+  it('returns 1.0 for a uniform V-channel with no overbanks', () => {
+    const alpha = calcAlpha(uniformChannel, 5);
+    expect(alpha).toBeCloseTo(1.0, 1);
+  });
+
+  const compoundChannel: CrossSectionPoint[] = [
+    { station: 0, elevation: 8, manningsN: 0.06, bankStation: null },
+    { station: 100, elevation: 5, manningsN: 0.06, bankStation: 'left' },
+    { station: 120, elevation: 0, manningsN: 0.03, bankStation: null },
+    { station: 180, elevation: 0, manningsN: 0.03, bankStation: null },
+    { station: 200, elevation: 5, manningsN: 0.06, bankStation: 'right' },
+    { station: 300, elevation: 8, manningsN: 0.06, bankStation: null },
+  ];
+
+  it('returns alpha > 1.0 for compound channel with wide overbanks', () => {
+    const alpha = calcAlpha(compoundChannel, 7);
+    expect(alpha).toBeGreaterThan(1.0);
+    expect(alpha).toBeLessThan(3.0);
+  });
+
+  it('returns 1.0 when flow is within main channel only', () => {
+    const alpha = calcAlpha(compoundChannel, 3);
+    expect(alpha).toBeCloseTo(1.0, 1);
   });
 });

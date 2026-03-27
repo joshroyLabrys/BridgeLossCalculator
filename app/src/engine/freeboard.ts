@@ -2,34 +2,43 @@ import { BridgeGeometry, FlowProfile, CalculationResults, FreeboardResult, Freeb
 import { interpolateLowChord } from './bridge-geometry';
 
 export function computeFreeboard(
-  energyResults: CalculationResults['energy'],
+  results: CalculationResults,
   bridge: BridgeGeometry,
-  profiles: FlowProfile[]
+  profiles: FlowProfile[],
+  freeboardThreshold: number
 ): FreeboardSummary {
   const centerStation = (bridge.leftAbutmentStation + bridge.rightAbutmentStation) / 2;
   const lowChord = interpolateLowChord(bridge, centerStation);
 
-  const freeboardResults: FreeboardResult[] = energyResults.map((r, i) => {
-    const profile = profiles[i];
-    const freeboard = lowChord - r.upstreamWsel;
+  const freeboardResults: FreeboardResult[] = profiles.map((profile, i) => {
+    let worstUsWsel = profile.dsWsel;
+
+    for (const method of ['energy', 'momentum', 'yarnell', 'wspro'] as const) {
+      const r = results[method][i];
+      if (r && !r.error && r.upstreamWsel > worstUsWsel) {
+        worstUsWsel = r.upstreamWsel;
+      }
+    }
+
+    const freeboard = lowChord - worstUsWsel;
 
     let status: FreeboardResult['status'];
-    if (r.upstreamWsel >= bridge.highChord) {
+    if (worstUsWsel >= bridge.highChord) {
       status = 'overtopping';
     } else if (freeboard <= 0) {
       status = 'pressure';
-    } else if (freeboard <= 1) {
+    } else if (freeboard <= freeboardThreshold) {
       status = 'low';
     } else {
       status = 'clear';
     }
 
     return {
-      profileName: r.profileName,
-      ari: profile?.ari ?? '',
-      discharge: profile?.discharge ?? 0,
-      dsWsel: profile?.dsWsel ?? 0,
-      usWsel: r.upstreamWsel,
+      profileName: profile.name,
+      ari: profile.ari,
+      discharge: profile.discharge,
+      dsWsel: profile.dsWsel,
+      usWsel: worstUsWsel,
       lowChord,
       freeboard,
       status,

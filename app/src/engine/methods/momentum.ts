@@ -6,13 +6,15 @@ import {
   MethodResult,
   CalculationStep,
 } from '../types';
-import { calcFlowArea, calcWettedPerimeter, calcTopWidth, calcHydraulicRadius } from '../geometry';
+import { calcFlowArea, calcWettedPerimeter, calcTopWidth, calcHydraulicRadius, calcAlpha } from '../geometry';
 import { calcNetBridgeArea, calcPierBlockage, interpolateLowChord } from '../bridge-geometry';
 import { calcVelocity, calcVelocityHead, calcFroudeNumber } from '../hydraulics';
 import { detectFlowRegime } from '../flow-regime';
 import { calcTuflowPierFLC, calcTuflowSuperFLC } from '../tuflow-flc';
 import { solve } from '../iteration';
 import { G } from '@/lib/constants';
+import { runPressureFlow } from '../pressure-flow';
+import { runOvertoppingFlow } from '../overtopping-flow';
 
 const WATER_DENSITY = 1.94; // slugs/ft^3 (freshwater)
 
@@ -57,6 +59,16 @@ export function runMomentum(
   const lowChord = interpolateLowChord(bridge, midStation);
   const regime = detectFlowRegime(dsWsel, lowChord, bridge.highChord);
 
+  if (regime === 'pressure') {
+    return runPressureFlow(crossSection, bridge, profile, coefficients);
+  }
+  if (regime === 'overtopping') {
+    return runOvertoppingFlow(crossSection, bridge, profile, coefficients);
+  }
+
+  // Compute alpha
+  const alpha = coefficients.alphaOverride ?? calcAlpha(crossSection, dsWsel);
+
   steps.push({
     stepNumber: 1,
     description: `DS hydraulic props @ WSEL ${dsWsel.toFixed(2)} ft`,
@@ -96,7 +108,7 @@ export function runMomentum(
   });
 
   // Weight component along slope
-  const reachLength = profile.contractionLength + profile.expansionLength;
+  const reachLength = bridge.contractionLength + bridge.expansionLength;
   const W_x = WATER_DENSITY * G * dsArea * reachLength * profile.channelSlope;
 
   // Friction force
@@ -173,6 +185,7 @@ export function runMomentum(
     froudeApproach: froudeUs,
     froudeBridge: froudeDs,
     flowRegime: regime,
+    flowCalculationType: 'free-surface',
     iterationLog: solverResult.log,
     converged: solverResult.converged,
     calculationSteps: steps,
