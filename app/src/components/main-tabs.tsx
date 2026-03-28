@@ -19,6 +19,8 @@ import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationTab } from '@/components/simulation/simulation-tab';
+import { DropZone } from '@/components/import/drop-zone';
+import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
 import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
 
 export function MainTabs() {
@@ -40,6 +42,18 @@ export function MainTabs() {
   const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
 
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [hecRasFiles, setHecRasFiles] = useState<File[]>([]);
+  const [hecRasDialogOpen, setHecRasDialogOpen] = useState(false);
+
+  function handleHecRasFiles(files: File[]) {
+    setHecRasFiles(files);
+    setHecRasDialogOpen(true);
+  }
+
+  const HECRAS_EXTENSIONS = [
+    '.g01', '.g02', '.g03', '.g04', '.g05', '.g06', '.g07', '.g08', '.g09',
+    '.f01', '.f02', '.f03', '.f04', '.f05', '.f06', '.f07', '.f08', '.f09',
+  ];
 
   const handleTabChange = useCallback((value: string | number | null) => {
     if (typeof value === 'string') setActiveMainTab(value);
@@ -197,28 +211,30 @@ export function MainTabs() {
       </header>
 
       <TabsContent value="input" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
-        <Tabs defaultValue="cross-section">
-          <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
-            <TabsList variant="line" className="gap-4 sm:gap-6 pb-0">
-              <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Cross-Section
-              </TabsTrigger>
-              <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Bridge
-              </TabsTrigger>
-              <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Flow Profiles
-              </TabsTrigger>
-              <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Coefficients
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="cross-section"><CrossSectionForm /></TabsContent>
-          <TabsContent value="bridge"><BridgeGeometryForm /></TabsContent>
-          <TabsContent value="profiles"><FlowProfilesForm /></TabsContent>
-          <TabsContent value="coefficients"><CoefficientsForm /></TabsContent>
-        </Tabs>
+        <DropZone onFiles={handleHecRasFiles} accept={HECRAS_EXTENSIONS}>
+          <Tabs defaultValue="cross-section">
+            <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
+              <TabsList variant="line" className="gap-4 sm:gap-6 pb-0">
+                <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Cross-Section
+                </TabsTrigger>
+                <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Bridge
+                </TabsTrigger>
+                <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Flow Profiles
+                </TabsTrigger>
+                <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Coefficients
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="cross-section"><CrossSectionForm /></TabsContent>
+            <TabsContent value="bridge"><BridgeGeometryForm /></TabsContent>
+            <TabsContent value="profiles"><FlowProfilesForm /></TabsContent>
+            <TabsContent value="coefficients"><CoefficientsForm /></TabsContent>
+          </Tabs>
+        </DropZone>
         <ActionButtons />
       </TabsContent>
 
@@ -255,6 +271,11 @@ export function MainTabs() {
         <SimulationTab />
       </TabsContent>
 
+      <HecRasImportDialog
+        open={hecRasDialogOpen}
+        onOpenChange={setHecRasDialogOpen}
+        files={hecRasFiles}
+      />
     </Tabs>
   );
 }
