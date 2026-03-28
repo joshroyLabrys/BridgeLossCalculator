@@ -63,7 +63,7 @@ export function BridgeGeometryForm() {
           <CardDescription>Bridge opening dimensions, abutment locations, and skew</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {fields.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{f.label} <span className="text-muted-foreground/60">({f.unit})</span></Label>
@@ -75,7 +75,7 @@ export function BridgeGeometryForm() {
           <div className="h-px bg-border/50 mt-6 mb-4" />
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">Pressure / Overtopping</div>
           <p className="text-xs text-muted-foreground mb-3">Used when WSEL exceeds low chord</p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Orifice Cd</Label>
               <Input type="number" value={bridge.orificeCd} onChange={(e) => setField('orificeCd', e.target.value)} className="h-8 text-sm font-mono" step="0.1" />
@@ -99,7 +99,8 @@ export function BridgeGeometryForm() {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border overflow-hidden">
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[420px]">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead className="w-10 text-xs">#</TableHead>
@@ -131,6 +132,7 @@ export function BridgeGeometryForm() {
                 ))}
               </TableBody>
             </Table>
+            </div>
             <div className="p-2 border-t">
               <Button variant="outline" size="sm" onClick={addPier} className="w-full"><Plus className="h-3.5 w-3.5 mr-1.5" />Add Pier</Button>
             </div>
@@ -171,7 +173,8 @@ function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (
         <CollapsibleContent>
           <CardContent>
             <div className="rounded-lg border overflow-hidden">
-              <Table>
+              <div className="overflow-x-auto">
+              <Table className="min-w-[360px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10 text-xs">#</TableHead>
@@ -191,6 +194,7 @@ function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (
                   ))}
                 </TableBody>
               </Table>
+              </div>
               <div className="p-2 border-t">
                 <Button variant="outline" size="sm" onClick={addPoint} className="w-full"><Plus className="h-3.5 w-3.5 mr-1.5" />Add Point</Button>
               </div>

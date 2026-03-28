@@ -110,7 +110,7 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
   const sceneSize = Math.max(span, maxElev - minElev, channelLength);
 
   return (
-    <div className="w-full rounded-lg overflow-hidden" style={{ height: 500 }}>
+    <div className="w-full rounded-lg overflow-hidden h-[300px] sm:h-[400px] lg:h-[500px]" data-scene-capture>
       <Canvas
         shadows
         camera={{
@@ -123,7 +123,7 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
           near: 0.1,
           far: sceneSize * 20,
         }}
-        gl={{ antialias: true, alpha: true }}
+        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
         style={{ background: 'oklch(0.14 0.01 230)' }}
       >
         <Suspense fallback={null}>

@@ -117,15 +117,15 @@ export function SimulationTab() {
         </p>
       </div>
 
-      <div className="flex gap-4 items-start">
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
         {/* Main chart area */}
-        <div className="flex-1 min-w-0 space-y-3">
+        <div className="flex-1 min-w-0 w-full space-y-3">
           {hydraulicProfile ? (
             <SimulationScene profile={hydraulicProfile} />
           ) : (
             <Card>
               <CardContent>
-                <div className="flex items-center justify-center h-[500px] text-muted-foreground text-sm">
+                <div className="flex items-center justify-center h-[300px] sm:h-[400px] lg:h-[500px] text-muted-foreground text-sm">
                   Select a profile and method with results to view the simulation
                 </div>
               </CardContent>
@@ -134,7 +134,7 @@ export function SimulationTab() {
 
           {/* Status bar */}
           {hydraulicProfile && (
-            <div className="flex items-center gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
               <span className={`px-2 py-0.5 rounded font-medium text-[11px] ${
                 hydraulicProfile.flowRegime === 'free-surface'
                   ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
@@ -168,8 +168,8 @@ export function SimulationTab() {
           )}
         </div>
 
-        {/* What-If sidebar — always visible */}
-        <Card className="w-64 shrink-0">
+        {/* What-If sidebar — full-width on mobile, narrow sidebar on desktop */}
+        <Card className="w-full lg:w-64 shrink-0">
           <CardHeader className="pb-2 pt-3 px-4">
             <div className="flex items-center gap-2">
               <FlaskConical className="h-3.5 w-3.5 text-primary" />

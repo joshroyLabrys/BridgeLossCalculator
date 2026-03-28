@@ -34,14 +34,14 @@ export function CoefficientsForm() {
       <CardContent className="space-y-0 max-w-xl">
         {/* Methods — toggle buttons */}
         <div className="pb-5">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {METHOD_META.map((m) => {
               const active = coefficients.methodsToRun[m.key];
               return (
                 <button
                   key={m.key}
                   onClick={() => toggleMethod(m.key)}
-                  className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 rounded-lg border px-3 sm:px-3.5 py-2 text-sm font-medium transition-all ${
                     active
                       ? `border-transparent bg-muted/40 text-foreground ring-2 ${m.ring}`
                       : 'border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/20'
@@ -93,7 +93,7 @@ export function CoefficientsForm() {
         {/* Solver + Sensitivity */}
         <div className="py-5">
           <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Solver</div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Max Iter.</Label>
               <Input type="number" value={coefficients.maxIterations} onChange={(e) => setField('maxIterations', parseInt(e.target.value) || 100)} className="h-8 text-sm font-mono" />

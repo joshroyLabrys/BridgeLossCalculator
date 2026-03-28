@@ -38,7 +38,7 @@ export function RegimeMatrix({ callout }: { callout?: ReactNode } = {}) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start gap-6">
+        <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
           <div className="flex-1 min-w-0 space-y-1">
             <CardTitle>Flow Regime Matrix</CardTitle>
             <CardDescription className="text-pretty">
@@ -52,11 +52,12 @@ export function RegimeMatrix({ callout }: { callout?: ReactNode } = {}) {
               </p>
             )}
           </div>
-          {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+          {callout && <div className="w-full sm:w-[45%] shrink-0">{callout}</div>}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Table>
+        <div className="overflow-x-auto">
+        <Table className="min-w-[400px]">
           <colgroup>
             <col className="w-[180px]" />
             {profileNames.map((n) => <col key={n} className="w-[110px]" />)}
@@ -101,7 +102,8 @@ export function RegimeMatrix({ callout }: { callout?: ReactNode } = {}) {
             ))}
           </TableBody>
         </Table>
-        <div className="flex items-center gap-4 text-[11px] text-muted-foreground pt-1">
+        </div>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] text-muted-foreground pt-1">
           <span><Badge variant="outline" className="text-[10px] bg-blue-500/15 text-blue-400 border-blue-500/30 mr-1">F</Badge> Free Surface</span>
           <span><Badge variant="outline" className="text-[10px] bg-orange-500/15 text-orange-400 border-orange-500/30 mr-1">P</Badge> Pressure</span>
           <span><Badge variant="outline" className="text-[10px] bg-purple-500/15 text-purple-400 border-purple-500/30 mr-1">O</Badge> Overtopping</span>

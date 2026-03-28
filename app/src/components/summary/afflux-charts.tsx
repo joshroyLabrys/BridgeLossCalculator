@@ -270,9 +270,9 @@ export function AffluxCharts({ callout }: { callout?: ReactNode } = {}) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-start gap-6">
+          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
             <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <CardTitle>Afflux Rating Curve</CardTitle>
                 <Button variant="outline" size="sm" onClick={exportCsv}>
                   <Download className="h-3.5 w-3.5 mr-1.5" />
@@ -285,11 +285,11 @@ export function AffluxCharts({ callout }: { callout?: ReactNode } = {}) {
                 {' '}Converging lines = consistent methods; divergence at higher flows may signal pressure flow transition.
               </CardDescription>
             </div>
-            {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+            {callout && <div className="w-full sm:w-[45%] shrink-0">{callout}</div>}
           </div>
         </CardHeader>
         <CardContent>
-          <div ref={affluxRef} className="h-[320px] w-full" />
+          <div ref={affluxRef} className="h-[260px] sm:h-[320px] w-full" />
         </CardContent>
       </Card>
 
@@ -302,7 +302,7 @@ export function AffluxCharts({ callout }: { callout?: ReactNode } = {}) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div ref={wselRef} className="h-[320px] w-full" />
+          <div ref={wselRef} className="h-[260px] sm:h-[320px] w-full" />
         </CardContent>
       </Card>
     </div>

@@ -827,9 +827,6 @@ export function PdfForceDiagram({ momentumResult, profileName, width, height }: 
   const W_x = steps[3]?.intermediateValues?.W_x ?? 0;
   const F_friction = steps[3]?.intermediateValues?.F_friction ?? 0;
 
-  // Compute upstream forces from balance
-  // At equilibrium: F_us + M_ds + W_x = F_ds + M_us + F_friction + F_drag
-  // We don't have M_us directly but can estimate from the final result
   const usVel = momentumResult.approachVelocity;
   const WATER_DENSITY = 1.94;
   const Q = M_ds / (WATER_DENSITY * (steps[0]?.intermediateValues?.V ?? 1));
@@ -849,15 +846,26 @@ export function PdfForceDiagram({ momentumResult, profileName, width, height }: 
 
   const maxForce = Math.max(...forces.map(f => Math.abs(f.value)), 1);
 
-  const M2 = { top: 14, right: 12, bottom: 10, left: 120 };
-  const barAreaW = width - M2.left - M2.right;
+  // Layout: legend on left, bar chart on right
+  const legendW = 100;
+  const legendGap = 8;
+  const barAreaLeft = legendW + legendGap;
+  const M2 = { top: 20, right: 50, bottom: 10 };
+  const barAreaW = width - barAreaLeft - M2.right;
   const barH = 14;
   const barGap = 4;
   const totalBarsH = forces.length * (barH + barGap);
   const chartH = Math.max(height, totalBarsH + M2.top + M2.bottom);
 
-  const centerX = M2.left + barAreaW / 2;
-  const maxBarHalf = barAreaW / 2 - 10;
+  const centerX = barAreaLeft + barAreaW / 2;
+  const maxBarHalf = barAreaW / 2 - 4;
+
+  function fmtValue(v: number): string {
+    const abs = Math.abs(v);
+    if (abs >= 1e6) return `${(v / 1e6).toFixed(1)}M`;
+    if (abs >= 1000) return `${(v / 1000).toFixed(1)}k`;
+    return v.toFixed(0);
+  }
 
   return (
     <View>
@@ -872,14 +880,13 @@ export function PdfForceDiagram({ momentumResult, profileName, width, height }: 
           {/* Force bars */}
           {forces.map((f, i) => {
             const barY = M2.top + i * (barH + barGap);
-            const barLen = (Math.abs(f.value) / maxForce) * maxBarHalf;
+            const barLen = Math.max((Math.abs(f.value) / maxForce) * maxBarHalf, 2);
             const barX = f.direction === 'right' ? centerX : centerX - barLen;
 
             return (
               <G key={i}>
                 <Rect x={barX} y={barY} width={barLen} height={barH}
                   fill={f.color} opacity={0.2} stroke={f.color} strokeWidth={0.75} />
-                {/* Arrow head */}
                 {f.direction === 'right' ? (
                   <Path d={`M ${barX + barLen} ${barY + barH / 2} L ${barX + barLen - 4} ${barY + 2} L ${barX + barLen - 4} ${barY + barH - 2} Z`}
                     fill={f.color} opacity={0.6} />
@@ -892,42 +899,53 @@ export function PdfForceDiagram({ momentumResult, profileName, width, height }: 
           })}
         </Svg>
 
-        {/* Force labels (left side) */}
+        {/* Legend column (anchored left) */}
         {forces.map((f, i) => {
           const barY = M2.top + i * (barH + barGap);
           return (
-            <Text key={`fl${i}`} style={{
-              position: 'absolute', left: 2, top: barY + 1,
-              width: M2.left - 6, textAlign: 'right',
-              fontSize: 6.5, color: f.color, fontFamily: 'Helvetica-Bold',
-            }}>{f.label}</Text>
+            <View key={`fl${i}`} style={{
+              position: 'absolute', left: 4, top: barY,
+              width: legendW, height: barH,
+              flexDirection: 'row', alignItems: 'center',
+            }}>
+              <View style={{ width: 8, height: 8, backgroundColor: f.color, borderRadius: 1, marginRight: 4, opacity: 0.7 }} />
+              <Text style={{
+                fontSize: 6.5, color: f.color, fontFamily: 'Helvetica-Bold',
+              }}>{f.label}</Text>
+            </View>
           );
         })}
 
-        {/* Force values (on bars) */}
+        {/* Force values (always on the outer edge of bars, outside the bar area) */}
         {forces.map((f, i) => {
           const barY = M2.top + i * (barH + barGap);
-          const barLen = (Math.abs(f.value) / maxForce) * maxBarHalf;
+          const barLen = Math.max((Math.abs(f.value) / maxForce) * maxBarHalf, 2);
+          const valStr = `${fmtValue(f.value)} lb`;
+          // Right-pointing bars: value goes to the right of the bar tip
+          // Left-pointing bars: value goes to the right of the bar tip (i.e. between bar and center)
+          // This ensures values never overlap with the legend column
           const valX = f.direction === 'right'
             ? centerX + barLen + 3
-            : centerX - barLen - 40;
+            : centerX - barLen - 44;
+          // Clamp left values so they don't overlap legend
+          const clampedX = Math.max(valX, barAreaLeft + 2);
           return (
             <Text key={`fv${i}`} style={{
-              position: 'absolute', left: valX, top: barY + 1,
-              width: 40, textAlign: f.direction === 'right' ? 'left' : 'right',
+              position: 'absolute', left: clampedX, top: barY + 1,
+              width: 44, textAlign: f.direction === 'right' ? 'left' : 'right',
               fontSize: 6, color: '#374151', fontFamily: 'Courier',
-            }}>{Math.abs(f.value) >= 1000 ? `${(f.value / 1000).toFixed(1)}k` : f.value.toFixed(0)} lb</Text>
+            }}>{valStr}</Text>
           );
         })}
 
         {/* Direction labels */}
         <Text style={{
-          position: 'absolute', left: centerX + 4, top: 2,
-          width: 80, fontSize: 6, color: '#9ca3af',
+          position: 'absolute', left: centerX + 4, top: 4,
+          width: 90, fontSize: 6, color: '#9ca3af',
         }}>→ Upstream (driving)</Text>
         <Text style={{
-          position: 'absolute', left: centerX - 90, top: 2,
-          width: 86, textAlign: 'right', fontSize: 6, color: '#9ca3af',
+          position: 'absolute', left: centerX - 100, top: 4,
+          width: 96, textAlign: 'right', fontSize: 6, color: '#9ca3af',
         }}>← Downstream (resisting)</Text>
       </View>
 

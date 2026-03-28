@@ -169,4 +169,21 @@ input[type="number"] {
   background-attachment: fixed;
 }
 
+/* Mobile touch & scrolling optimisations */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+/* Smooth horizontal scroll containers (tab strips, tables) */
+.scroll-snap-x {
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll-snap-x::-webkit-scrollbar { display: none; }
+
 /* Print styles are in print.css — kept separate so Tailwind v4 doesn't purge them. */

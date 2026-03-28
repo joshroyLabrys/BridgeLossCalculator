@@ -79,8 +79,8 @@ export function CrossSectionForm() {
         </CardHeader>
         <CardContent>
           <div className="rounded-lg border overflow-hidden">
-            <div className="overflow-y-auto">
-              <Table>
+            <div className="overflow-x-auto overflow-y-auto">
+              <Table className="min-w-[500px]">
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10 text-xs">#</TableHead>
@@ -146,7 +146,7 @@ export function CrossSectionForm() {
             <CardDescription>Live preview updates as you enter data</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
+            <div className="h-[220px] sm:h-[300px]">
               <CrossSectionChart crossSection={crossSection} />
             </div>
           </CardContent>
@@ -207,7 +207,7 @@ function BridgeOverlayChart({ crossSection, bridgeGeometry, flowProfiles, result
         <CardDescription>Cross-section with bridge geometry, piers, and water surface</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[350px]">
+        <div className="h-[260px] sm:h-[350px]">
           <CrossSectionChart
             crossSection={crossSection}
             bridge={bridgeGeometry}

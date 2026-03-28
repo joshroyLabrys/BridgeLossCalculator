@@ -23,7 +23,7 @@ export function MethodView({ name, reference, equation, results }: MethodViewPro
       <Card className="border-l-4 border-l-primary">
         <CardHeader><CardTitle>{name}</CardTitle><CardDescription>{reference}</CardDescription></CardHeader>
         <CardContent>
-          <div className="bg-muted/30 p-4 rounded-lg border border-border/50 flex items-center justify-center">
+          <div className="bg-muted/30 p-3 sm:p-4 rounded-lg border border-border/50 flex items-center justify-center overflow-x-auto">
             <Math tex={equation} display className="text-primary" />
           </div>
         </CardContent>

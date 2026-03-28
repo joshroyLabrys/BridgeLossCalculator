@@ -5,6 +5,7 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
   pdf,
 } from '@react-pdf/renderer';
@@ -232,12 +233,13 @@ export interface PdfReportData {
   results: CalculationResults | null;
   hecRasComparison: HecRasComparison[];
   aiSummary: AiSummaryResponse | null;
+  sceneCapture?: string | null;
 }
 
 /* ─── Document ─── */
 
 function ReportDocument({ data }: { data: PdfReportData }) {
-  const { projectName, crossSection, bridge, profiles, coefficients, results, hecRasComparison, aiSummary } = data;
+  const { projectName, crossSection, bridge, profiles, coefficients, results, hecRasComparison, aiSummary, sceneCapture } = data;
   const date = new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
   const title = projectName || 'Bridge Hydraulic Loss Assessment';
   const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
@@ -483,7 +485,15 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         {results ? (
           <>
             <Divider />
-            <Sec num={next()} title="Charts" desc="Afflux rating curve and upstream WSEL trend across flow profiles.">
+            <Sec num={next()} title="Charts" desc="Visual outputs including 3D simulation, afflux rating curve, and energy grade line diagram.">
+              {sceneCapture ? (
+                <View style={s.chartWrap} wrap={false}>
+                  <Text style={s.chartLabel}>3D Hydraulic Simulation — Isometric View</Text>
+                  <View style={s.chartBorder}>
+                    <Image src={sceneCapture} style={{ width: CHART_W, height: CHART_W * 0.5 }} />
+                  </View>
+                </View>
+              ) : null}
               <View style={s.chartWrap} wrap={false}>
                 <Text style={s.chartLabel}>Head Loss (Afflux) vs Discharge</Text>
                 <View style={s.chartBorder}>
@@ -548,21 +558,35 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         {aiSummary ? (
           <>
             <Divider />
-            <Sec num={next()} title="AI Analysis" desc="Automated review of results. Supplementary only — engineering judgement takes precedence.">
-              <Text style={s.subTitle}>Summary</Text>
+            <Sec num={next()} title="AI Analysis" desc="Automated peer review of inputs and results. Supplementary only — engineering judgement takes precedence.">
+              <Text style={s.subTitle}>Key Findings</Text>
               {aiSummary.overall.map((item, i) => <Bullet key={i} text={item} color="#374151" />)}
+
+              {Array.isArray(aiSummary.recommendations) && aiSummary.recommendations.length > 0 ? (
+                <View style={{ marginTop: 6 }}>
+                  <Text style={s.subTitle}>Recommendations</Text>
+                  {aiSummary.recommendations.map((item, i) => <Bullet key={i} text={`${i + 1}. ${item}`} color="#b45309" />)}
+                </View>
+              ) : null}
+
+              {aiSummary.callouts.geometry ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Input Geometry</Text>
+                  {aiSummary.callouts.geometry.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
+
+              {aiSummary.callouts.coefficients ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Coefficients</Text>
+                  {aiSummary.callouts.coefficients.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
 
               {aiSummary.callouts.regime ? (
                 <View style={{ marginTop: 4 }}>
                   <Text style={[s.subTitle, { fontSize: 8 }]}>Flow Regime</Text>
                   {aiSummary.callouts.regime.map((item, i) => <Bullet key={i} text={item} />)}
-                </View>
-              ) : null}
-
-              {aiSummary.callouts.freeboard ? (
-                <View style={{ marginTop: 4 }}>
-                  <Text style={[s.subTitle, { fontSize: 8 }]}>Freeboard</Text>
-                  {aiSummary.callouts.freeboard.map((item, i) => <Bullet key={i} text={item} />)}
                 </View>
               ) : null}
 
@@ -577,6 +601,13 @@ function ReportDocument({ data }: { data: PdfReportData }) {
                 <View style={{ marginTop: 4 }}>
                   <Text style={[s.subTitle, { fontSize: 8 }]}>Afflux Trends</Text>
                   {aiSummary.callouts.afflux.map((item, i) => <Bullet key={i} text={item} />)}
+                </View>
+              ) : null}
+
+              {aiSummary.callouts.freeboard ? (
+                <View style={{ marginTop: 4 }}>
+                  <Text style={[s.subTitle, { fontSize: 8 }]}>Freeboard</Text>
+                  {aiSummary.callouts.freeboard.map((item, i) => <Bullet key={i} text={item} />)}
                 </View>
               ) : null}
 
