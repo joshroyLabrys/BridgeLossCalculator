@@ -137,6 +137,33 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     set({ aiSummaryLoading: true, aiSummaryError: null, aiSummary: null });
 
     const bridge = state.bridgeGeometry;
+    const cs = state.crossSection;
+    const coeffs = state.coefficients;
+
+    // Cross-section statistics
+    const stations = cs.map((p) => p.station);
+    const elevations = cs.map((p) => p.elevation);
+    const nValues = cs.map((p) => p.manningsN).filter((n) => n > 0);
+    const channelNValues = cs
+      .filter((p) => !p.bankStation) // points between bank stations are "channel"
+      .map((p) => p.manningsN)
+      .filter((n) => n > 0);
+
+    // Hydraulic ratios from first profile's energy result
+    let hydraulicRatios: { openingRatio: number; contractionRatio: number; pierBlockageRatio: number } | null = null;
+    const firstEnergy = state.results!.energy[0];
+    if (firstEnergy && !firstEnergy.error) {
+      const approachArea = firstEnergy.inputEcho.flowArea;
+      const bridgeArea = firstEnergy.inputEcho.bridgeOpeningArea;
+      const pierBlock = firstEnergy.inputEcho.pierBlockage;
+      const grossBridgeArea = bridgeArea + pierBlock;
+      hydraulicRatios = {
+        openingRatio: approachArea > 0 ? bridgeArea / approachArea : 0,
+        contractionRatio: approachArea > 0 ? 1 - bridgeArea / approachArea : 0,
+        pierBlockageRatio: grossBridgeArea > 0 ? pierBlock / grossBridgeArea : 0,
+      };
+    }
+
     const payload = {
       bridgeGeometry: {
         lowChordLeft: bridge.lowChordLeft,
@@ -144,7 +171,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         highChord: bridge.highChord,
         span: bridge.rightAbutmentStation - bridge.leftAbutmentStation,
         pierCount: bridge.piers.length,
-        debrisBlockagePct: state.coefficients.debrisBlockagePct,
+        debrisBlockagePct: coeffs.debrisBlockagePct,
+        skewAngle: bridge.skewAngle,
+        contractionLength: bridge.contractionLength,
+        expansionLength: bridge.expansionLength,
+        deckWidth: bridge.deckWidth,
+      },
+      crossSectionStats: {
+        pointCount: cs.length,
+        stationRange: [stations.length > 0 ? Math.min(...stations) : 0, stations.length > 0 ? Math.max(...stations) : 0] as [number, number],
+        manningsN: {
+          min: nValues.length > 0 ? Math.min(...nValues) : 0,
+          max: nValues.length > 0 ? Math.max(...nValues) : 0,
+          channel: channelNValues.length > 0 ? channelNValues[Math.floor(channelNValues.length / 2)] : (nValues.length > 0 ? nValues[0] : 0),
+        },
+        hasBankStations: cs.some((p) => p.bankStation === 'left') && cs.some((p) => p.bankStation === 'right'),
+        minElevation: elevations.length > 0 ? Math.min(...elevations) : 0,
+        maxElevation: elevations.length > 0 ? Math.max(...elevations) : 0,
+      },
+      hydraulicRatios,
+      coefficients: {
+        contraction: coeffs.contractionCoeff,
+        expansion: coeffs.expansionCoeff,
+        yarnellK: coeffs.yarnellK,
+        maxIterations: coeffs.maxIterations,
+        tolerance: coeffs.tolerance,
+        freeboardThreshold: coeffs.freeboardThreshold,
       },
       flowProfiles: state.flowProfiles.map((p) => ({
         name: p.name,
@@ -160,10 +212,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             upstreamWsel: r.upstreamWsel,
             totalHeadLoss: r.totalHeadLoss,
             approachVelocity: r.approachVelocity,
+            bridgeVelocity: r.bridgeVelocity,
             froudeApproach: r.froudeApproach,
+            froudeBridge: r.froudeBridge,
             flowRegime: r.flowRegime,
             converged: r.converged,
+            iterationCount: r.iterationLog.length,
             bridgeOpeningArea: r.inputEcho.bridgeOpeningArea,
+            pierBlockage: r.inputEcho.pierBlockage,
+            hydraulicRadius: r.inputEcho.hydraulicRadius,
             tuflowPierFLC: r.tuflowPierFLC,
             tuflowSuperFLC: r.tuflowSuperFLC,
             error: r.error,
@@ -191,8 +248,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             headLoss: c.headLoss,
           }))
         : null,
-      sensitivityEnabled: state.coefficients.manningsNSensitivityPct != null &&
-        state.coefficients.manningsNSensitivityPct > 0,
+      sensitivityEnabled: coeffs.manningsNSensitivityPct != null &&
+        coeffs.manningsNSensitivityPct > 0,
     };
 
     try {
