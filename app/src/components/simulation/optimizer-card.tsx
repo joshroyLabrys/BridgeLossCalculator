@@ -45,6 +45,8 @@ export function OptimizerCard({ selectedMethod, selectedProfileIdx }: OptimizerC
   const coefficients = useProjectStore((s) => s.coefficients);
   const results = useProjectStore((s) => s.results);
   const us = useProjectStore((s) => s.unitSystem);
+  const updateBridgeGeometry = useProjectStore((s) => s.updateBridgeGeometry);
+  const clearResults = useProjectStore((s) => s.clearResults);
 
   const [sweepParam, setSweepParam] = useState<SweepParameter>('openingWidth');
   const [targetMetric, setTargetMetric] = useState<TargetMetric>('freeboard');
@@ -315,9 +317,18 @@ export function OptimizerCard({ selectedMethod, selectedProfileIdx }: OptimizerC
                 variant="outline"
                 size="sm"
                 className="w-full text-xs h-7"
-                disabled
+                onClick={() => {
+                  const width = optResult.optimalValue!;
+                  const center = (bridgeGeometry.leftAbutmentStation + bridgeGeometry.rightAbutmentStation) / 2;
+                  updateBridgeGeometry({
+                    ...bridgeGeometry,
+                    leftAbutmentStation: center - width / 2,
+                    rightAbutmentStation: center + width / 2,
+                  });
+                  clearResults();
+                }}
               >
-                Apply Width
+                Apply {formatOptimalValue('openingWidth', optResult.optimalValue)}
               </Button>
             )}
           </>
