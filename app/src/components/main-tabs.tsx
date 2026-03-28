@@ -41,6 +41,7 @@ import { ScourPanel } from '@/components/analysis/scour-panel';
 import { ArrLookup } from '@/components/hydrology/arr-lookup';
 import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
 import { ImportPanel } from '@/components/data/import-panel';
+import { ExportPanel } from '@/components/report/export-panel';
 import { ReachManager } from '@/components/data/reach-manager';
 
 /* ------------------------------------------------------------------ */
@@ -820,24 +821,7 @@ export function MainTabs() {
             <ComingSoon title="Report narrative coming soon" description="AI-assisted report narrative generation and editing." />
           </TabsContent>
           <TabsContent value="export">
-            <div className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-lg font-semibold tracking-tight">Export</h2>
-                <p className="text-sm text-muted-foreground max-w-prose text-pretty">
-                  Generate PDF reports or export project data as JSON.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={handlePdf} disabled={pdfLoading}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  {pdfLoading ? 'Generating...' : 'Generate PDF Report'}
-                </Button>
-                <Button variant="outline" onClick={handleExport}>
-                  <FileOutput className="h-4 w-4 mr-2" />
-                  Export Project JSON
-                </Button>
-              </div>
-            </div>
+            <ExportPanel />
           </TabsContent>
           <TabsContent value="history">
             <ComingSoon title="Project history coming soon" description="Snapshot timeline and version comparison." />
