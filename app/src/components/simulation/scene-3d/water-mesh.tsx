@@ -5,12 +5,22 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { CrossSectionPoint, FlowRegime } from '@/engine/types';
 
+interface BridgeBounds {
+  xMin: number;
+  xMax: number;
+  yBottom: number;
+  yTop: number;
+  zMin: number;
+  zMax: number;
+}
+
 interface WaterMeshProps {
   crossSection: CrossSectionPoint[];
   wsel: number;
   channelLength: number;
   flowRegime: FlowRegime;
   velocity: number;
+  bridgeBounds?: BridgeBounds;
 }
 
 const REGIME_COLORS: Record<FlowRegime, { base: string; highlight: string; foam: string }> = {
@@ -19,22 +29,13 @@ const REGIME_COLORS: Record<FlowRegime, { base: string; highlight: string; foam:
   'overtopping':  { base: '#991b1b', highlight: '#f87171', foam: '#fecaca' },
 };
 
-/**
- * Convert actual approach velocity (ft/s) to a shader scroll speed.
- * A typical channel velocity of ~5 ft/s should produce a gentle visible flow.
- * We scale relative to the channel length so the visual rate makes sense
- * regardless of model size.
- */
 function velocityToShaderSpeed(velocity: number, channelLength: number): number {
-  // Normalise: how many channel-lengths per second does the water travel?
-  // Then scale down for a pleasant visual (full traversal in ~4-8 seconds)
   if (channelLength <= 0) return 0.3;
   const traversalsPerSec = velocity / channelLength;
-  // Clamp to a reasonable visual range
   return Math.max(0.15, Math.min(1.2, traversalsPerSec * 2));
 }
 
-export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, velocity }: WaterMeshProps) {
+export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, velocity, bridgeBounds }: WaterMeshProps) {
   const matRef = useRef<THREE.ShaderMaterial>(null);
 
   const { leftStation, rightStation } = useMemo(() => {
@@ -69,13 +70,14 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
   const geometry = useMemo(() => {
     const width = rightStation - leftStation;
     if (width <= 0) return null;
-    const geo = new THREE.PlaneGeometry(width, channelLength, 64, 48);
+    const geo = new THREE.PlaneGeometry(width, channelLength, 80, 60);
     geo.rotateX(-Math.PI / 2);
     geo.translate(leftStation + width / 2, wsel, channelLength / 2);
     return geo;
   }, [leftStation, rightStation, wsel, channelLength]);
 
-  // Create uniforms once, update values imperatively so uTime never resets
+  const bb = bridgeBounds ?? { xMin: 0, xMax: 0, yBottom: 0, yTop: 0, zMin: 0, zMax: 0 };
+
   const uniformsRef = useRef({
     uTime: { value: 0 },
     uBaseColor: { value: new THREE.Color(REGIME_COLORS[flowRegime].base) },
@@ -83,10 +85,11 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
     uFoamColor: { value: new THREE.Color(REGIME_COLORS[flowRegime].foam) },
     uVelocity: { value: velocityToShaderSpeed(velocity, channelLength) },
     uRegime: { value: flowRegime === 'free-surface' ? 0.0 : flowRegime === 'pressure' ? 1.0 : 2.0 },
-    uEnvMapIntensity: { value: 0.4 },
+    uBridgeMin: { value: new THREE.Vector3(bb.xMin, bb.yBottom, bb.zMin) },
+    uBridgeMax: { value: new THREE.Vector3(bb.xMax, bb.yTop, bb.zMax) },
+    uHasBridge: { value: bridgeBounds ? 1.0 : 0.0 },
   });
 
-  // Update uniform values when props change — without recreating the object
   useEffect(() => {
     const u = uniformsRef.current;
     const colors = REGIME_COLORS[flowRegime];
@@ -97,9 +100,15 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
     u.uRegime.value = flowRegime === 'free-surface' ? 0.0 : flowRegime === 'pressure' ? 1.0 : 2.0;
   }, [flowRegime, velocity, channelLength]);
 
+  useEffect(() => {
+    const u = uniformsRef.current;
+    u.uBridgeMin.value.set(bb.xMin, bb.yBottom, bb.zMin);
+    u.uBridgeMax.value.set(bb.xMax, bb.yTop, bb.zMax);
+    u.uHasBridge.value = bridgeBounds ? 1.0 : 0.0;
+  }, [bb.xMin, bb.xMax, bb.yBottom, bb.yTop, bb.zMin, bb.zMax, bridgeBounds]);
+
   useFrame((_, delta) => {
     uniformsRef.current.uTime.value += delta;
-    // Also push to material ref in case React replaced it
     if (matRef.current) {
       matRef.current.uniforms.uTime.value = uniformsRef.current.uTime.value;
     }
@@ -124,6 +133,7 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
           varying float vWaveHeight;
           varying vec3 vNormal;
           varying vec3 vViewDir;
+          varying vec4 vScreenPos;
 
           float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -140,36 +150,75 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
             return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
           }
 
+          // Gerstner wave — physically correct: sharp peaks, flat troughs
+          // Returns vec3(dx, dy, dz) displacement
+          vec3 gerstner(vec2 pos, float t, vec2 dir, float steepness, float wavelength, float speed) {
+            float k = 6.28318 / wavelength;
+            float c = speed;
+            float a = steepness / k;
+            float phase = k * dot(dir, pos) - c * t;
+            return vec3(
+              dir.x * a * cos(phase),
+              a * sin(phase),
+              dir.y * a * cos(phase)
+            );
+          }
+
           void main() {
             vUv = uv;
             vec3 pos = position;
-            vWorldPos = pos;
 
             float speed = uVelocity;
-            float turb = uRegime < 0.5 ? 1.0 : uRegime < 1.5 ? 1.8 : 2.8;
+            float turb = uRegime < 0.5 ? 1.0 : uRegime < 1.5 ? 1.6 : 2.4;
             float t = uTime;
 
-            float w1 = sin(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 0.10 * turb;
-            float w2 = sin(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 0.05 * turb;
-            float w3 = sin(pos.z * 7.0 - t * speed * 3.0 - pos.x * 2.0) * 0.02 * turb;
-            float w4 = sin(pos.x * 4.0 + t * 0.8) * 0.015 * turb;
-            float n = noise(vec2(pos.x * 2.0 + t * 0.2, pos.z * 2.0 - t * speed * 0.6)) * 0.03 * turb;
+            // Sum of Gerstner waves — downstream flow direction (negative Z)
+            vec2 flowDir = normalize(vec2(0.1, -1.0));
+            vec2 crossDir = normalize(vec2(1.0, 0.2));
+            vec2 diagDir = normalize(vec2(-0.3, -0.8));
 
-            float totalWave = w1 + w2 + w3 + w4 + n;
-            pos.y += totalWave;
-            vWaveHeight = totalWave;
+            vec3 g1 = gerstner(pos.xz, t, flowDir,  0.25 * turb, 4.0, speed * 2.0);
+            vec3 g2 = gerstner(pos.xz, t, crossDir,  0.12 * turb, 2.5, speed * 1.2);
+            vec3 g3 = gerstner(pos.xz, t, diagDir,   0.08 * turb, 1.5, speed * 2.8);
+            vec3 g4 = gerstner(pos.xz, t, flowDir,   0.04 * turb, 0.8, speed * 4.0);
 
-            float dx = cos(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 0.3 * 0.10 * turb
-                      + cos(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 1.2 * 0.05 * turb;
-            float dz = cos(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 1.5 * 0.10 * turb
-                      + cos(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 3.0 * 0.05 * turb;
-            vNormal = normalize(vec3(-dx, 1.0, -dz));
+            // Small noise for detail
+            float n = noise(vec2(pos.x * 2.0 + t * 0.2, pos.z * 2.0 - t * speed * 0.6)) * 0.02 * turb;
 
-            // View direction for Fresnel
+            vec3 totalDisp = g1 + g2 + g3 + g4;
+            pos.x += totalDisp.x;
+            pos.y += totalDisp.y + n;
+            pos.z += totalDisp.z;
+
+            vWorldPos = pos;
+            vWaveHeight = totalDisp.y + n;
+
+            // Compute normal from Gerstner wave derivatives
+            vec3 tangent = vec3(1.0, 0.0, 0.0);
+            vec3 bitangent = vec3(0.0, 0.0, 1.0);
+
+            // Analytical derivatives for each wave
+            float k1 = 6.28318 / 4.0; float a1 = 0.25 * turb / k1;
+            float p1 = k1 * dot(flowDir, position.xz) - speed * 2.0 * t;
+            tangent.x -= flowDir.x * flowDir.x * k1 * a1 * sin(p1);
+            tangent.y += flowDir.x * k1 * a1 * cos(p1);
+            bitangent.z -= flowDir.y * flowDir.y * k1 * a1 * sin(p1);
+            bitangent.y += flowDir.y * k1 * a1 * cos(p1);
+
+            float k2 = 6.28318 / 2.5; float a2 = 0.12 * turb / k2;
+            float p2 = k2 * dot(crossDir, position.xz) - speed * 1.2 * t;
+            tangent.x -= crossDir.x * crossDir.x * k2 * a2 * sin(p2);
+            tangent.y += crossDir.x * k2 * a2 * cos(p2);
+            bitangent.z -= crossDir.y * crossDir.y * k2 * a2 * sin(p2);
+            bitangent.y += crossDir.y * k2 * a2 * cos(p2);
+
+            vNormal = normalize(cross(bitangent, tangent));
+
             vec4 worldPos = modelMatrix * vec4(pos, 1.0);
             vViewDir = normalize(cameraPosition - worldPos.xyz);
 
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            vScreenPos = gl_Position;
           }
         `}
         fragmentShader={`
@@ -179,12 +228,15 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
           uniform vec3 uFoamColor;
           uniform float uVelocity;
           uniform float uRegime;
-          uniform float uEnvMapIntensity;
+          uniform vec3 uBridgeMin;
+          uniform vec3 uBridgeMax;
+          uniform float uHasBridge;
           varying vec2 vUv;
           varying vec3 vWorldPos;
           varying float vWaveHeight;
           varying vec3 vNormal;
           varying vec3 vViewDir;
+          varying vec4 vScreenPos;
 
           float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -201,56 +253,96 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
             return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
           }
 
+          float bridgeShadow(vec3 pos) {
+            if (uHasBridge < 0.5) return 0.0;
+            float inX = smoothstep(uBridgeMin.x - 1.0, uBridgeMin.x + 0.5, pos.x)
+                      * smoothstep(uBridgeMax.x + 1.0, uBridgeMax.x - 0.5, pos.x);
+            float inZ = smoothstep(uBridgeMin.z - 0.5, uBridgeMin.z + 0.5, pos.z)
+                      * smoothstep(uBridgeMax.z + 0.5, uBridgeMax.z - 0.5, pos.z);
+            return inX * inZ * 0.45;
+          }
+
+          float bridgeReflection(vec3 pos, vec3 normal) {
+            if (uHasBridge < 0.5) return 0.0;
+            float inX = smoothstep(uBridgeMin.x - 0.5, uBridgeMin.x + 1.0, pos.x)
+                      * smoothstep(uBridgeMax.x + 0.5, uBridgeMax.x - 1.0, pos.x);
+            float inZ = smoothstep(uBridgeMin.z - 1.0, uBridgeMin.z + 1.0, pos.z)
+                      * smoothstep(uBridgeMax.z + 1.0, uBridgeMax.z - 1.0, pos.z);
+            float distort = noise(vec2(pos.x * 3.0 + normal.x * 2.0, pos.z * 3.0 + normal.z * 2.0));
+            return inX * inZ * smoothstep(0.3, 0.6, distort + 0.3) * 0.4;
+          }
+
           void main() {
             float speed = uVelocity;
 
-            // Fresnel — more reflective at glancing angles
-            float fresnel = pow(1.0 - max(dot(vViewDir, vNormal), 0.0), 3.0);
-            fresnel = mix(0.04, 1.0, fresnel);
+            // Fresnel — Schlick
+            float NdotV = max(dot(vViewDir, vNormal), 0.0);
+            float fresnel = 0.02 + 0.98 * pow(1.0 - NdotV, 5.0);
 
-            // Flow streaks scrolling downstream
+            // Flow streaks
             float flowUV = vWorldPos.z * 3.0 - uTime * speed * 1.4;
             float streak = noise(vec2(vWorldPos.x * 4.0, flowUV * 2.0));
             streak = smoothstep(0.35, 0.65, streak);
 
-            // Foam on wave peaks
-            float foam = smoothstep(0.05, 0.12, vWaveHeight);
+            // Foam on Gerstner peaks
+            float foam = smoothstep(0.04, 0.10, vWaveHeight);
             foam *= noise(vec2(vWorldPos.x * 8.0 + uTime * 0.3, vWorldPos.z * 8.0 - uTime * speed * 0.7));
-            foam = smoothstep(0.3, 0.7, foam);
+            foam = smoothstep(0.25, 0.7, foam);
 
-            // Caustic pattern
+            // Caustic
             float c1 = noise(vec2(vWorldPos.x * 6.0 + uTime * 0.25, vWorldPos.z * 6.0 - uTime * speed * 0.5));
             float c2 = noise(vec2(vWorldPos.x * 6.0 - uTime * 0.2, vWorldPos.z * 6.0 + uTime * speed * 0.4));
-            float caustic = smoothstep(0.3, 0.7, abs(c1 - c2)) * 0.25;
+            float caustic = smoothstep(0.3, 0.7, abs(c1 - c2)) * 0.2;
 
             // Edge fade
-            float edgeFade = smoothstep(0.0, 0.15, vUv.x) * smoothstep(1.0, 0.85, vUv.x);
+            float edgeFade = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x);
 
-            // Lighting
-            vec3 lightDir = normalize(vec3(0.3, 1.0, 0.5));
-            float diffuse = max(dot(vNormal, lightDir), 0.0);
-            float specular = pow(max(dot(reflect(-lightDir, vNormal), vViewDir), 0.0), 64.0);
+            // Sun
+            vec3 sunDir = normalize(vec3(0.5, 0.8, 0.5));
+            float sunDiffuse = max(dot(vNormal, sunDir), 0.0);
+            vec3 halfVec = normalize(sunDir + vViewDir);
+            float sunSpec = pow(max(dot(vNormal, halfVec), 0.0), 256.0) * 1.5;
+            float sunSpec2 = pow(max(dot(vNormal, halfVec), 0.0), 32.0) * 0.35;
 
-            // Environment reflection approximation (sky color blend)
+            // Sky reflection — sunset palette
             vec3 reflectDir = reflect(-vViewDir, vNormal);
-            float skyFactor = smoothstep(-0.1, 0.5, reflectDir.y);
-            vec3 envColor = mix(
-              vec3(0.15, 0.18, 0.22),
-              vec3(0.45, 0.55, 0.7),
-              skyFactor
-            ) * uEnvMapIntensity;
+            float skyUp = smoothstep(-0.2, 0.6, reflectDir.y);
+            vec3 horizonColor = vec3(0.85, 0.45, 0.15);
+            vec3 zenithColor = vec3(0.25, 0.35, 0.55);
+            vec3 groundColor = vec3(0.08, 0.06, 0.04);
+            vec3 skyColor = reflectDir.y > 0.0
+              ? mix(horizonColor, zenithColor, skyUp)
+              : mix(horizonColor, groundColor, smoothstep(0.0, -0.3, reflectDir.y));
+            float sunReflect = smoothstep(0.95, 0.99, dot(reflectDir, sunDir));
+            skyColor += vec3(1.0, 0.9, 0.7) * sunReflect * 2.5;
 
-            // Compose water color
-            vec3 waterColor = mix(uBaseColor, uHighlightColor, streak * 0.4 + diffuse * 0.3);
-            waterColor += caustic * uHighlightColor;
-            waterColor += specular * 0.35;
-            waterColor = mix(waterColor, uFoamColor, foam * 0.5);
+            // Shadow + reflection
+            float shadow = bridgeShadow(vWorldPos);
+            float bridgeRefl = bridgeReflection(vWorldPos, vNormal);
 
-            // Blend water color with environment reflection via Fresnel
-            vec3 col = mix(waterColor, envColor + specular * 0.3, fresnel * 0.6);
+            // Compose
+            vec3 deepColor = uBaseColor * 0.5;
+            vec3 waterSurface = mix(uBaseColor, uHighlightColor, streak * 0.35 + sunDiffuse * 0.25);
+            waterSurface += caustic * uHighlightColor;
+            vec3 deepBlend = mix(deepColor, waterSurface, 0.7);
 
-            float alpha = (0.55 + fresnel * 0.3) * edgeFade + foam * 0.15 + specular * 0.1;
-            alpha = clamp(alpha, 0.0, 0.88);
+            vec3 col = mix(deepBlend, skyColor, fresnel * 0.7);
+
+            // Bridge reflection
+            vec3 bridgeColor = vec3(0.3, 0.28, 0.25);
+            col = mix(col, bridgeColor, bridgeRefl * (0.5 + fresnel * 0.3));
+
+            // Shadow
+            col *= (1.0 - shadow);
+
+            // Specular
+            col += vec3(1.0, 0.95, 0.85) * (sunSpec + sunSpec2) * (1.0 - shadow * 0.8);
+
+            // Foam
+            col = mix(col, uFoamColor, foam * 0.55);
+
+            float alpha = (0.7 + fresnel * 0.2) * edgeFade + foam * 0.15;
+            alpha = clamp(alpha, 0.0, 0.93);
 
             gl_FragColor = vec4(col, alpha);
           }
