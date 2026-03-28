@@ -784,6 +784,12 @@ export function MainTabs() {
                     selectedMethod={selectedMethod}
                     selectedProfileIdx={selectedProfileIdx}
                   />
+
+                  <DebrisGuidance
+                    bridgeSpan={bridgeGeometry.rightAbutmentStation - bridgeGeometry.leftAbutmentStation}
+                    currentDebrisPct={simOverrides.debrisBlockagePct}
+                    onSetDebris={(pct) => setSimOverrides({ ...simOverrides, debrisBlockagePct: pct })}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
