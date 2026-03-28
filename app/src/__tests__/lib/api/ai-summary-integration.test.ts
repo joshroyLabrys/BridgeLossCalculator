@@ -32,10 +32,15 @@ function buildPayloadFromBridge(bridgeIndex: number): AiSummaryPayload {
     upstreamWsel: r.upstreamWsel,
     totalHeadLoss: r.totalHeadLoss,
     approachVelocity: r.approachVelocity,
+    bridgeVelocity: r.bridgeVelocity,
     froudeApproach: r.froudeApproach,
+    froudeBridge: r.froudeBridge,
     flowRegime: r.flowRegime,
     converged: r.converged,
+    iterationCount: r.iterationLog.length,
     bridgeOpeningArea: r.inputEcho.bridgeOpeningArea,
+    pierBlockage: r.inputEcho.pierBlockage,
+    hydraulicRadius: r.inputEcho.hydraulicRadius,
     tuflowPierFLC: r.tuflowPierFLC,
     tuflowSuperFLC: r.tuflowSuperFLC,
     error: r.error,
@@ -61,6 +66,26 @@ function buildPayloadFromBridge(bridgeIndex: number): AiSummaryPayload {
         })
       : null;
 
+  const cs = tb.crossSection;
+  const stations = cs.map((p) => p.station);
+  const elevations = cs.map((p) => p.elevation);
+  const nValues = cs.map((p) => p.manningsN).filter((n) => n > 0);
+  const channelNValues = cs.filter((p) => !p.bankStation).map((p) => p.manningsN).filter((n) => n > 0);
+
+  let hydraulicRatios: { openingRatio: number; contractionRatio: number; pierBlockageRatio: number } | null = null;
+  const firstEnergy = results.energy[0];
+  if (firstEnergy && !firstEnergy.error) {
+    const approachArea = firstEnergy.inputEcho.flowArea;
+    const bridgeArea = firstEnergy.inputEcho.bridgeOpeningArea;
+    const pierBlock = firstEnergy.inputEcho.pierBlockage;
+    const grossBridgeArea = bridgeArea + pierBlock;
+    hydraulicRatios = {
+      openingRatio: approachArea > 0 ? bridgeArea / approachArea : 0,
+      contractionRatio: approachArea > 0 ? 1 - bridgeArea / approachArea : 0,
+      pierBlockageRatio: grossBridgeArea > 0 ? pierBlock / grossBridgeArea : 0,
+    };
+  }
+
   return {
     bridgeGeometry: {
       lowChordLeft: bridge.lowChordLeft,
@@ -69,6 +94,31 @@ function buildPayloadFromBridge(bridgeIndex: number): AiSummaryPayload {
       span: bridge.rightAbutmentStation - bridge.leftAbutmentStation,
       pierCount: bridge.piers.length,
       debrisBlockagePct: tb.coefficients.debrisBlockagePct,
+      skewAngle: bridge.skewAngle,
+      contractionLength: bridge.contractionLength,
+      expansionLength: bridge.expansionLength,
+      deckWidth: bridge.deckWidth,
+    },
+    crossSectionStats: {
+      pointCount: cs.length,
+      stationRange: [stations.length > 0 ? Math.min(...stations) : 0, stations.length > 0 ? Math.max(...stations) : 0] as [number, number],
+      manningsN: {
+        min: nValues.length > 0 ? Math.min(...nValues) : 0,
+        max: nValues.length > 0 ? Math.max(...nValues) : 0,
+        channel: channelNValues.length > 0 ? channelNValues[Math.floor(channelNValues.length / 2)] : (nValues.length > 0 ? nValues[0] : 0),
+      },
+      hasBankStations: cs.some((p) => p.bankStation === 'left') && cs.some((p) => p.bankStation === 'right'),
+      minElevation: elevations.length > 0 ? Math.min(...elevations) : 0,
+      maxElevation: elevations.length > 0 ? Math.max(...elevations) : 0,
+    },
+    hydraulicRatios,
+    coefficients: {
+      contraction: tb.coefficients.contractionCoeff,
+      expansion: tb.coefficients.expansionCoeff,
+      yarnellK: tb.coefficients.yarnellK,
+      maxIterations: tb.coefficients.maxIterations,
+      tolerance: tb.coefficients.tolerance,
+      freeboardThreshold: tb.coefficients.freeboardThreshold,
     },
     flowProfiles: tb.flowProfiles.map((p) => ({
       name: p.name,
@@ -91,10 +141,15 @@ function buildPayloadFromBridge(bridgeIndex: number): AiSummaryPayload {
 /** A valid AI response fixture */
 const VALID_AI_RESPONSE: AiSummaryResponse = {
   overall: [
-    'Consistent free-surface flow across both profiles with good method agreement.',
+    'High confidence in Low Flow afflux — all four methods agree within 5%.',
     'Energy and Momentum methods converge within 0.05 ft for the Low Flow case.',
   ],
+  recommendations: [
+    'Run Manning\'s n sensitivity ±20% to assess impact on afflux at higher flows.',
+  ],
   callouts: {
+    geometry: null,
+    coefficients: null,
     regime: ['Both profiles remain in free-surface flow regime with Froude numbers well below 1.0.'],
     freeboard: [
       'Low Flow profile maintains adequate freeboard of approximately 4 ft above the upstream WSEL.',
@@ -145,7 +200,7 @@ describe('AI Summary Integration — /api/ai-summary route with test bridge data
     // Verify callOpenAI was called with the system prompt and the serialised payload
     expect(mockCallOpenAI).toHaveBeenCalledTimes(1);
     const [systemPrompt, userPrompt] = mockCallOpenAI.mock.calls[0];
-    expect(systemPrompt).toContain('senior hydraulic engineer');
+    expect(systemPrompt).toContain('principal hydraulic engineer');
     // The user prompt should be the JSON-serialised payload
     const parsedUserPrompt = JSON.parse(userPrompt);
     expect(parsedUserPrompt.bridgeGeometry.pierCount).toBe(1);
