@@ -21,12 +21,14 @@ import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
 import { AiCallout, AiCalloutGrouped, AiCalloutInline, AiCalloutGroupedInline } from '@/components/summary/ai-callout';
 import { MethodSuitability } from '@/components/summary/method-suitability';
 import { AdequacyPanel } from '@/components/assessment/adequacy-panel';
+import { RegulatoryChecklist } from '@/components/assessment/regulatory-checklist';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationScene } from '@/components/simulation/scene-3d/simulation-scene';
 import { EnergyGradeDiagram } from '@/components/simulation/energy-grade-diagram';
 import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-if-controls';
 import { OptimizerCard } from '@/components/simulation/optimizer-card';
+import { DebrisGuidance } from '@/components/simulation/debris-guidance';
 import { buildHydraulicProfile } from '@/engine/simulation-profile';
 import { runAllMethods } from '@/engine';
 import type { CalculationResults } from '@/engine/types';
@@ -587,15 +589,11 @@ export function MainTabs() {
           </div>
           <TabsContent value="adequacy">
             {results ? (
-              <div className="space-y-6 sm:space-y-8">
-                <AiSummaryBanner />
-                <FreeboardCheck callout={<AiCalloutInline text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
-                <MethodSuitability />
-              </div>
+              <AdequacyPanel />
             ) : noResultsPlaceholder}
           </TabsContent>
           <TabsContent value="regulatory">
-            <ComingSoon title="Regulatory compliance coming soon" description="Jurisdiction-specific compliance checklists and reporting." />
+            <RegulatoryChecklist />
           </TabsContent>
           <TabsContent value="scenarios">
             {scenarios.length >= 2 ? (
