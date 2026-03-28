@@ -7,6 +7,18 @@ import {
   CalculationResults,
   HecRasComparison,
   SensitivityResults,
+  BedMaterial,
+  ScourInputs,
+  ScourResults,
+  HydrologyState,
+  AdequacyResults,
+  Jurisdiction,
+  ChecklistItem,
+  NarrativeSection,
+  ProjectSnapshot,
+  SerializedProjectState,
+  BridgeProject,
+  ReachResults,
 } from '@/engine/types';
 import { serializeProject, parseProjectJson } from '@/lib/json-io';
 import { UnitSystem } from '@/lib/units';
@@ -40,6 +52,20 @@ interface ProjectStore {
   aiSummaryLoading: boolean;
   aiSummaryError: string | null;
   scenarios: Scenario[];
+  hydrology: HydrologyState;
+  scourInputs: ScourInputs;
+  scourResults: ScourResults[] | null;
+  adequacyResults: AdequacyResults | null;
+  regulatoryJurisdiction: Jurisdiction;
+  regulatoryChecklist: ChecklistItem[];
+  narrativeSections: NarrativeSection[];
+  narrativeTone: 'technical' | 'summary';
+  snapshots: ProjectSnapshot[];
+  bridges: BridgeProject[];
+  activeBridgeIndex: number;
+  reachMode: boolean;
+  reachResults: ReachResults | null;
+  activeSubTab: Record<string, string>;
 
   updateCrossSection: (points: CrossSectionPoint[]) => void;
   updateBridgeGeometry: (geom: BridgeGeometry) => void;
@@ -59,6 +85,24 @@ interface ProjectStore {
   exportProject: () => string;
   importProject: (json: string) => void;
   reset: () => void;
+  updateHydrology: (hydrology: Partial<HydrologyState>) => void;
+  updateScourInputs: (inputs: Partial<ScourInputs>) => void;
+  setScourResults: (results: ScourResults[] | null) => void;
+  setAdequacyResults: (results: AdequacyResults | null) => void;
+  setJurisdiction: (j: Jurisdiction) => void;
+  updateChecklistItem: (id: string, status: ChecklistItem['status']) => void;
+  updateNarrativeSection: (id: string, updates: Partial<NarrativeSection>) => void;
+  setNarrativeTone: (tone: 'technical' | 'summary') => void;
+  saveSnapshot: (name: string, note?: string) => void;
+  restoreSnapshot: (id: string) => void;
+  deleteSnapshot: (id: string) => void;
+  addBridge: (name: string, chainage: number) => void;
+  removeBridge: (id: string) => void;
+  updateBridge: (id: string, updates: Partial<BridgeProject>) => void;
+  setActiveBridgeIndex: (index: number) => void;
+  setReachMode: (enabled: boolean) => void;
+  setReachResults: (results: ReachResults | null) => void;
+  setActiveSubTab: (mainTab: string, subTab: string) => void;
 }
 
 const defaultBridgeGeometry: BridgeGeometry = {
@@ -108,11 +152,41 @@ const initialState = {
   unitSystem: 'metric' as UnitSystem,
   sensitivityResults: null as SensitivityResults | null,
   projectName: '' as string,
-  activeMainTab: 'input' as string,
+  activeMainTab: 'data' as string,
   aiSummary: null as AiSummaryResponse | null,
   aiSummaryLoading: false,
   aiSummaryError: null as string | null,
   scenarios: [] as Scenario[],
+  hydrology: {
+    location: null,
+    catchmentArea: 0,
+    streamLength: 0,
+    equalAreaSlope: 0,
+    ifdData: null,
+    tcMethod: 'bransby-williams' as const,
+    tcManual: 0,
+    runoffCoefficient: 0.5,
+    calculatedDischarges: [],
+  },
+  scourInputs: {
+    bedMaterial: 'sand' as BedMaterial,
+    d50: 1,
+    d95: 5,
+    upstreamBedElevation: 0,
+    countermeasure: 'none' as const,
+  },
+  scourResults: null as ScourResults[] | null,
+  adequacyResults: null as AdequacyResults | null,
+  regulatoryJurisdiction: 'tmr' as Jurisdiction,
+  regulatoryChecklist: [] as ChecklistItem[],
+  narrativeSections: [] as NarrativeSection[],
+  narrativeTone: 'technical' as const,
+  snapshots: [] as ProjectSnapshot[],
+  bridges: [] as BridgeProject[],
+  activeBridgeIndex: 0,
+  reachMode: false,
+  reachResults: null as ReachResults | null,
+  activeSubTab: {} as Record<string, string>,
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -339,4 +413,136 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   reset: () => set(initialState),
+
+  updateHydrology: (hydrology) =>
+    set((prev) => ({ hydrology: { ...prev.hydrology, ...hydrology } })),
+
+  updateScourInputs: (inputs) =>
+    set((prev) => ({ scourInputs: { ...prev.scourInputs, ...inputs } })),
+
+  setScourResults: (results) => set({ scourResults: results }),
+
+  setAdequacyResults: (results) => set({ adequacyResults: results }),
+
+  setJurisdiction: (j) => set({ regulatoryJurisdiction: j }),
+
+  updateChecklistItem: (id, status) =>
+    set((prev) => ({
+      regulatoryChecklist: prev.regulatoryChecklist.map((item) =>
+        item.id === id ? { ...item, status } : item,
+      ),
+    })),
+
+  updateNarrativeSection: (id, updates) =>
+    set((prev) => ({
+      narrativeSections: prev.narrativeSections.map((section) =>
+        section.id === id ? { ...section, ...updates } : section,
+      ),
+    })),
+
+  setNarrativeTone: (tone) => set({ narrativeTone: tone }),
+
+  saveSnapshot: (name, note) => {
+    const state = get();
+    const serialized: SerializedProjectState = {
+      crossSection: structuredClone(state.crossSection),
+      bridgeGeometry: structuredClone(state.bridgeGeometry),
+      flowProfiles: structuredClone(state.flowProfiles),
+      coefficients: structuredClone(state.coefficients),
+      results: state.results ? structuredClone(state.results) : null,
+      hecRasComparison: structuredClone(state.hecRasComparison),
+      scourInputs: structuredClone(state.scourInputs),
+      scourResults: state.scourResults ? structuredClone(state.scourResults) : null,
+      adequacyResults: state.adequacyResults ? structuredClone(state.adequacyResults) : null,
+      regulatoryJurisdiction: state.regulatoryJurisdiction,
+      regulatoryChecklist: structuredClone(state.regulatoryChecklist),
+      narrativeSections: structuredClone(state.narrativeSections),
+      narrativeTone: state.narrativeTone,
+      hydrology: structuredClone(state.hydrology),
+    };
+    const snapshot: ProjectSnapshot = {
+      id: crypto.randomUUID(),
+      name,
+      note: note ?? '',
+      timestamp: Date.now(),
+      summaryLine: `${state.flowProfiles.length} profiles, ${state.bridges.length} bridges`,
+      state: serialized,
+    };
+    set((prev) => {
+      const updated = [...prev.snapshots, snapshot].slice(-20);
+      try {
+        localStorage.setItem('project-snapshots', JSON.stringify(updated));
+      } catch {
+        // storage full – silently ignore
+      }
+      return { snapshots: updated };
+    });
+  },
+
+  restoreSnapshot: (id) => {
+    const state = get();
+    const snapshot = state.snapshots.find((s) => s.id === id);
+    if (!snapshot) return;
+    const s = snapshot.state;
+    set({
+      crossSection: s.crossSection,
+      bridgeGeometry: s.bridgeGeometry,
+      flowProfiles: s.flowProfiles,
+      coefficients: s.coefficients,
+      results: s.results,
+      hecRasComparison: s.hecRasComparison,
+      scourInputs: s.scourInputs,
+      scourResults: s.scourResults,
+      adequacyResults: s.adequacyResults,
+      regulatoryJurisdiction: s.regulatoryJurisdiction,
+      regulatoryChecklist: s.regulatoryChecklist,
+      narrativeSections: s.narrativeSections,
+      narrativeTone: s.narrativeTone,
+      hydrology: s.hydrology,
+    });
+  },
+
+  deleteSnapshot: (id) =>
+    set((prev) => ({
+      snapshots: prev.snapshots.filter((s) => s.id !== id),
+    })),
+
+  addBridge: (name, chainage) => {
+    const state = get();
+    const bridge: BridgeProject = {
+      id: crypto.randomUUID(),
+      name,
+      chainage,
+      crossSection: [],
+      bridgeGeometry: structuredClone(state.bridgeGeometry),
+      coefficients: structuredClone(state.coefficients),
+      results: null,
+      scourInputs: structuredClone(state.scourInputs),
+      scourResults: null,
+    };
+    set((prev) => ({ bridges: [...prev.bridges, bridge] }));
+  },
+
+  removeBridge: (id) =>
+    set((prev) => ({
+      bridges: prev.bridges.filter((b) => b.id !== id),
+    })),
+
+  updateBridge: (id, updates) =>
+    set((prev) => ({
+      bridges: prev.bridges.map((b) =>
+        b.id === id ? { ...b, ...updates } : b,
+      ),
+    })),
+
+  setActiveBridgeIndex: (index) => set({ activeBridgeIndex: index }),
+
+  setReachMode: (enabled) => set({ reachMode: enabled }),
+
+  setReachResults: (results) => set({ reachResults: results }),
+
+  setActiveSubTab: (mainTab, subTab) =>
+    set((prev) => ({
+      activeSubTab: { ...prev.activeSubTab, [mainTab]: subTab },
+    })),
 }));
