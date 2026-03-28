@@ -41,6 +41,7 @@ import { ScourPanel } from '@/components/analysis/scour-panel';
 import { ArrLookup } from '@/components/hydrology/arr-lookup';
 import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
 import { ImportPanel } from '@/components/data/import-panel';
+import { ReachManager } from '@/components/data/reach-manager';
 
 /* ------------------------------------------------------------------ */
 /*  Reusable placeholder for unimplemented sub-tabs                    */
@@ -477,7 +478,7 @@ export function MainTabs() {
             </TabsContent>
             {reachMode && (
               <TabsContent value="reach">
-                <ComingSoon title="Reach configuration coming soon" description="Multi-bridge reach analysis setup will appear here." />
+                <ReachManager />
               </TabsContent>
             )}
           </Tabs>
