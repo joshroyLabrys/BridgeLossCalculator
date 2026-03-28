@@ -1,12 +1,12 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { useProjectStore } from '@/store/project-store';
 import { BridgeGeometry, Pier } from '@/engine/types';
 import { toDisplay, toImperial, unitLabel } from '@/lib/units';
@@ -21,8 +21,7 @@ export function BridgeGeometryForm() {
 
   const lengthFields = new Set(['lowChordLeft', 'lowChordRight', 'highChord', 'leftAbutmentStation', 'rightAbutmentStation', 'contractionLength', 'expansionLength', 'deckWidth']);
 
-  function setField(field: string, value: string) {
-    const raw = parseFloat(value) || 0;
+  function commitField(field: string, raw: number) {
     update({ ...bridge, [field]: lengthFields.has(field) ? toImperial(raw, 'length', us) : raw });
   }
 
@@ -34,13 +33,15 @@ export function BridgeGeometryForm() {
     update({ ...bridge, piers: bridge.piers.filter((_, i) => i !== index) });
   }
 
-  function updatePier(index: number, field: keyof Pier, value: string) {
+  function commitPierNum(index: number, field: 'station' | 'width', raw: number) {
     const piers = [...bridge.piers];
-    if (field === 'shape') {
-      piers[index] = { ...piers[index], shape: value as Pier['shape'] };
-    } else {
-      piers[index] = { ...piers[index], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
-    }
+    piers[index] = { ...piers[index], [field]: toImperial(raw, 'length', us) };
+    update({ ...bridge, piers });
+  }
+
+  function updatePierShape(index: number, value: string) {
+    const piers = [...bridge.piers];
+    piers[index] = { ...piers[index], shape: value as Pier['shape'] };
     update({ ...bridge, piers });
   }
 
@@ -67,7 +68,11 @@ export function BridgeGeometryForm() {
             {fields.map((f) => (
               <div key={f.key} className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">{f.label} <span className="text-muted-foreground/60">({f.unit})</span></Label>
-                <Input type="number" value={lengthFields.has(f.key) ? toDisplay((bridge as unknown as Record<string, number>)[f.key], 'length', us) : (bridge as unknown as Record<string, number>)[f.key]} onChange={(e) => setField(f.key, e.target.value)} className="h-8 text-sm font-mono" />
+                <NumericInput
+                  value={lengthFields.has(f.key) ? toDisplay((bridge as unknown as Record<string, number>)[f.key], 'length', us) : (bridge as unknown as Record<string, number>)[f.key]}
+                  onCommit={(v) => commitField(f.key, v)}
+                  className="h-8 text-sm font-mono"
+                />
               </div>
             ))}
           </div>
@@ -78,15 +83,15 @@ export function BridgeGeometryForm() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Orifice Cd</Label>
-              <Input type="number" value={bridge.orificeCd} onChange={(e) => setField('orificeCd', e.target.value)} className="h-8 text-sm font-mono" step="0.1" />
+              <NumericInput value={bridge.orificeCd} onCommit={(v) => commitField('orificeCd', v)} className="h-8 text-sm font-mono" step="0.1" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Weir Cw</Label>
-              <Input type="number" value={bridge.weirCw} onChange={(e) => setField('weirCw', e.target.value)} className="h-8 text-sm font-mono" step="0.1" />
+              <NumericInput value={bridge.weirCw} onCommit={(v) => commitField('weirCw', v)} className="h-8 text-sm font-mono" step="0.1" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Deck Width ({lenUnit})</Label>
-              <Input type="number" value={toDisplay(bridge.deckWidth, 'length', us)} onChange={(e) => setField('deckWidth', e.target.value)} className="h-8 text-sm font-mono" />
+              <NumericInput value={toDisplay(bridge.deckWidth, 'length', us)} onCommit={(v) => commitField('deckWidth', v)} className="h-8 text-sm font-mono" />
             </div>
           </div>
         </CardContent>
@@ -114,10 +119,10 @@ export function BridgeGeometryForm() {
                 {bridge.piers.map((pier, i) => (
                   <TableRow key={i} className="even:bg-muted/20">
                     <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
-                    <TableCell><Input type="number" value={toDisplay(pier.station, 'length', us)} onChange={(e) => updatePier(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
-                    <TableCell><Input type="number" value={toDisplay(pier.width, 'length', us)} onChange={(e) => updatePier(i, 'width', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                    <TableCell><NumericInput value={toDisplay(pier.station, 'length', us)} onCommit={(v) => commitPierNum(i, 'station', v)} className="h-8 text-sm font-mono" /></TableCell>
+                    <TableCell><NumericInput value={toDisplay(pier.width, 'length', us)} onCommit={(v) => commitPierNum(i, 'width', v)} className="h-8 text-sm font-mono" /></TableCell>
                     <TableCell>
-                      <Select value={pier.shape} onValueChange={(v) => updatePier(i, 'shape', v ?? '')}>
+                      <Select value={pier.shape} onValueChange={(v) => updatePierShape(i, v ?? '')}>
                         <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="square">Square</SelectItem>
@@ -153,9 +158,9 @@ function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (
 
   function addPoint() { update({ ...bridge, lowChordProfile: [...profile, { station: 0, elevation: 0 }] }); }
   function removePoint(i: number) { update({ ...bridge, lowChordProfile: profile.filter((_, idx) => idx !== i) }); }
-  function updatePoint(i: number, field: 'station' | 'elevation', value: string) {
+  function commitPoint(i: number, field: 'station' | 'elevation', raw: number) {
     const pts = [...profile];
-    pts[i] = { ...pts[i], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
+    pts[i] = { ...pts[i], [field]: toImperial(raw, 'length', us) };
     update({ ...bridge, lowChordProfile: pts });
   }
 
@@ -187,8 +192,8 @@ function LowChordProfile({ bridge, update }: { bridge: BridgeGeometry; update: (
                   {profile.map((pt, i) => (
                     <TableRow key={i} className="even:bg-muted/20">
                       <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
-                      <TableCell><Input type="number" value={toDisplay(pt.station, 'length', us)} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
-                      <TableCell><Input type="number" value={toDisplay(pt.elevation, 'length', us)} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" /></TableCell>
+                      <TableCell><NumericInput value={toDisplay(pt.station, 'length', us)} onCommit={(v) => commitPoint(i, 'station', v)} className="h-8 text-sm font-mono" /></TableCell>
+                      <TableCell><NumericInput value={toDisplay(pt.elevation, 'length', us)} onCommit={(v) => commitPoint(i, 'elevation', v)} className="h-8 text-sm font-mono" /></TableCell>
                       <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => removePoint(i)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
                     </TableRow>
                   ))}
