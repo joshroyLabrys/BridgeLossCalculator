@@ -320,10 +320,15 @@ export function OptimizerCard({ selectedMethod, selectedProfileIdx }: OptimizerC
                 onClick={() => {
                   const width = optResult.optimalValue!;
                   const center = (bridgeGeometry.leftAbutmentStation + bridgeGeometry.rightAbutmentStation) / 2;
+                  // Clamp to stay within cross-section bounds
+                  const xsMin = crossSection[0]?.station ?? 0;
+                  const xsMax = crossSection[crossSection.length - 1]?.station ?? 100;
+                  const newLeft = Math.max(center - width / 2, xsMin);
+                  const newRight = Math.min(center + width / 2, xsMax);
                   updateBridgeGeometry({
                     ...bridgeGeometry,
-                    leftAbutmentStation: center - width / 2,
-                    rightAbutmentStation: center + width / 2,
+                    leftAbutmentStation: newLeft,
+                    rightAbutmentStation: newRight,
                   });
                   clearResults();
                 }}

@@ -89,8 +89,20 @@ function computeRange(
   switch (parameter) {
     case 'openingWidth': {
       const currentWidth = bridge.rightAbutmentStation - bridge.leftAbutmentStation;
-      const totalSpan = xs[xs.length - 1].station - xs[0].station;
-      return [Math.max(currentWidth * 0.3, 5), Math.min(totalSpan * 0.95, currentWidth * 3)];
+      const center = (bridge.leftAbutmentStation + bridge.rightAbutmentStation) / 2;
+
+      // Use bank stations as the hard limit if available, else cross-section bounds
+      const leftBank = xs.find((p) => p.bankStation === 'left')?.station ?? xs[0].station;
+      const rightBank = xs.find((p) => p.bankStation === 'right')?.station ?? xs[xs.length - 1].station;
+
+      // Max width: don't push abutments past bank stations
+      const maxHalf = Math.min(center - leftBank, rightBank - center);
+      const maxWidth = maxHalf * 2;
+
+      // Min width: at least 20% of current, but no less than 3 units
+      const minWidth = Math.max(currentWidth * 0.2, 3);
+
+      return [Math.min(minWidth, maxWidth * 0.5), maxWidth];
     }
     case 'lowChord': {
       const minElev = Math.min(...xs.map((p) => p.elevation));
