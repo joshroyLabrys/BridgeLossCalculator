@@ -20,6 +20,7 @@ import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
 import { AiCallout, AiCalloutGrouped, AiCalloutInline, AiCalloutGroupedInline } from '@/components/summary/ai-callout';
 import { MethodSuitability } from '@/components/summary/method-suitability';
+import { AdequacyPanel } from '@/components/assessment/adequacy-panel';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationScene } from '@/components/simulation/scene-3d/simulation-scene';
@@ -34,6 +35,7 @@ import { DropZone } from '@/components/import/drop-zone';
 import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
 import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save, Sparkles, Database, Droplets, ShieldCheck, RotateCcw } from 'lucide-react';
 import { ChatPanel } from '@/components/ai-chat/chat-panel';
+import { ScourPanel } from '@/components/analysis/scour-panel';
 import { ArrLookup } from '@/components/hydrology/arr-lookup';
 import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
 import { ImportPanel } from '@/components/data/import-panel';
@@ -557,7 +559,7 @@ export function MainTabs() {
             <MethodTabs />
           </TabsContent>
           <TabsContent value="scour">
-            <ComingSoon title="Scour analysis coming soon" description="HEC-18 pier and abutment scour estimation." />
+            <ScourPanel />
           </TabsContent>
           <TabsContent value="qaqc">
             <ComingSoon title="QA/QC checks coming soon" description="Automated validation and cross-check reporting." />
