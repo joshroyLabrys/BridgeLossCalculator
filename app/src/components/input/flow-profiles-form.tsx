@@ -53,7 +53,7 @@ export function FlowProfilesForm() {
       <CardContent>
         <div className="rounded-lg border overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="min-w-[580px]">
               <TableHeader>
                 <TableRow className="bg-muted/30 hover:bg-muted/30">
                   <TableHead className="w-10 text-xs">#</TableHead>

@@ -32,7 +32,7 @@ export function FreeboardCheck({ callout }: { callout?: ReactNode } = {}) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start gap-6">
+        <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
@@ -43,11 +43,12 @@ export function FreeboardCheck({ callout }: { callout?: ReactNode } = {}) {
               low chord. Positive = clearance below deck; negative = pressure flow or overtopping.
             </CardDescription>
           </div>
-          {callout && <div className="w-[45%] shrink-0">{callout}</div>}
+          {callout && <div className="w-full sm:w-[45%] shrink-0">{callout}</div>}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <Table>
+        <div className="overflow-x-auto">
+        <Table className="min-w-[640px]">
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
               <TableHead className="text-xs">Profile</TableHead>
@@ -80,7 +81,8 @@ export function FreeboardCheck({ callout }: { callout?: ReactNode } = {}) {
             })}
           </TableBody>
         </Table>
-        <div className="space-y-1 text-sm text-muted-foreground">
+        </div>
+        <div className="flex flex-col sm:flex-row sm:space-y-0 space-y-1 text-sm text-muted-foreground">
           {freeboard.zeroFreeboardQ !== null ? (
             <span>Estimated Q at zero freeboard: <span className="font-mono font-medium text-foreground">{toDisplay(freeboard.zeroFreeboardQ, 'discharge', us).toFixed(0)} {qUnit}</span> (interpolated)</span>
           ) : freeboard.profiles.every(p => p.freeboard > 0) ? (

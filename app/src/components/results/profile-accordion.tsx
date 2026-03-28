@@ -35,22 +35,24 @@ export function ProfileAccordion({ results }: { results: MethodResult[] }) {
         const regime = regimeBadge[r.flowRegime];
         return (
           <AccordionItem key={i} value={`profile-${i}`} className="border rounded-lg bg-card">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <div className="flex items-center gap-3 flex-1">
-                <span className="font-medium">{r.profileName}</span>
-                <Badge variant={r.converged ? 'default' : 'destructive'} className={`text-xs ${r.converged ? 'bg-primary/15 text-primary border-primary/30' : ''}`}>{r.converged ? 'CONVERGED' : 'NOT CONVERGED'}</Badge>
-                <Badge variant="outline" className={`text-xs ${regime.className}`}>{regime.label}</Badge>
+            <AccordionTrigger className="px-3 sm:px-4 py-3 hover:no-underline">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium">{r.profileName}</span>
+                  <Badge variant={r.converged ? 'default' : 'destructive'} className={`text-xs ${r.converged ? 'bg-primary/15 text-primary border-primary/30' : ''}`}>{r.converged ? 'CONVERGED' : 'NOT CONVERGED'}</Badge>
+                  <Badge variant="outline" className={`text-xs ${regime.className}`}>{regime.label}</Badge>
+                </div>
                 {r.error && <span className="text-xs text-destructive">{r.error}</span>}
-              </div>
-              <div className="text-sm text-muted-foreground mr-4 font-mono tabular-nums">
-                US WSEL: <span className="text-foreground font-medium">{toDisplay(r.upstreamWsel, 'length', us).toFixed(2)} {len}</span>
-                {' | '}Δh: <span className="text-foreground font-medium">{toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} {len}</span>
+                <div className="text-xs sm:text-sm text-muted-foreground sm:ml-auto sm:mr-4 font-mono tabular-nums">
+                  US WSEL: <span className="text-foreground font-medium">{toDisplay(r.upstreamWsel, 'length', us).toFixed(2)} {len}</span>
+                  {' | '}Δh: <span className="text-foreground font-medium">{toDisplay(r.totalHeadLoss, 'length', us).toFixed(3)} {len}</span>
+                </div>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4 space-y-4">
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Input Echo</div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <MetricCard label="Flow Area" value={`${toDisplay(r.inputEcho.flowArea, 'area', us).toFixed(1)} ${areaU}`} />
                   <MetricCard label="Hydraulic Radius" value={`${toDisplay(r.inputEcho.hydraulicRadius, 'length', us).toFixed(3)} ${len}`} />
                   <MetricCard label="Bridge Opening Area" value={`${toDisplay(r.inputEcho.bridgeOpeningArea, 'area', us).toFixed(1)} ${areaU}`} />
@@ -59,7 +61,7 @@ export function ProfileAccordion({ results }: { results: MethodResult[] }) {
               </div>
               <div>
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Results</div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <MetricCard label="Approach Velocity" value={`${toDisplay(r.approachVelocity, 'velocity', us).toFixed(2)} ${vel}`} />
                   <MetricCard label="Bridge Velocity" value={`${toDisplay(r.bridgeVelocity, 'velocity', us).toFixed(2)} ${vel}`} />
                   <MetricCard label="Froude (approach)" value={r.froudeApproach.toFixed(3)} />

@@ -374,5 +374,5 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     return () => observer.disconnect();
   }, [draw]);
 
-  return <div ref={containerRef} className="w-full" style={{ height: 420 }} />;
+  return <div ref={containerRef} className="w-full h-[300px] sm:h-[360px] lg:h-[420px]" />;
 }

@@ -110,7 +110,7 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
   const sceneSize = Math.max(span, maxElev - minElev, channelLength);
 
   return (
-    <div className="w-full rounded-lg overflow-hidden" style={{ height: 500 }}>
+    <div className="w-full rounded-lg overflow-hidden h-[300px] sm:h-[400px] lg:h-[500px]">
       <Canvas
         shadows
         camera={{

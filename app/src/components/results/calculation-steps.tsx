@@ -19,7 +19,7 @@ export function CalculationSteps({ steps }: { steps: CalculationStep[] }) {
   }
 
   return (
-    <div className="space-y-2 font-mono text-sm bg-muted/30 p-4 rounded-lg border border-border/50">
+    <div className="space-y-2 font-mono text-sm bg-muted/30 p-3 sm:p-4 rounded-lg border border-border/50 overflow-x-auto">
       {steps.map((step) => {
         const { val, label } = convertStep(step.result, step.unit);
         return (

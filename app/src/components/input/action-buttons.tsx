@@ -116,16 +116,17 @@ export function ActionButtons() {
           </ul>
         </div>
       )}
-      <div className="sticky bottom-0 flex items-center pt-4 pb-3 mt-4 border-t backdrop-blur-sm bg-background/80 -mx-6 px-6">
-        <Button variant="outline" size="sm" onClick={() => setTestOpen(true)}><FlaskConical className="h-4 w-4 mr-1.5" />Load Test Bridge</Button>
-        <div className="flex-1" />
-        <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => { clearResults(); setSensitivityResults(null); setErrors([]); }}><RotateCcw className="h-4 w-4 mr-1.5" />Clear</Button>
-        <div className="w-6" />
-        <Button onClick={handleRunAll} disabled={isProcessing}>
-          {isProcessing
-            ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Processing…</>
-            : <><Play className="h-4 w-4 mr-1.5" />Run All Methods</>}
-        </Button>
+      <div className="sticky bottom-0 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-0 pt-4 pb-3 mt-4 border-t backdrop-blur-sm bg-background/80 -mx-4 px-4 sm:-mx-6 sm:px-6">
+        <Button variant="outline" size="sm" onClick={() => setTestOpen(true)} className="w-full sm:w-auto"><FlaskConical className="h-4 w-4 mr-1.5" />Load Test Bridge</Button>
+        <div className="hidden sm:block flex-1" />
+        <div className="flex gap-2 sm:gap-6">
+          <Button variant="outline" size="sm" className="flex-1 sm:flex-initial text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive" onClick={() => { clearResults(); setSensitivityResults(null); setErrors([]); }}><RotateCcw className="h-4 w-4 mr-1.5" />Clear</Button>
+          <Button onClick={handleRunAll} disabled={isProcessing} className="flex-1 sm:flex-initial">
+            {isProcessing
+              ? <><Loader2 className="h-4 w-4 mr-1.5 animate-spin" />Processing…</>
+              : <><Play className="h-4 w-4 mr-1.5" />Run All Methods</>}
+          </Button>
+        </div>
       </div>
 
       <Dialog open={testOpen} onOpenChange={setTestOpen}>
@@ -143,13 +144,13 @@ export function ActionButtons() {
                 onClick={() => handleLoadTestBridge(bridge)}
                 className="group text-left rounded-lg border overflow-hidden bg-muted/30 hover:bg-muted/60 hover:ring-2 hover:ring-ring transition-all"
               >
-                <div className="flex gap-4">
+                <div className="flex flex-col sm:flex-row gap-0 sm:gap-4">
                   <img
                     src={bridge.imageUrl}
                     alt={bridge.name}
-                    className="w-32 h-32 object-cover shrink-0 grayscale group-hover:grayscale-[20%] transition-all duration-300"
+                    className="w-full sm:w-32 h-36 sm:h-32 object-cover shrink-0 grayscale group-hover:grayscale-[20%] transition-all duration-300"
                   />
-                  <div className="py-3 pr-4 min-w-0">
+                  <div className="p-3 sm:py-3 sm:pr-4 sm:pl-0 min-w-0">
                     <div className="font-medium">{bridge.name}</div>
                     <div className="text-sm text-muted-foreground">{bridge.location}</div>
                     <div className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">{bridge.description}</div>

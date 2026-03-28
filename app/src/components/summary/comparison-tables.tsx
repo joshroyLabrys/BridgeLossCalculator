@@ -135,7 +135,8 @@ export function ComparisonTables({ callout }: { callout?: ReactNode } = {}) {
         {callout}
       </CardHeader>
       <CardContent>
-        <Table>
+        <div className="overflow-x-auto">
+        <Table className="min-w-[480px]">
           <colgroup>
             <col className="w-[180px]" />
             {profileNames.map((n) => <col key={n} className="w-[110px]" />)}
@@ -212,6 +213,7 @@ export function ComparisonTables({ callout }: { callout?: ReactNode } = {}) {
             <HecRasInputRow profileNames={profileNames} field="superFLC" spacer />
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );

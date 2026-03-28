@@ -15,12 +15,12 @@ export function MethodTabs() {
   const results = useProjectStore((s) => s.results);
   return (
     <Tabs defaultValue="energy">
-      <div className="mb-5 inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
+      <div className="mb-4 sm:mb-5 scroll-snap-x inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5 max-w-full">
         <TabsList className="w-fit gap-0 bg-transparent p-0">
           {methods.map((m, i) => (
             <span key={m.key} className="contents">
-              {i > 0 && <div className="h-4 w-px bg-border/40" aria-hidden="true" />}
-              <TabsTrigger value={m.key} className="rounded-md px-3.5 py-1.5 text-xs">
+              {i > 0 && <div className="h-4 w-px bg-border/40 hidden sm:block" aria-hidden="true" />}
+              <TabsTrigger value={m.key} className="rounded-md px-3 sm:px-3.5 py-1.5 text-xs whitespace-nowrap">
                 <span className={`h-2 w-2 rounded-full ${m.color}`} />
                 {m.label}
               </TabsTrigger>

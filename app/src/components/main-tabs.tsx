@@ -109,31 +109,33 @@ export function MainTabs() {
       />
       <header className="sticky top-0 z-50 border-b border-border/40 bg-card/80 backdrop-blur-xl shadow-sm">
         {/* Row 1: Brand + Utilities */}
-        <div className="flex items-center justify-between px-6 pt-2.5 pb-1.5">
-          <div className="flex items-center gap-2.5">
-            <Waves className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">Bridge Loss Calculator</h1>
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-2.5 pb-1.5 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <Waves className="h-5 w-5 text-primary shrink-0" />
+            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">Bridge Loss Calculator</h1>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
             {/* Unit toggle */}
-            <div className="flex items-center gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
-              <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-2" />
+            <div className="flex items-center gap-0.5 sm:gap-1 rounded-lg border border-border/50 bg-muted/30 p-0.5">
+              <Ruler className="h-3.5 w-3.5 text-muted-foreground ml-1.5 sm:ml-2 hidden sm:block" />
               <button
                 onClick={() => setUnitSystem('metric')}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`rounded-md px-2 sm:px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'metric' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Metric
+                <span className="sm:hidden">M</span>
+                <span className="hidden sm:inline">Metric</span>
               </button>
               <button
                 onClick={() => setUnitSystem('imperial')}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`rounded-md px-2 sm:px-3 py-1.5 text-xs font-medium transition-all ${unitSystem === 'imperial' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
               >
-                Imperial
+                <span className="sm:hidden">I</span>
+                <span className="hidden sm:inline">Imperial</span>
               </button>
             </div>
 
-            <div className="w-px h-5 bg-border/40 mx-0.5" />
+            <div className="w-px h-5 bg-border/40 mx-0.5 hidden sm:block" />
 
             {/* Icon action buttons */}
             <input
@@ -148,7 +150,7 @@ export function MainTabs() {
               <FileInput className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="icon" onClick={handleExport}
-              className="h-8 w-8" title="Export Project">
+              className="h-8 w-8 hidden sm:inline-flex" title="Export Project">
               <FileOutput className="h-4 w-4" />
             </Button>
             <Button size="icon" onClick={handlePdf} disabled={pdfLoading}
@@ -159,26 +161,26 @@ export function MainTabs() {
         </div>
 
         {/* Row 2: Centred page tabs */}
-        <div className="flex justify-center px-6 pb-2.5">
-          <div className="inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5">
+        <div className="flex justify-center px-4 sm:px-6 pb-2.5">
+          <div className="scroll-snap-x inline-flex items-center rounded-lg border border-border/50 bg-muted/30 p-0.5 max-w-full">
             <TabsList className="w-fit gap-0 bg-transparent p-0">
-              <TabsTrigger value="input" className="rounded-md px-3.5 py-1.5 text-xs">
-                <Settings2 className="h-3.5 w-3.5" />
+              <TabsTrigger value="input" className="rounded-md px-3 sm:px-3.5 py-1.5 text-xs whitespace-nowrap">
+                <Settings2 className="h-3.5 w-3.5 hidden sm:block" />
                 Input
               </TabsTrigger>
-              <div className="h-4 w-px bg-border/50" aria-hidden="true" />
-              <TabsTrigger value="results" className="rounded-md px-3.5 py-1.5 text-xs">
-                <FlaskConical className="h-3.5 w-3.5" />
-                Method Results
+              <div className="h-4 w-px bg-border/50 hidden sm:block" aria-hidden="true" />
+              <TabsTrigger value="results" className="rounded-md px-3 sm:px-3.5 py-1.5 text-xs whitespace-nowrap">
+                <FlaskConical className="h-3.5 w-3.5 hidden sm:block" />
+                Results
               </TabsTrigger>
-              <div className="h-4 w-px bg-border/50" aria-hidden="true" />
-              <TabsTrigger value="summary" className="rounded-md px-3.5 py-1.5 text-xs">
-                <BarChart3 className="h-3.5 w-3.5" />
+              <div className="h-4 w-px bg-border/50 hidden sm:block" aria-hidden="true" />
+              <TabsTrigger value="summary" className="rounded-md px-3 sm:px-3.5 py-1.5 text-xs whitespace-nowrap">
+                <BarChart3 className="h-3.5 w-3.5 hidden sm:block" />
                 Summary
               </TabsTrigger>
-              <div className="h-4 w-px bg-border/50" aria-hidden="true" />
-              <TabsTrigger value="simulation" className="rounded-md px-3.5 py-1.5 text-xs">
-                <Zap className="h-3.5 w-3.5" />
+              <div className="h-4 w-px bg-border/50 hidden sm:block" aria-hidden="true" />
+              <TabsTrigger value="simulation" className="rounded-md px-3 sm:px-3.5 py-1.5 text-xs whitespace-nowrap">
+                <Zap className="h-3.5 w-3.5 hidden sm:block" />
                 Simulation
               </TabsTrigger>
             </TabsList>
@@ -186,20 +188,20 @@ export function MainTabs() {
         </div>
       </header>
 
-      <TabsContent value="input" className="flex-1 px-6 py-5">
+      <TabsContent value="input" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
         <Tabs defaultValue="cross-section">
-          <div className="mb-5 border-b border-border/30">
-            <TabsList variant="line" className="gap-6 pb-0">
-              <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-sm">
+          <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
+            <TabsList variant="line" className="gap-4 sm:gap-6 pb-0">
+              <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
                 Cross-Section
               </TabsTrigger>
-              <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-sm">
-                Bridge Geometry
+              <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                Bridge
               </TabsTrigger>
-              <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-sm">
+              <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
                 Flow Profiles
               </TabsTrigger>
-              <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-sm">
+              <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
                 Coefficients
               </TabsTrigger>
             </TabsList>
@@ -212,11 +214,11 @@ export function MainTabs() {
         <ActionButtons />
       </TabsContent>
 
-      <TabsContent value="results" className="flex-1 px-6 py-5">
+      <TabsContent value="results" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
         <MethodTabs />
       </TabsContent>
 
-      <TabsContent value="summary" className="flex-1 px-6 py-5 space-y-8">
+      <TabsContent value="summary" className="flex-1 px-4 sm:px-6 py-4 sm:py-5 space-y-6 sm:space-y-8">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold tracking-tight">Assessment Summary</h2>
           <p className="text-sm text-muted-foreground max-w-prose text-pretty">
@@ -239,7 +241,7 @@ export function MainTabs() {
         <FreeboardCheck callout={<AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
       </TabsContent>
 
-      <TabsContent value="simulation" className="flex-1 px-6 py-5">
+      <TabsContent value="simulation" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
         <SimulationTab />
       </TabsContent>
 
