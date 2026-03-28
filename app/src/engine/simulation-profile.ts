@@ -5,6 +5,7 @@ import type {
   FlowProfile,
   MethodResult,
   FlowRegime,
+  Pier,
 } from './types';
 import { calcFlowArea, calcTopWidth } from './geometry';
 import { calcVelocity } from './hydraulics';
@@ -33,7 +34,7 @@ export interface HydraulicProfile {
     wsel: number;
     velocity: number;
     depth: number;
-    piers: { station: number; width: number }[];
+    piers: Pick<Pier, 'station' | 'width' | 'shape'>[];
   };
   exit: ProfileZone;
   flowRegime: FlowRegime;
@@ -114,7 +115,7 @@ export function buildHydraulicProfile(
       wsel: result.upstreamWsel,
       velocity: result.bridgeVelocity,
       depth: result.upstreamWsel - bridgeBed,
-      piers: bridge.piers.map(p => ({ station: p.station, width: p.width })),
+      piers: bridge.piers.map(p => ({ station: p.station, width: p.width, shape: p.shape })),
     },
     exit: {
       stationStart: bridge.rightAbutmentStation,

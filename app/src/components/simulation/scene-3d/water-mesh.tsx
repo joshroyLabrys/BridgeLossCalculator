@@ -83,6 +83,7 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
     uFoamColor: { value: new THREE.Color(REGIME_COLORS[flowRegime].foam) },
     uVelocity: { value: velocityToShaderSpeed(velocity, channelLength) },
     uRegime: { value: flowRegime === 'free-surface' ? 0.0 : flowRegime === 'pressure' ? 1.0 : 2.0 },
+    uEnvMapIntensity: { value: 0.4 },
   });
 
   // Update uniform values when props change — without recreating the object
@@ -122,6 +123,7 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
           varying vec3 vWorldPos;
           varying float vWaveHeight;
           varying vec3 vNormal;
+          varying vec3 vViewDir;
 
           float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -147,15 +149,10 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
             float turb = uRegime < 0.5 ? 1.0 : uRegime < 1.5 ? 1.8 : 2.8;
             float t = uTime;
 
-            // Primary swell (downstream)
             float w1 = sin(pos.z * 1.5 - t * speed * 1.4 + pos.x * 0.3) * 0.10 * turb;
-            // Medium ripples
             float w2 = sin(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 0.05 * turb;
-            // Small chop
             float w3 = sin(pos.z * 7.0 - t * speed * 3.0 - pos.x * 2.0) * 0.02 * turb;
-            // Cross-wave
             float w4 = sin(pos.x * 4.0 + t * 0.8) * 0.015 * turb;
-            // Noise detail
             float n = noise(vec2(pos.x * 2.0 + t * 0.2, pos.z * 2.0 - t * speed * 0.6)) * 0.03 * turb;
 
             float totalWave = w1 + w2 + w3 + w4 + n;
@@ -168,6 +165,10 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
                       + cos(pos.z * 3.0 - t * speed * 2.0 + pos.x * 1.2) * 3.0 * 0.05 * turb;
             vNormal = normalize(vec3(-dx, 1.0, -dz));
 
+            // View direction for Fresnel
+            vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+            vViewDir = normalize(cameraPosition - worldPos.xyz);
+
             gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
           }
         `}
@@ -178,10 +179,12 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
           uniform vec3 uFoamColor;
           uniform float uVelocity;
           uniform float uRegime;
+          uniform float uEnvMapIntensity;
           varying vec2 vUv;
           varying vec3 vWorldPos;
           varying float vWaveHeight;
           varying vec3 vNormal;
+          varying vec3 vViewDir;
 
           float hash(vec2 p) {
             return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -200,6 +203,10 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
 
           void main() {
             float speed = uVelocity;
+
+            // Fresnel — more reflective at glancing angles
+            float fresnel = pow(1.0 - max(dot(vViewDir, vNormal), 0.0), 3.0);
+            fresnel = mix(0.04, 1.0, fresnel);
 
             // Flow streaks scrolling downstream
             float flowUV = vWorldPos.z * 3.0 - uTime * speed * 1.4;
@@ -222,16 +229,28 @@ export function WaterMesh({ crossSection, wsel, channelLength, flowRegime, veloc
             // Lighting
             vec3 lightDir = normalize(vec3(0.3, 1.0, 0.5));
             float diffuse = max(dot(vNormal, lightDir), 0.0);
-            float specular = pow(max(dot(reflect(-lightDir, vNormal), vec3(0.0, 1.0, 0.0)), 0.0), 32.0);
+            float specular = pow(max(dot(reflect(-lightDir, vNormal), vViewDir), 0.0), 64.0);
 
-            // Compose
-            vec3 col = mix(uBaseColor, uHighlightColor, streak * 0.4 + diffuse * 0.3);
-            col += caustic * uHighlightColor;
-            col += specular * 0.2;
-            col = mix(col, uFoamColor, foam * 0.5);
+            // Environment reflection approximation (sky color blend)
+            vec3 reflectDir = reflect(-vViewDir, vNormal);
+            float skyFactor = smoothstep(-0.1, 0.5, reflectDir.y);
+            vec3 envColor = mix(
+              vec3(0.15, 0.18, 0.22),
+              vec3(0.45, 0.55, 0.7),
+              skyFactor
+            ) * uEnvMapIntensity;
 
-            float alpha = 0.6 * edgeFade + foam * 0.15 + specular * 0.08;
-            alpha = clamp(alpha, 0.0, 0.82);
+            // Compose water color
+            vec3 waterColor = mix(uBaseColor, uHighlightColor, streak * 0.4 + diffuse * 0.3);
+            waterColor += caustic * uHighlightColor;
+            waterColor += specular * 0.35;
+            waterColor = mix(waterColor, uFoamColor, foam * 0.5);
+
+            // Blend water color with environment reflection via Fresnel
+            vec3 col = mix(waterColor, envColor + specular * 0.3, fresnel * 0.6);
+
+            float alpha = (0.55 + fresnel * 0.3) * edgeFade + foam * 0.15 + specular * 0.1;
+            alpha = clamp(alpha, 0.0, 0.88);
 
             gl_FragColor = vec4(col, alpha);
           }

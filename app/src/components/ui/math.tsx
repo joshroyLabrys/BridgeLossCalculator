@@ -16,6 +16,7 @@ export function Math({ tex, display = false, className = '' }: MathProps) {
       return katex.renderToString(tex, {
         displayMode: display,
         throwOnError: false,
+        strict: false,
         trust: true,
       });
     } catch {

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { BridgeGeometry, CrossSectionPoint } from '@/engine/types';
 
@@ -19,177 +20,264 @@ function interpGround(crossSection: CrossSectionPoint[], sta: number): number {
   return crossSection[crossSection.length - 1]?.elevation ?? 0;
 }
 
-/** Concrete material for structural elements */
-const concreteMat = (
-  <meshStandardMaterial color="#9ca3af" roughness={0.85} metalness={0.05} />
-);
+/* ── Shared materials ── */
+const CONCRETE = { color: '#948e88', roughness: 0.91, metalness: 0.02, envMapIntensity: 0.7 };
+const CONCRETE_DARK = { color: '#7a756f', roughness: 0.94, metalness: 0.02, envMapIntensity: 0.6 };
+const ASPHALT = { color: '#2a2a30', roughness: 0.98, metalness: 0.0, envMapIntensity: 0.15 };
+const STEEL = { color: '#b8bcc4', roughness: 0.12, metalness: 0.92, envMapIntensity: 1.4 };
+const MARKING = { color: '#e8e8e8', roughness: 0.5, metalness: 0.0, emissive: '#e8e8e8', emissiveIntensity: 0.06 };
+const EARTH = { color: '#5a5045', roughness: 0.96, metalness: 0.01, envMapIntensity: 0.35 };
 
-/** Darker concrete for deck underside / abutments */
-const darkConcreteMat = (
-  <meshStandardMaterial color="#6b7280" roughness={0.9} metalness={0.05} />
-);
+/* ── Extruded deck with beveled edges and slight crown ── */
+function DeckGeometry({ span, thickness, depth }: { span: number; thickness: number; depth: number }) {
+  const geo = useMemo(() => {
+    const bevel = thickness * 0.08;
+    const crown = thickness * 0.03;
+    const hw = span / 2;
 
-/** Asphalt road surface */
-const asphaltMat = (
-  <meshStandardMaterial color="#374151" roughness={0.95} metalness={0.0} />
-);
+    const shape = new THREE.Shape();
+    // Start bottom-left, go clockwise
+    shape.moveTo(-hw + bevel, -thickness);
+    shape.lineTo(hw - bevel, -thickness);
+    shape.quadraticCurveTo(hw, -thickness, hw, -thickness + bevel);
+    shape.lineTo(hw, -bevel);
+    shape.quadraticCurveTo(hw, 0, hw - bevel, 0);
+    // Crown across top
+    shape.quadraticCurveTo(0, crown, -hw + bevel, 0);
+    shape.quadraticCurveTo(-hw, 0, -hw, -bevel);
+    shape.lineTo(-hw, -thickness + bevel);
+    shape.quadraticCurveTo(-hw, -thickness, -hw + bevel, -thickness);
 
-/** Steel railing material */
-const steelMat = (
-  <meshStandardMaterial color="#d1d5db" roughness={0.3} metalness={0.8} />
-);
+    return new THREE.ExtrudeGeometry(shape, {
+      steps: 1,
+      depth,
+      bevelEnabled: false,
+    });
+  }, [span, thickness, depth]);
+
+  return <primitive object={geo} attach="geometry" />;
+}
+
+/* ── Approach embankment: proper trapezoidal cross-section ── */
+function ApproachEmbankment({ startX, topY, bottomY, depth, bridgeZ, side, deckThickness }: {
+  startX: number; topY: number; bottomY: number; depth: number; bridgeZ: number;
+  side: 'left' | 'right'; deckThickness: number;
+}) {
+  const geo = useMemo(() => {
+    const height = topY - bottomY;
+    if (height <= 0.1) return null;
+    const rampLen = Math.max(height * 2, deckThickness * 4);
+    const topWidth = deckThickness * 0.5;
+    const dir = side === 'left' ? -1 : 1;
+
+    // Trapezoidal cross-section in XY, extruded along Z
+    // Viewed from the side: a right trapezoid
+    // Top edge at deck level, slopes down to ground
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);                          // top at abutment
+    shape.lineTo(0, -height);                    // down to ground at abutment
+    shape.lineTo(dir * rampLen, -height);        // along ground
+    shape.lineTo(dir * topWidth, 0);             // back up (slight top ledge)
+    shape.lineTo(0, 0);
+
+    const g = new THREE.ExtrudeGeometry(shape, {
+      steps: 1,
+      depth: depth,
+      bevelEnabled: false,
+    });
+    // Position: extrude goes along +Z from 0, we need it centered on bridgeZ
+    g.translate(startX, topY, bridgeZ - depth / 2);
+    g.computeVertexNormals();
+    return g;
+  }, [startX, topY, bottomY, depth, bridgeZ, side, deckThickness]);
+
+  if (!geo) return null;
+
+  return (
+    <group>
+      {/* Embankment fill */}
+      <mesh geometry={geo} castShadow receiveShadow>
+        <meshStandardMaterial {...EARTH} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Road surface on top of embankment */}
+      {(() => {
+        const height = topY - bottomY;
+        const rampLen = Math.max(height * 2, deckThickness * 4);
+        const dir = side === 'left' ? -1 : 1;
+        const diagLen = Math.sqrt(rampLen * rampLen + height * height);
+        const angle = Math.atan2(height, rampLen) * dir;
+        const midX = startX + dir * rampLen * 0.35;
+        const midY = topY - height * 0.35 + 0.05;
+        return (
+          <mesh position={[midX, midY, bridgeZ]} rotation={[0, 0, angle]} receiveShadow>
+            <boxGeometry args={[diagLen * 0.7, 0.06, depth * 0.82]} />
+            <meshStandardMaterial {...ASPHALT} />
+          </mesh>
+        );
+      })()}
+    </group>
+  );
+}
+
+/* ── Thin cylindrical railing tube ── */
+function RailTube({ x1, x2, y, z, radius }: {
+  x1: number; x2: number; y: number; z: number; radius: number;
+}) {
+  const len = x2 - x1;
+  const cx = (x1 + x2) / 2;
+  return (
+    <mesh position={[cx, y, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
+      <cylinderGeometry args={[radius, radius, len, 12]} />
+      <meshStandardMaterial {...STEEL} />
+    </mesh>
+  );
+}
+
+/* ── Thin cylindrical railing post ── */
+function RailPost({ x, yBottom, yTop, z, radius }: {
+  x: number; yBottom: number; yTop: number; z: number; radius: number;
+}) {
+  const h = yTop - yBottom;
+  return (
+    <mesh position={[x, yBottom + h / 2, z]} castShadow>
+      <cylinderGeometry args={[radius, radius, h, 8]} />
+      <meshStandardMaterial {...STEEL} />
+    </mesh>
+  );
+}
 
 export function BridgeMesh({ bridge, crossSection, channelLength }: BridgeMeshProps) {
   const bridgeZ = channelLength / 2;
   const span = bridge.rightAbutmentStation - bridge.leftAbutmentStation;
   const lowChord = Math.min(bridge.lowChordLeft, bridge.lowChordRight);
   const deckThickness = bridge.highChord - lowChord;
-  const deckDepth = bridge.deckWidth || Math.max(channelLength * 0.15, 3);
+  // deckDepth = the user's deckWidth (road width, Z-axis). Use exact value.
+  const deckDepth = bridge.deckWidth || Math.max(span * 0.3, 8);
   const halfDepth = deckDepth / 2;
 
   const cx = bridge.leftAbutmentStation + span / 2;
   const leftGround = interpGround(crossSection, bridge.leftAbutmentStation);
   const rightGround = interpGround(crossSection, bridge.rightAbutmentStation);
+  const farLeftGround = interpGround(crossSection, crossSection[0]?.station ?? bridge.leftAbutmentStation);
+  const farRightGround = interpGround(crossSection, crossSection[crossSection.length - 1]?.station ?? bridge.rightAbutmentStation);
 
-  // Parapet / guardrail dimensions
-  const railHeight = deckThickness * 0.6;
-  const railThickness = deckThickness * 0.15;
-  const postSpacing = span * 0.12;
-  const postWidth = railThickness * 0.8;
-  const postHeight = railHeight;
-  const numPosts = Math.max(2, Math.floor(span / postSpacing));
+  // Fixed real-world railing dimensions (in feet — typical bridge barrier)
+  const railHeight = 3.5;        // ~1.07m standard bridge rail height
+  const railPostRadius = 0.15;   // ~45mm round post
+  const railTubeRadius = 0.1;    // ~30mm tube rail
+  const postSpacing = Math.max(span * 0.08, 4); // ~4-8 ft spacing
+  const numPosts = Math.max(3, Math.floor(span / postSpacing));
 
-  // Wingwall dimensions
-  const wingLength = deckDepth * 0.6;
-  const wingThickness = deckThickness * 0.3;
+  const wingLength = deckDepth * 0.5;
+  const wingThickness = Math.max(deckThickness * 0.25, 1);
+
+  const topRailY = bridge.highChord + railHeight;
+  const midRailY = bridge.highChord + railHeight * 0.45;
+  const usZ = bridgeZ - halfDepth + 0.3;
+  const dsZ = bridgeZ + halfDepth - 0.3;
 
   return (
     <group>
-      {/* === DECK === */}
-      {/* Main deck slab (concrete) */}
+      {/* === APPROACH EMBANKMENTS === */}
+      <ApproachEmbankment
+        startX={bridge.leftAbutmentStation - deckThickness * 0.3}
+        topY={bridge.highChord}
+        bottomY={farLeftGround}
+        depth={deckDepth}
+        bridgeZ={bridgeZ}
+        side="left"
+        deckThickness={deckThickness}
+      />
+      <ApproachEmbankment
+        startX={bridge.rightAbutmentStation + deckThickness * 0.3}
+        topY={bridge.highChord}
+        bottomY={farRightGround}
+        depth={deckDepth}
+        bridgeZ={bridgeZ}
+        side="right"
+        deckThickness={deckThickness}
+      />
+
+      {/* === DECK (extruded profile with beveled edges + crown) === */}
       <mesh
-        position={[cx, bridge.highChord - deckThickness / 2, bridgeZ]}
-        castShadow
-        receiveShadow
+        position={[cx, bridge.highChord, bridgeZ - deckDepth / 2]}
+        castShadow receiveShadow
       >
-        <boxGeometry args={[span + 0.2, deckThickness, deckDepth]} />
-        {darkConcreteMat}
+        <DeckGeometry span={span + 0.3} thickness={deckThickness} depth={deckDepth} />
+        <meshStandardMaterial {...CONCRETE_DARK} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Road surface on top */}
-      <mesh
-        position={[cx, bridge.highChord + 0.05, bridgeZ]}
-        receiveShadow
-      >
-        <boxGeometry args={[span + 0.1, 0.1, deckDepth - railThickness * 2]} />
-        {asphaltMat}
+      {/* Road surface */}
+      <mesh position={[cx, bridge.highChord + 0.04, bridgeZ]} receiveShadow>
+        <boxGeometry args={[span + 0.1, 0.06, deckDepth - 0.6]} />
+        <meshStandardMaterial {...ASPHALT} />
       </mesh>
 
-      {/* Road lane markings (thin white lines) */}
-      <mesh position={[cx, bridge.highChord + 0.11, bridgeZ]}>
-        <boxGeometry args={[span * 0.9, 0.02, 0.08]} />
-        <meshStandardMaterial color="#e5e7eb" roughness={0.6} metalness={0.0} />
+      {/* Centre line */}
+      <mesh position={[cx, bridge.highChord + 0.08, bridgeZ]}>
+        <boxGeometry args={[span * 0.92, 0.01, 0.06]} />
+        <meshStandardMaterial {...MARKING} />
+      </mesh>
+      {/* Edge lines */}
+      <mesh position={[cx, bridge.highChord + 0.08, bridgeZ - halfDepth + 0.5]}>
+        <boxGeometry args={[span * 0.92, 0.01, 0.04]} />
+        <meshStandardMaterial {...MARKING} />
+      </mesh>
+      <mesh position={[cx, bridge.highChord + 0.08, bridgeZ + halfDepth - 0.5]}>
+        <boxGeometry args={[span * 0.92, 0.01, 0.04]} />
+        <meshStandardMaterial {...MARKING} />
       </mesh>
 
-      {/* === GUARDRAILS / PARAPETS === */}
-      {/* Upstream parapet wall */}
-      <mesh
-        position={[cx, bridge.highChord + railHeight / 2, bridgeZ - halfDepth + railThickness / 2]}
-        castShadow
-      >
-        <boxGeometry args={[span + 0.4, railHeight, railThickness]} />
-        {concreteMat}
-      </mesh>
+      {/* === RAILING — thin tubes + posts (upstream) === */}
+      <RailTube x1={bridge.leftAbutmentStation - 0.2} x2={bridge.rightAbutmentStation + 0.2} y={topRailY} z={usZ} radius={railTubeRadius} />
+      <RailTube x1={bridge.leftAbutmentStation - 0.2} x2={bridge.rightAbutmentStation + 0.2} y={midRailY} z={usZ} radius={railTubeRadius} />
+      {/* Railing — downstream */}
+      <RailTube x1={bridge.leftAbutmentStation - 0.2} x2={bridge.rightAbutmentStation + 0.2} y={topRailY} z={dsZ} radius={railTubeRadius} />
+      <RailTube x1={bridge.leftAbutmentStation - 0.2} x2={bridge.rightAbutmentStation + 0.2} y={midRailY} z={dsZ} radius={railTubeRadius} />
 
-      {/* Downstream parapet wall */}
-      <mesh
-        position={[cx, bridge.highChord + railHeight / 2, bridgeZ + halfDepth - railThickness / 2]}
-        castShadow
-      >
-        <boxGeometry args={[span + 0.4, railHeight, railThickness]} />
-        {concreteMat}
-      </mesh>
-
-      {/* Railing posts along upstream side */}
+      {/* Railing posts */}
       {Array.from({ length: numPosts + 1 }).map((_, i) => {
         const x = bridge.leftAbutmentStation + (span / numPosts) * i;
         return (
-          <group key={`post-us-${i}`}>
-            <mesh
-              position={[x, bridge.highChord + postHeight / 2, bridgeZ - halfDepth + railThickness / 2]}
-              castShadow
-            >
-              <boxGeometry args={[postWidth, postHeight, railThickness * 1.2]} />
-              {steelMat}
+          <group key={`rp-${i}`}>
+            <RailPost x={x} yBottom={bridge.highChord} yTop={topRailY + railTubeRadius} z={usZ} radius={railPostRadius} />
+            <RailPost x={x} yBottom={bridge.highChord} yTop={topRailY + railTubeRadius} z={dsZ} radius={railPostRadius} />
+          </group>
+        );
+      })}
+
+      {/* === ABUTMENTS === */}
+      {[
+        { sta: bridge.leftAbutmentStation, ground: leftGround, dir: -1 },
+        { sta: bridge.rightAbutmentStation, ground: rightGround, dir: 1 },
+      ].map(({ sta, ground, dir }, ai) => {
+        const wallH = bridge.highChord - ground;
+        const abutW = Math.max(deckThickness * 0.5, 2); // minimum 2ft thick
+        const xOff = dir * abutW / 2;
+        return (
+          <group key={`abut-${ai}`}>
+            <mesh position={[sta + xOff, ground + wallH / 2, bridgeZ]} castShadow>
+              <boxGeometry args={[abutW, wallH, deckDepth + 0.8]} />
+              <meshStandardMaterial {...CONCRETE} />
             </mesh>
-            <mesh
-              position={[x, bridge.highChord + postHeight / 2, bridgeZ + halfDepth - railThickness / 2]}
-              castShadow
-            >
-              <boxGeometry args={[postWidth, postHeight, railThickness * 1.2]} />
-              {steelMat}
+            {/* Bearing shelf */}
+            <mesh position={[sta + xOff, bridge.highChord - deckThickness - 0.05, bridgeZ]} castShadow>
+              <boxGeometry args={[abutW * 1.3, 0.15, deckDepth + 0.4]} />
+              <meshStandardMaterial {...CONCRETE} />
             </mesh>
           </group>
         );
       })}
 
-      {/* Top rail bar — upstream */}
-      <mesh
-        position={[cx, bridge.highChord + railHeight * 0.95, bridgeZ - halfDepth + railThickness / 2]}
-      >
-        <boxGeometry args={[span + 0.4, railThickness * 0.4, railThickness * 0.5]} />
-        {steelMat}
-      </mesh>
-
-      {/* Top rail bar — downstream */}
-      <mesh
-        position={[cx, bridge.highChord + railHeight * 0.95, bridgeZ + halfDepth - railThickness / 2]}
-      >
-        <boxGeometry args={[span + 0.4, railThickness * 0.4, railThickness * 0.5]} />
-        {steelMat}
-      </mesh>
-
-      {/* === ABUTMENTS === */}
-      {/* Left abutment — full wall */}
-      <mesh
-        position={[
-          bridge.leftAbutmentStation - deckThickness * 0.25,
-          leftGround + (bridge.highChord - leftGround) / 2,
-          bridgeZ,
-        ]}
-        castShadow
-      >
-        <boxGeometry args={[deckThickness * 0.5, bridge.highChord - leftGround, deckDepth + 1]} />
-        {concreteMat}
-      </mesh>
-
-      {/* Right abutment */}
-      <mesh
-        position={[
-          bridge.rightAbutmentStation + deckThickness * 0.25,
-          rightGround + (bridge.highChord - rightGround) / 2,
-          bridgeZ,
-        ]}
-        castShadow
-      >
-        <boxGeometry args={[deckThickness * 0.5, bridge.highChord - rightGround, deckDepth + 1]} />
-        {concreteMat}
-      </mesh>
-
-      {/* === WINGWALLS (angled retaining walls at each abutment corner) === */}
+      {/* === WINGWALLS === */}
       {[bridge.leftAbutmentStation, bridge.rightAbutmentStation].map((abutSta, ai) => {
         const ground = ai === 0 ? leftGround : rightGround;
-        const wallHeight = (bridge.highChord - ground) * 0.7;
-        const xOff = ai === 0 ? -deckThickness * 0.4 : deckThickness * 0.4;
-
+        const wallHeight = (bridge.highChord - ground) * 0.6;
+        const xOff = ai === 0 ? -deckThickness * 0.35 : deckThickness * 0.35;
         return [bridgeZ - halfDepth - wingLength / 2, bridgeZ + halfDepth + wingLength / 2].map((wz, wi) => (
-          <mesh
-            key={`wing-${ai}-${wi}`}
-            position={[abutSta + xOff, ground + wallHeight / 2, wz]}
-            castShadow
-          >
+          <mesh key={`wing-${ai}-${wi}`} position={[abutSta + xOff, ground + wallHeight / 2, wz]} castShadow>
             <boxGeometry args={[wingThickness, wallHeight, wingLength]} />
-            {concreteMat}
+            <meshStandardMaterial {...CONCRETE} />
           </mesh>
         ));
       })}
@@ -200,38 +288,67 @@ export function BridgeMesh({ bridge, crossSection, channelLength }: BridgeMeshPr
         const t = span > 0 ? (pier.station - bridge.leftAbutmentStation) / span : 0;
         const lowChordAtPier = bridge.lowChordLeft + t * (bridge.lowChordRight - bridge.lowChordLeft);
         const pierHeight = lowChordAtPier - pierGround;
-        const pierDepth = deckDepth * 0.7;
+        // Piers span the full road width (deckDepth) in Z
+        const pierDepth = deckDepth;
+        // For cylindrical: use pier.width as the diameter (it's the user's input)
+        const colRadius = pier.width / 2;
+        const capH = Math.max(deckThickness * 0.16, 0.8); // min 0.8ft cap
 
-        // Round-nose pier: use a wider body with tapered ends
         return (
           <group key={i}>
-            {/* Main pier body */}
-            <mesh
-              position={[pier.station, pierGround + pierHeight / 2, bridgeZ]}
-              castShadow
-            >
-              <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
-              {concreteMat}
+            {/* Pier cap */}
+            <mesh position={[pier.station, lowChordAtPier - capH / 2, bridgeZ]} castShadow>
+              <boxGeometry args={[pier.width * 1.3, capH, pierDepth]} />
+              <meshStandardMaterial {...CONCRETE_DARK} />
             </mesh>
 
-            {/* Pier cap (wider at top) */}
-            <mesh
-              position={[pier.station, lowChordAtPier - deckThickness * 0.1, bridgeZ]}
-              castShadow
-            >
-              <boxGeometry args={[pier.width * 1.3, deckThickness * 0.2, pierDepth * 1.1]} />
-              {darkConcreteMat}
-            </mesh>
-
-            {/* Cutwater — pointed upstream face */}
-            <mesh
-              position={[pier.station, pierGround + pierHeight * 0.4, bridgeZ - pierDepth / 2 - pier.width * 0.3]}
-              rotation={[0, Math.PI / 4, 0]}
-              castShadow
-            >
-              <boxGeometry args={[pier.width * 0.7, pierHeight * 0.8, pier.width * 0.7]} />
-              {concreteMat}
-            </mesh>
+            {/* Pier body */}
+            {pier.shape === 'cylindrical' ? (
+              /* True round column — diameter = min(width, depth) */
+              <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow>
+                <cylinderGeometry args={[colRadius, colRadius, pierHeight, 24]} />
+                <meshStandardMaterial {...CONCRETE} />
+              </mesh>
+            ) : pier.shape === 'square' ? (
+              <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow>
+                <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
+                <meshStandardMaterial {...CONCRETE} />
+              </mesh>
+            ) : pier.shape === 'sharp' ? (
+              <>
+                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow>
+                  <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
+                  <meshStandardMaterial {...CONCRETE} />
+                </mesh>
+                {/* Sharp wedge cutwaters (upstream + downstream) */}
+                <mesh position={[pier.station, pierGround + pierHeight * 0.5, bridgeZ - pierDepth / 2 - pier.width * 0.25]} rotation={[0, Math.PI / 4, 0]} castShadow>
+                  <boxGeometry args={[pier.width * 0.4, pierHeight, pier.width * 0.4]} />
+                  <meshStandardMaterial {...CONCRETE} />
+                </mesh>
+                <mesh position={[pier.station, pierGround + pierHeight * 0.5, bridgeZ + pierDepth / 2 + pier.width * 0.25]} rotation={[0, Math.PI / 4, 0]} castShadow>
+                  <boxGeometry args={[pier.width * 0.4, pierHeight, pier.width * 0.4]} />
+                  <meshStandardMaterial {...CONCRETE} />
+                </mesh>
+              </>
+            ) : (
+              /* Round-nose: rectangular body + semicircular ends along Z */
+              <>
+                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow>
+                  <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
+                  <meshStandardMaterial {...CONCRETE} />
+                </mesh>
+                {/* Semicircular nose upstream — radius = half the pier width */}
+                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ - pierDepth / 2]} castShadow>
+                  <cylinderGeometry args={[pier.width / 2, pier.width / 2, pierHeight, 16, 1, false, 0, Math.PI]} />
+                  <meshStandardMaterial {...CONCRETE} />
+                </mesh>
+                {/* Semicircular nose downstream */}
+                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ + pierDepth / 2]} rotation={[0, Math.PI, 0]} castShadow>
+                  <cylinderGeometry args={[pier.width / 2, pier.width / 2, pierHeight, 16, 1, false, 0, Math.PI]} />
+                  <meshStandardMaterial {...CONCRETE} />
+                </mesh>
+              </>
+            )}
           </group>
         );
       })}

@@ -33,17 +33,20 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
     const maxElev = Math.max(...pts.map(p => p.elevation));
     const elevRange = maxElev - minElev || 1;
 
-    // Color palette: low = dark riverbed brown, mid = earth, high = green/grass
-    const bedColor = new THREE.Color('#3d2b1f');    // dark brown (channel bed)
-    const earthColor = new THREE.Color('#6b4e3d');   // medium earth brown
-    const bankColor = new THREE.Color('#4a6741');     // muted green (bank/grass)
+    // Color palette: low = dark riverbed, near-water = wet earth, mid = earth, high = grass
+    const bedColor = new THREE.Color('#2d1f15');      // dark brown (channel bed)
+    const wetColor = new THREE.Color('#4a3928');       // wet earth near water line
+    const earthColor = new THREE.Color('#6b4e3d');     // medium earth
+    const bankColor = new THREE.Color('#4a6741');      // muted green (bank)
 
     function elevToColor(elev: number): THREE.Color {
-      const t = (elev - minElev) / elevRange; // 0 = lowest, 1 = highest
-      if (t < 0.3) {
-        return bedColor.clone().lerp(earthColor, t / 0.3);
+      const t = (elev - minElev) / elevRange;
+      if (t < 0.15) {
+        return bedColor.clone().lerp(wetColor, t / 0.15);
+      } else if (t < 0.35) {
+        return wetColor.clone().lerp(earthColor, (t - 0.15) / 0.2);
       } else {
-        return earthColor.clone().lerp(bankColor, (t - 0.3) / 0.7);
+        return earthColor.clone().lerp(bankColor, (t - 0.35) / 0.65);
       }
     }
 
@@ -137,9 +140,10 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
     <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial
         vertexColors
-        roughness={0.92}
+        roughness={0.88}
         metalness={0.02}
         side={THREE.DoubleSide}
+        envMapIntensity={0.6}
       />
     </mesh>
   );

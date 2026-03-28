@@ -2,7 +2,10 @@
 
 import { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows } from '@react-three/drei';
+import { EffectComposer, Bloom, N8AO, ToneMapping, Vignette } from '@react-three/postprocessing';
+import { BlendFunction, ToneMappingMode } from 'postprocessing';
+import * as THREE from 'three';
 import type { HydraulicProfile } from '@/engine/simulation-profile';
 import { TerrainMesh } from './terrain-mesh';
 import { WaterMesh } from './water-mesh';
@@ -17,14 +20,15 @@ function SceneContent({ profile }: SimulationSceneProps) {
   const bridge = profile.bridge;
 
   const span = cs[cs.length - 1].station - cs[0].station;
-  // Channel length: proportional to span, enough to see flow
-  const channelLength = Math.max(span * 0.6, 20);
 
-  // A real bridge road is roughly 8-12m (26-40ft) wide.
-  // Default to ~30% of span if deckWidth isn't set, minimum 8 units.
+  // Bridge deck width (Z-axis) — use the user's exact value
   const bridgeDeckWidth = bridge.deckWidth > 0
     ? bridge.deckWidth
     : Math.max(span * 0.3, 8);
+
+  // Channel length (Z-axis terrain extent) — must be shorter than the bridge
+  // so the bridge road visibly extends from bank to bank beyond the water
+  const channelLength = Math.max(bridgeDeckWidth * 0.6, span * 0.4, 15);
 
   const centerX = (cs[0].station + cs[cs.length - 1].station) / 2;
   const minElev = Math.min(...cs.map(p => p.elevation));
@@ -35,26 +39,46 @@ function SceneContent({ profile }: SimulationSceneProps) {
 
   return (
     <>
-      {/* Lighting */}
-      <ambientLight intensity={0.5} />
+      {/* HDRI environment — provides IBL + reflections on all PBR surfaces */}
+      <Environment preset="sunset" background={false} environmentIntensity={0.9} />
+
+      {/* Main directional — shadow-casting sun */}
       <directionalLight
         position={[centerX + span, maxElev + 20, centerZ + channelLength]}
-        intensity={0.9}
+        intensity={1.1}
+        color="#fff5e6"
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-bias={-0.0004}
+        shadow-camera-left={-span}
+        shadow-camera-right={span}
+        shadow-camera-top={channelLength}
+        shadow-camera-bottom={-channelLength}
+        shadow-camera-near={1}
+        shadow-camera-far={sceneSize * 4}
       />
+
+      {/* Subtle fill light */}
       <directionalLight
         position={[centerX - span * 0.5, maxElev + 10, centerZ - channelLength * 0.5]}
-        intensity={0.35}
-      />
-      {/* Fill light from below/side for better terrain visibility */}
-      <hemisphereLight
-        args={['#8cacb8', '#4a3728', 0.3]}
+        intensity={0.15}
+        color="#c8d8f0"
       />
 
       {/* Terrain */}
       <TerrainMesh crossSection={cs} channelLength={channelLength} />
+
+      {/* Contact shadows — pools soft shadow under bridge */}
+      <ContactShadows
+        position={[centerX, minElev + 0.01, centerZ]}
+        width={span * 1.5}
+        height={channelLength * 1.5}
+        opacity={0.35}
+        blur={2}
+        far={maxElev - minElev + 10}
+        resolution={512}
+      />
 
       {/* Water */}
       <WaterMesh
@@ -74,7 +98,7 @@ function SceneContent({ profile }: SimulationSceneProps) {
           leftAbutmentStation: bridge.stationStart,
           rightAbutmentStation: bridge.stationEnd,
           deckWidth: bridgeDeckWidth,
-          piers: bridge.piers.map(p => ({ ...p, shape: 'round-nose' as const })),
+          piers: bridge.piers,
           skewAngle: 0,
           contractionLength: 0,
           expansionLength: 0,
@@ -94,7 +118,26 @@ function SceneContent({ profile }: SimulationSceneProps) {
         enableDamping
         dampingFactor={0.05}
         maxPolarAngle={Math.PI * 0.85}
+        makeDefault
       />
+
+      {/* Post-processing */}
+      <EffectComposer multisampling={0}>
+        <N8AO
+          aoRadius={2.0}
+          distanceFalloff={0.5}
+          intensity={2.5}
+          quality="medium"
+        />
+        <Bloom
+          luminanceThreshold={0.75}
+          luminanceSmoothing={0.3}
+          intensity={0.4}
+          mipmapBlur
+        />
+        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+        <Vignette offset={0.25} darkness={0.4} blendFunction={BlendFunction.NORMAL} />
+      </EffectComposer>
     </>
   );
 }
@@ -112,7 +155,7 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
   return (
     <div className="w-full rounded-lg overflow-hidden h-[300px] sm:h-[400px] lg:h-[500px]" data-scene-capture>
       <Canvas
-        shadows
+        shadows="soft"
         camera={{
           position: [
             centerX + sceneSize * 0.7,
@@ -123,7 +166,12 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
           near: 0.1,
           far: sceneSize * 20,
         }}
-        gl={{ antialias: true, alpha: true, preserveDrawingBuffer: true }}
+        gl={{
+          antialias: true,
+          alpha: true,
+          preserveDrawingBuffer: true,
+          toneMapping: THREE.NoToneMapping,
+        }}
         style={{ background: 'oklch(0.14 0.01 230)' }}
       >
         <Suspense fallback={null}>
