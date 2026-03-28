@@ -12,6 +12,19 @@ import { serializeProject, parseProjectJson } from '@/lib/json-io';
 import { UnitSystem } from '@/lib/units';
 import type { AiSummaryResponse } from '@/lib/api/ai-summary-prompt';
 
+export interface Scenario {
+  name: string;
+  snapshot: {
+    crossSection: CrossSectionPoint[];
+    bridgeGeometry: BridgeGeometry;
+    flowProfiles: FlowProfile[];
+    coefficients: Coefficients;
+    results: CalculationResults;
+    hecRasComparison: HecRasComparison[];
+  };
+  savedAt: number;
+}
+
 interface ProjectStore {
   crossSection: CrossSectionPoint[];
   bridgeGeometry: BridgeGeometry;
@@ -26,6 +39,7 @@ interface ProjectStore {
   aiSummary: AiSummaryResponse | null;
   aiSummaryLoading: boolean;
   aiSummaryError: string | null;
+  scenarios: Scenario[];
 
   updateCrossSection: (points: CrossSectionPoint[]) => void;
   updateBridgeGeometry: (geom: BridgeGeometry) => void;
@@ -40,6 +54,8 @@ interface ProjectStore {
   setActiveMainTab: (tab: string) => void;
   fetchAiSummary: () => Promise<void>;
   clearAiSummary: () => void;
+  saveScenario: (name: string) => void;
+  deleteScenario: (index: number) => void;
   exportProject: () => string;
   importProject: (json: string) => void;
   reset: () => void;
@@ -96,6 +112,7 @@ const initialState = {
   aiSummary: null as AiSummaryResponse | null,
   aiSummaryLoading: false,
   aiSummaryError: null as string | null,
+  scenarios: [] as Scenario[],
 };
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -273,6 +290,32 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         aiSummaryLoading: false,
       });
     }
+  },
+
+  saveScenario: (name) => {
+    const state = get();
+    if (!state.results) return;
+    const scenario: Scenario = {
+      name,
+      snapshot: {
+        crossSection: structuredClone(state.crossSection),
+        bridgeGeometry: structuredClone(state.bridgeGeometry),
+        flowProfiles: structuredClone(state.flowProfiles),
+        coefficients: structuredClone(state.coefficients),
+        results: structuredClone(state.results),
+        hecRasComparison: structuredClone(state.hecRasComparison),
+      },
+      savedAt: Date.now(),
+    };
+    set((prev) => ({
+      scenarios: [...prev.scenarios.slice(-4), scenario], // max 5
+    }));
+  },
+
+  deleteScenario: (index) => {
+    set((prev) => ({
+      scenarios: prev.scenarios.filter((_, i) => i !== index),
+    }));
   },
 
   exportProject: () => {

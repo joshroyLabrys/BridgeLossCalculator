@@ -21,7 +21,7 @@ import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationTab } from '@/components/simulation/simulation-tab';
 import { DropZone } from '@/components/import/drop-zone';
 import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
-import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
+import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save } from 'lucide-react';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,10 +40,17 @@ export function MainTabs() {
   const hecRasComparison = useProjectStore((s) => s.hecRasComparison);
   const aiSummary = useProjectStore((s) => s.aiSummary);
   const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
+  const saveScenario = useProjectStore((s) => s.saveScenario);
+  const scenarios = useProjectStore((s) => s.scenarios);
 
   const [pdfLoading, setPdfLoading] = useState(false);
   const [hecRasFiles, setHecRasFiles] = useState<File[]>([]);
   const [hecRasDialogOpen, setHecRasDialogOpen] = useState(false);
+
+  function handleSaveScenario() {
+    const name = prompt('Scenario name:', `Scenario ${scenarios.length + 1}`);
+    if (name) saveScenario(name);
+  }
 
   function handleHecRasFiles(files: File[]) {
     setHecRasFiles(files);
@@ -175,6 +182,12 @@ export function MainTabs() {
               className="h-8 w-8 hidden sm:inline-flex" title="Export Project">
               <FileOutput className="h-4 w-4" />
             </Button>
+            {results && (
+              <Button variant="outline" size="icon" onClick={handleSaveScenario}
+                className="h-8 w-8" title={`Save Scenario (${scenarios.length}/5)`}>
+                <Save className="h-4 w-4" />
+              </Button>
+            )}
             <Button size="icon" onClick={handlePdf} disabled={pdfLoading}
               className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" title="PDF Report">
               <FileText className="h-4 w-4" />
