@@ -1,20 +1,22 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/store/project-store';
 import { runAllMethods, runWithSensitivity } from '@/engine/index';
 import { validateInputs } from '@/lib/validation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Play, RotateCcw, AlertTriangle, FlaskConical, Loader2 } from 'lucide-react';
+import { Play, RotateCcw, AlertTriangle, FlaskConical, Loader2, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { TEST_BRIDGES, type TestBridge } from '@/lib/test-bridges';
 import { toImperial } from '@/lib/units';
 
 export function ActionButtons() {
   const [testOpen, setTestOpen] = useState(false);
+  const [selectedBridge, setSelectedBridge] = useState<TestBridge | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const crossSection = useProjectStore((s) => s.crossSection);
   const bridgeGeometry = useProjectStore((s) => s.bridgeGeometry);
   const flowProfiles = useProjectStore((s) => s.flowProfiles);
@@ -73,7 +75,57 @@ export function ActionButtons() {
 
     clearResults();
     setErrors([]);
+  }
+
+  const handleVideoHover = useCallback((bridgeId: string, hovering: boolean) => {
+    const video = videoRefs.current[bridgeId];
+    if (!video) return;
+    if (hovering) {
+      video.play().catch(() => {});
+    } else if (selectedBridge?.id !== bridgeId) {
+      video.pause();
+      video.currentTime = 0;
+    }
+  }, [selectedBridge]);
+
+  function handleSelectBridge(bridge: TestBridge) {
+    // Pause previously selected video if different
+    if (selectedBridge && selectedBridge.id !== bridge.id) {
+      const prev = videoRefs.current[selectedBridge.id];
+      if (prev) { prev.pause(); prev.currentTime = 0; }
+    }
+    setSelectedBridge(bridge);
+    // Start playing the newly selected video
+    const video = videoRefs.current[bridge.id];
+    if (video) video.play().catch(() => {});
+  }
+
+  function handleConfirmBridge() {
+    if (!selectedBridge) return;
+    handleLoadTestBridge(selectedBridge);
     setTestOpen(false);
+    setSelectedBridge(null);
+
+    // Auto-run calculations after loading
+    clearAiSummary();
+    setIsProcessing(true);
+    setTimeout(() => {
+      const state = useProjectStore.getState();
+      const calcResults = runAllMethods(state.crossSection, state.bridgeGeometry, state.flowProfiles, state.coefficients);
+      setResults(calcResults);
+      if (state.coefficients.manningsNSensitivityPct != null) {
+        const sensResults = runWithSensitivity(state.crossSection, state.bridgeGeometry, state.flowProfiles, state.coefficients);
+        setSensitivityResults(sensResults);
+      } else {
+        setSensitivityResults(null);
+      }
+      setIsProcessing(false);
+      setActiveMainTab('summary');
+      toast.success('Bridge loaded & calculated', {
+        description: `${selectedBridge.name} — viewing summary.`,
+      });
+      useProjectStore.getState().fetchAiSummary();
+    }, 50);
   }
 
   function handleRunAll() {
@@ -129,35 +181,68 @@ export function ActionButtons() {
         </div>
       </div>
 
-      <Dialog open={testOpen} onOpenChange={setTestOpen}>
+      <Dialog open={testOpen} onOpenChange={(open) => { setTestOpen(open); if (!open) setSelectedBridge(null); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Load Test Bridge</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Select a bridge to auto-populate all input fields.
+            Select a bridge to auto-populate inputs, run calculations, and view the summary.
           </p>
-          <div className="grid gap-3 max-h-[70vh] overflow-y-auto pr-1">
-            {TEST_BRIDGES.map((bridge) => (
-              <button
-                key={bridge.id}
-                onClick={() => handleLoadTestBridge(bridge)}
-                className="group text-left rounded-lg border overflow-hidden bg-muted/30 hover:bg-muted/60 hover:ring-2 hover:ring-ring transition-all"
-              >
-                <div className="flex flex-col sm:flex-row gap-0 sm:gap-4">
-                  <img
-                    src={bridge.imageUrl}
-                    alt={bridge.name}
-                    className="w-full sm:w-32 h-36 sm:h-32 object-cover shrink-0 grayscale group-hover:grayscale-[20%] transition-all duration-300"
-                  />
-                  <div className="p-3 sm:py-3 sm:pr-4 sm:pl-0 min-w-0">
-                    <div className="font-medium">{bridge.name}</div>
-                    <div className="text-sm text-muted-foreground">{bridge.location}</div>
-                    <div className="text-xs text-muted-foreground/80 mt-2 leading-relaxed">{bridge.description}</div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto pr-1">
+            {TEST_BRIDGES.map((bridge) => {
+              const isSelected = selectedBridge?.id === bridge.id;
+              return (
+                <button
+                  key={bridge.id}
+                  onClick={() => handleSelectBridge(bridge)}
+                  onMouseEnter={() => handleVideoHover(bridge.id, true)}
+                  onMouseLeave={() => handleVideoHover(bridge.id, false)}
+                  className={`group text-left rounded-lg overflow-hidden transition-all duration-200 ${
+                    isSelected
+                      ? 'ring-2 ring-primary bg-primary/5 border border-primary/30'
+                      : 'border border-border/50 bg-muted/30 hover:ring-1 hover:ring-ring hover:bg-muted/50'
+                  }`}
+                >
+                  <div className="relative h-40 bg-muted overflow-hidden">
+                    <video
+                      ref={(el) => { videoRefs.current[bridge.id] = el; }}
+                      src={`/bridges/${bridge.id}.mp4`}
+                      muted
+                      loop
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-full object-cover"
+                    />
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground uppercase tracking-wider">
+                        Selected
+                      </div>
+                    )}
                   </div>
-                </div>
-              </button>
-            ))}
+                  <div className="p-3">
+                    <div className="font-medium text-sm">{bridge.name}</div>
+                    <div className="text-xs text-muted-foreground">{bridge.location}</div>
+                    <div className="text-xs text-muted-foreground/70 mt-1.5 leading-relaxed line-clamp-2">{bridge.description}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Confirm button */}
+          <div className="border-t border-border/50 pt-3 -mx-6 px-6 -mb-2">
+            <Button
+              onClick={handleConfirmBridge}
+              disabled={!selectedBridge}
+              className="w-full"
+            >
+              {selectedBridge ? (
+                <>Load {selectedBridge.name} <ArrowRight className="h-4 w-4 ml-1.5" /></>
+              ) : (
+                <span className="text-muted-foreground">Select a bridge above</span>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
