@@ -129,8 +129,8 @@ export async function POST(request: Request) {
       });
     }
 
-    // Codex OAuth path — non-streaming fallback
-    const headers: Record<string, string> = {
+    // Codex OAuth path — must stream per API requirement, then collect
+    const codexHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${creds.token}`,
       version: '0.80.0',
@@ -138,25 +138,18 @@ export async function POST(request: Request) {
       originator: 'codex_exec',
     };
     if (creds.accountId) {
-      headers['chatgpt-account-id'] = creds.accountId;
+      codexHeaders['chatgpt-account-id'] = creds.accountId;
     }
-
-    const codexMessages = [
-      { role: 'system', content: systemPrompt },
-      ...messages,
-    ];
 
     const res = await fetch('https://chatgpt.com/backend-api/codex/responses', {
       method: 'POST',
-      headers,
+      headers: codexHeaders,
       body: JSON.stringify({
         model: 'gpt-5.4',
         instructions: systemPrompt,
-        input: codexMessages
-          .filter((m) => m.role !== 'system')
-          .map((m) => ({ role: m.role, content: m.content })),
+        input: messages.map((m) => ({ role: m.role, content: m.content })),
         store: false,
-        stream: false,
+        stream: true,
       }),
     });
 
@@ -168,11 +161,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const data = await res.json() as { output?: Array<{ content?: Array<{ text?: string }> }> };
-    const text =
-      data?.output?.[0]?.content?.[0]?.text ?? '';
+    // Collect streaming SSE response into a single text result
+    const sseText = await res.text();
+    let result = '';
+    for (const line of sseText.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const json = line.slice(6).trim();
+      if (json === '[DONE]') break;
+      try {
+        const event = JSON.parse(json);
+        if (event.type === 'response.output_text.delta') {
+          result += event.delta ?? '';
+        }
+        if (event.type === 'response.output_text.done') {
+          result = event.text ?? result;
+          break;
+        }
+      } catch {
+        // skip malformed
+      }
+    }
 
-    return Response.json({ type: 'complete', content: text });
+    return Response.json({ type: 'complete', content: result });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     console.error('AI chat error:', err);
