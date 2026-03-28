@@ -16,7 +16,7 @@ import { FreeboardCheck } from '@/components/summary/freeboard-check';
 import { ScenarioComparison } from '@/components/summary/scenario-comparison';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
-import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
+import { AiCallout, AiCalloutGrouped, AiCalloutInline, AiCalloutGroupedInline } from '@/components/summary/ai-callout';
 import { MethodSuitability } from '@/components/summary/method-suitability';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
@@ -277,10 +277,10 @@ export function MainTabs() {
         </div>
         <AiSummaryBanner />
         <MethodSuitability />
-        <AiCallout text={aiSummary?.callouts.geometry ?? null} loading={aiLoading} />
-        <RegimeMatrix callout={<AiCallout text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />} />
+        <AiCalloutInline text={aiSummary?.callouts.geometry ?? null} loading={aiLoading} />
+        <RegimeMatrix callout={<AiCalloutInline text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />} />
         <ComparisonTables callout={
-          <AiCalloutGrouped
+          <AiCalloutGroupedInline
             loading={aiLoading}
             sections={[
               { label: 'Method Agreement', text: aiSummary?.callouts.comparison ?? null },
@@ -289,8 +289,8 @@ export function MainTabs() {
             ]}
           />
         } />
-        <AffluxCharts callout={<AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
-        <FreeboardCheck callout={<AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
+        <AffluxCharts callout={<AiCalloutInline text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
+        <FreeboardCheck callout={<AiCalloutInline text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
         {scenarios.length >= 2 && (
           <>
             <div className="h-px bg-border/40" />
