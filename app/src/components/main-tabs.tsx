@@ -13,6 +13,7 @@ import { MethodTabs } from '@/components/results/method-tabs';
 import { ComparisonTables } from '@/components/summary/comparison-tables';
 import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { FreeboardCheck } from '@/components/summary/freeboard-check';
+import { ScenarioComparison } from '@/components/summary/scenario-comparison';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
 import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
@@ -278,6 +279,18 @@ export function MainTabs() {
         } />
         <AffluxCharts callout={<AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
         <FreeboardCheck callout={<AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
+        {scenarios.length >= 2 && (
+          <>
+            <div className="h-px bg-border/40" />
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight">Scenario Comparison</h2>
+              <p className="text-sm text-muted-foreground max-w-prose text-pretty">
+                Compare saved scenarios side-by-side.
+              </p>
+            </div>
+            <ScenarioComparison />
+          </>
+        )}
       </TabsContent>
 
       <TabsContent value="simulation" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
