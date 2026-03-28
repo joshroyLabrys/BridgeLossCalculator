@@ -651,7 +651,7 @@ export function MainTabs() {
               <TabsContent value="3d-model">
                 <div className="space-y-3">
                   {hydraulicProfile ? (
-                    <SimulationScene profile={hydraulicProfile} />
+                    <SimulationScene profile={hydraulicProfile} debrisPct={simOverrides.debrisBlockagePct} />
                   ) : (
                     <Card>
                       <CardContent>
