@@ -22,7 +22,9 @@ import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationTab } from '@/components/simulation/simulation-tab';
 import { DropZone } from '@/components/import/drop-zone';
 import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
-import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save } from 'lucide-react';
+import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save, Sparkles } from 'lucide-react';
+import { ChatPanel } from '@/components/ai-chat/chat-panel';
+import type { WhatIfOverrides } from '@/components/what-if/what-if-controls';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +49,14 @@ export function MainTabs() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [hecRasFiles, setHecRasFiles] = useState<File[]>([]);
   const [hecRasDialogOpen, setHecRasDialogOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOverrides, setChatOverrides] = useState<WhatIfOverrides>({
+    manningsNMultiplier: 1.0,
+    debrisBlockagePct: coefficients.debrisBlockagePct,
+    contractionCoeff: coefficients.contractionCoeff,
+    expansionCoeff: coefficients.expansionCoeff,
+    dischargeMultiplier: 1.0,
+  });
 
   function handleSaveScenario() {
     const name = prompt('Scenario name:', `Scenario ${scenarios.length + 1}`);
@@ -301,6 +311,24 @@ export function MainTabs() {
         open={hecRasDialogOpen}
         onOpenChange={setHecRasDialogOpen}
         files={hecRasFiles}
+      />
+
+      {/* AI Chat FAB */}
+      {results && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 flex items-center justify-center transition-transform hover:scale-105"
+          title="AI Assistant"
+        >
+          <Sparkles className="h-5 w-5" />
+        </button>
+      )}
+
+      <ChatPanel
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        overrides={chatOverrides}
+        onOverridesChange={setChatOverrides}
       />
     </Tabs>
   );
