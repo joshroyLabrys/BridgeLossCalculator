@@ -34,6 +34,9 @@ import { DropZone } from '@/components/import/drop-zone';
 import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
 import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save, Sparkles, Database, Droplets, ShieldCheck, RotateCcw } from 'lucide-react';
 import { ChatPanel } from '@/components/ai-chat/chat-panel';
+import { ArrLookup } from '@/components/hydrology/arr-lookup';
+import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
+import { ImportPanel } from '@/components/data/import-panel';
 
 /* ------------------------------------------------------------------ */
 /*  Reusable placeholder for unimplemented sub-tabs                    */
@@ -466,7 +469,7 @@ export function MainTabs() {
             <TabsContent value="profiles"><FlowProfilesForm /></TabsContent>
             <TabsContent value="coefficients"><CoefficientsForm /></TabsContent>
             <TabsContent value="import">
-              <ComingSoon title="Import panel coming soon" description="HEC-RAS, TUFLOW, and CSV import tools will appear here." />
+              <ImportPanel />
             </TabsContent>
             {reachMode && (
               <TabsContent value="reach">
@@ -494,10 +497,10 @@ export function MainTabs() {
             </TabsList>
           </div>
           <TabsContent value="arr-lookup">
-            <ComingSoon title="ARR Data Hub lookup coming soon" description="Automated retrieval of Australian Rainfall and Runoff design inputs." />
+            <ArrLookup />
           </TabsContent>
           <TabsContent value="catchment">
-            <ComingSoon title="Catchment calculator coming soon" description="Time of concentration, rational method, and runoff estimation." />
+            <CatchmentCalculator />
           </TabsContent>
         </Tabs>
       </TabsContent>
