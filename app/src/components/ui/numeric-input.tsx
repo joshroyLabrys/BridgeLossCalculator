@@ -61,3 +61,65 @@ export function NumericInput({ value, onCommit, ...props }: NumericInputProps) {
     />
   );
 }
+
+/* ─── Nullable variant (for optional fields like Yarnell K, sensitivity %) ─── */
+
+interface NullableNumericInputProps extends Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange' | 'onBlur' | 'type'> {
+  value: number | null;
+  onCommit: (value: number | null) => void;
+}
+
+/**
+ * Like NumericInput but supports null values. Empty input → commits null.
+ */
+export function NullableNumericInput({ value, onCommit, placeholder, ...props }: NullableNumericInputProps) {
+  const [localValue, setLocalValue] = useState(value != null ? String(value) : '');
+  const [focused, setFocused] = useState(false);
+  const lastCommitted = useRef(value);
+
+  useEffect(() => {
+    if (!focused && value !== lastCommitted.current) {
+      setLocalValue(value != null ? String(value) : '');
+      lastCommitted.current = value;
+    }
+  }, [value, focused]);
+
+  const commit = useCallback(() => {
+    if (localValue.trim() === '') {
+      lastCommitted.current = null;
+      onCommit(null);
+    } else {
+      const parsed = parseFloat(localValue);
+      if (isNaN(parsed)) {
+        setLocalValue(value != null ? String(value) : '');
+      } else {
+        lastCommitted.current = parsed;
+        onCommit(parsed);
+      }
+    }
+  }, [localValue, value, onCommit]);
+
+  return (
+    <Input
+      type="number"
+      value={focused ? localValue : (value != null ? String(value) : '')}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onFocus={() => {
+        setFocused(true);
+        setLocalValue(value != null ? String(value) : '');
+      }}
+      onBlur={() => {
+        setFocused(false);
+        commit();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          commit();
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      placeholder={placeholder}
+      {...props}
+    />
+  );
+}

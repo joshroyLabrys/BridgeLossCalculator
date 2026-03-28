@@ -1,10 +1,10 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { useProjectStore } from '@/store/project-store';
 import { CrossSectionPoint } from '@/engine/types';
 import { CrossSectionChart } from '@/components/cross-section-chart';
@@ -58,15 +58,19 @@ export function CrossSectionForm() {
     updateCrossSection(crossSection.filter((_, i) => i !== index));
   }
 
-  function updatePoint(index: number, field: keyof CrossSectionPoint, value: string) {
+  function commitPoint(index: number, field: 'station' | 'elevation' | 'manningsN', raw: number) {
     const updated = [...crossSection];
-    if (field === 'bankStation') {
-      updated[index] = { ...updated[index], bankStation: value === '—' ? null : value as 'left' | 'right' };
-    } else if (field === 'station' || field === 'elevation') {
-      updated[index] = { ...updated[index], [field]: toImperial(parseFloat(value) || 0, 'length', us) };
+    if (field === 'station' || field === 'elevation') {
+      updated[index] = { ...updated[index], [field]: toImperial(raw, 'length', us) };
     } else {
-      updated[index] = { ...updated[index], [field]: parseFloat(value) || 0 };
+      updated[index] = { ...updated[index], [field]: raw };
     }
+    updateCrossSection(updated);
+  }
+
+  function updateBank(index: number, value: string) {
+    const updated = [...crossSection];
+    updated[index] = { ...updated[index], bankStation: value === '—' ? null : value as 'left' | 'right' };
     updateCrossSection(updated);
   }
 
@@ -96,16 +100,16 @@ export function CrossSectionForm() {
                     <TableRow key={i} className="even:bg-muted/20">
                       <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
                       <TableCell>
-                        <Input type="number" value={toDisplay(point.station, 'length', us)} onChange={(e) => updatePoint(i, 'station', e.target.value)} className="h-8 text-sm font-mono" />
+                        <NumericInput value={toDisplay(point.station, 'length', us)} onCommit={(v) => commitPoint(i, 'station', v)} className="h-8 text-sm font-mono" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={toDisplay(point.elevation, 'length', us)} onChange={(e) => updatePoint(i, 'elevation', e.target.value)} className="h-8 text-sm font-mono" />
+                        <NumericInput value={toDisplay(point.elevation, 'length', us)} onCommit={(v) => commitPoint(i, 'elevation', v)} className="h-8 text-sm font-mono" />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" value={point.manningsN} onChange={(e) => updatePoint(i, 'manningsN', e.target.value)} className="h-8 text-sm font-mono" step="0.001" />
+                        <NumericInput value={point.manningsN} onCommit={(v) => commitPoint(i, 'manningsN', v)} className="h-8 text-sm font-mono" step="0.001" />
                       </TableCell>
                       <TableCell>
-                        <Select value={point.bankStation ?? '—'} onValueChange={(v) => updatePoint(i, 'bankStation', v ?? '—')}>
+                        <Select value={point.bankStation ?? '—'} onValueChange={(v) => updateBank(i, v ?? '—')}>
                           <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="—">—</SelectItem>
@@ -179,7 +183,6 @@ function BridgeOverlayChart({ crossSection, bridgeGeometry, flowProfiles, result
     }
   }
 
-  // Use the first available energy result for hazard overlay
   const hazardResult = results?.energy?.[0] ?? null;
 
   return (

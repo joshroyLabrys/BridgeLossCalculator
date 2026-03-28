@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { NumericInput } from '@/components/ui/numeric-input';
 import { useProjectStore } from '@/store/project-store';
 import { FlowProfile } from '@/engine/types';
 import { toDisplay, toImperial, unitLabel, UnitType } from '@/lib/units';
@@ -25,23 +26,25 @@ export function FlowProfilesForm() {
     channelSlope: 'slope',
   };
 
-  function updateProfile(index: number, field: keyof FlowProfile, value: string) {
+  function updateProfileText(index: number, field: 'name' | 'ari', value: string) {
     const updated = [...profiles];
-    if (field === 'name' || field === 'ari') { updated[index] = { ...updated[index], [field]: value }; }
-    else {
-      const ut = fieldUnitType[field];
-      const raw = parseFloat(value) || 0;
-      updated[index] = { ...updated[index], [field]: ut ? toImperial(raw, ut, us) : raw };
-    }
+    updated[index] = { ...updated[index], [field]: value };
+    update(updated);
+  }
+
+  function commitProfileNum(index: number, field: keyof FlowProfile, raw: number) {
+    const updated = [...profiles];
+    const ut = fieldUnitType[field];
+    updated[index] = { ...updated[index], [field]: ut ? toImperial(raw, ut, us) : raw };
     update(updated);
   }
 
   const columns = [
-    { key: 'name', label: 'Name', type: 'text', unitType: null as UnitType | null },
-    { key: 'ari', label: 'ARI/AEP', type: 'text', unitType: null as UnitType | null },
-    { key: 'discharge', label: `Q (${unitLabel('discharge', us)})`, type: 'number', unitType: 'discharge' as UnitType | null },
-    { key: 'dsWsel', label: `DS WSEL (${unitLabel('length', us)})`, type: 'number', unitType: 'length' as UnitType | null },
-    { key: 'channelSlope', label: `Channel Slope`, type: 'number', unitType: null as UnitType | null },
+    { key: 'name', label: 'Name', type: 'text' as const, unitType: null as UnitType | null },
+    { key: 'ari', label: 'ARI/AEP', type: 'text' as const, unitType: null as UnitType | null },
+    { key: 'discharge', label: `Q (${unitLabel('discharge', us)})`, type: 'number' as const, unitType: 'discharge' as UnitType | null },
+    { key: 'dsWsel', label: `DS WSEL (${unitLabel('length', us)})`, type: 'number' as const, unitType: 'length' as UnitType | null },
+    { key: 'channelSlope', label: `Channel Slope`, type: 'number' as const, unitType: null as UnitType | null },
   ] as const;
 
   return (
@@ -67,7 +70,21 @@ export function FlowProfilesForm() {
                     <TableCell className="text-xs text-muted-foreground font-mono">{i + 1}</TableCell>
                     {columns.map((c) => (
                       <TableCell key={c.key}>
-                        <Input type={c.type} value={c.unitType ? toDisplay((profile as unknown as Record<string, number>)[c.key], c.unitType, us) : (profile as unknown as Record<string, string | number>)[c.key]} onChange={(e) => updateProfile(i, c.key as keyof FlowProfile, e.target.value)} className={`h-8 text-sm ${c.type === 'number' ? 'font-mono' : ''}`} step={c.key === 'channelSlope' ? '0.0001' : undefined} />
+                        {c.type === 'text' ? (
+                          <Input
+                            type="text"
+                            value={(profile as unknown as Record<string, string>)[c.key]}
+                            onChange={(e) => updateProfileText(i, c.key as 'name' | 'ari', e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        ) : (
+                          <NumericInput
+                            value={c.unitType ? toDisplay((profile as unknown as Record<string, number>)[c.key], c.unitType, us) : (profile as unknown as Record<string, number>)[c.key]}
+                            onCommit={(v) => commitProfileNum(i, c.key as keyof FlowProfile, v)}
+                            className="h-8 text-sm font-mono"
+                            step={c.key === 'channelSlope' ? '0.0001' : undefined}
+                          />
+                        )}
                       </TableCell>
                     ))}
                     <TableCell><Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive" onClick={() => removeProfile(i)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
