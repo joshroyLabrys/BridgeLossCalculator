@@ -612,20 +612,33 @@ export function PdfEnergyGradeDiagram({ profile, width, height }: PdfEnergyGrade
             height={Math.max(py(p.bridge.lowChordLeft) - py(p.bridge.highChord), 1)}
             fill={EGL_COLORS.bridgeFill} stroke={EGL_COLORS.bridge} strokeWidth={0.75} opacity={0.3} />
 
-          {/* Piers */}
-          {p.bridge.piers.map((pier, i) => {
-            const span = p.bridge.stationEnd - p.bridge.stationStart;
-            const t = span > 0 ? (pier.station - p.bridge.stationStart) / span : 0.5;
-            const pierCX = bx1 + t * bWidth;
-            const pierW = Math.max((pier.width / span) * bWidth, 2);
+          {/* Abutment walls */}
+          {(() => {
+            const abutW = Math.max(bWidth * 0.04, 2);
+            const abutTop = py(p.bridge.highChord);
+            const abutBot = py(p.bridge.bedElevation);
+            const abutH = Math.max(abutBot - abutTop, 2);
+            return (
+              <>
+                <Rect x={bx1 - abutW} y={abutTop} width={abutW} height={abutH}
+                  fill={EGL_COLORS.bridgeFill} stroke={EGL_COLORS.bridge} strokeWidth={0.5} />
+                <Rect x={bx1 + bWidth} y={abutTop} width={abutW} height={abutH}
+                  fill={EGL_COLORS.bridgeFill} stroke={EGL_COLORS.bridge} strokeWidth={0.5} />
+              </>
+            );
+          })()}
+
+          {/* Pier obstruction zone — hatched area indicating flow constriction */}
+          {p.bridge.piers.length > 0 ? (() => {
             const pierTop = py(p.bridge.lowChordLeft);
             const pierBot = py(p.bridge.bedElevation);
+            const pierH = Math.max(pierBot - pierTop, 1);
             return (
-              <Rect key={i} x={pierCX - pierW / 2} y={pierTop} width={pierW}
-                height={Math.max(pierBot - pierTop, 2)}
-                fill={EGL_COLORS.pier} opacity={0.35} stroke={EGL_COLORS.pier} strokeWidth={0.5} />
+              <Rect x={bx1} y={pierTop} width={bWidth} height={pierH}
+                fill={EGL_COLORS.pier} opacity={0.08}
+                stroke={EGL_COLORS.pier} strokeWidth={0.5} strokeDasharray="2,2" />
             );
-          })}
+          })() : null}
 
           {/* Section lines (dashed verticals) */}
           {sections.map((sec, i) => (

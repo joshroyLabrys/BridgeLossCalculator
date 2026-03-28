@@ -2,7 +2,7 @@
 
 import { useProjectStore } from '@/store/project-store';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, AlertTriangle, X } from 'lucide-react';
+import { Sparkles, AlertTriangle, X, ShieldAlert } from 'lucide-react';
 import { useState } from 'react';
 
 export function AiSummaryBanner() {
@@ -70,6 +70,24 @@ export function AiSummaryBanner() {
             </ul>
           </div>
         </div>
+
+        {/* Method Suitability */}
+        {aiSummary.callouts.suitability && aiSummary.callouts.suitability.length > 0 && (
+          <div className="flex items-start gap-3 border-t border-primary/10 pt-3">
+            <ShieldAlert className="h-4 w-4 text-primary/60 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-widest text-primary/60 mb-1.5">Method Suitability</p>
+              <ul className="space-y-1">
+                {aiSummary.callouts.suitability.map((item, i) => (
+                  <li key={i} className="text-sm text-foreground/90 leading-relaxed flex items-baseline gap-2">
+                    <span className="text-primary/40 shrink-0">•</span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Recommendations */}
         {recItems.length > 0 ? (

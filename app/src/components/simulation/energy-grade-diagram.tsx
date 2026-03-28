@@ -228,17 +228,69 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .attr('d', d3area<Section>().x(d => x(d.x)).y0(d => y(d.wsel)).y1(d => y(d.egl)))
       .attr('fill', C.eglFill);
 
-    // --- BRIDGE with piers ---
+    // --- BRIDGE (longitudinal profile) ---
+    // X-axis = distance along flow. Pier stations are perpendicular to flow,
+    // so individual piers don't appear at specific X positions. Instead we show:
+    // 1. Deck superstructure (low chord to high chord)
+    // 2. Abutment walls at each end (sections 3 & 2)
+    // 3. Pier obstruction band — hatched zone showing flow constriction
     const bx1 = x(contrLen);
     const bx2 = x(contrLen + bridgeLen);
     const bMid = (bx1 + bx2) / 2;
     const bWidth = bx2 - bx1;
 
+    // Abutment walls
+    const abutW = Math.max(bWidth * 0.05, 3);
+    const abutBot = y(p.bridge.bedElevation);
     svg.append('rect')
-      .attr('x', bx1).attr('y', y(p.bridge.highChord))
-      .attr('width', bWidth)
+      .attr('x', bx1 - abutW).attr('y', y(p.bridge.highChord))
+      .attr('width', abutW).attr('height', abutBot - y(p.bridge.highChord))
+      .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1);
+    svg.append('rect')
+      .attr('x', bx2).attr('y', y(p.bridge.highChord))
+      .attr('width', abutW).attr('height', abutBot - y(p.bridge.highChord))
+      .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1);
+
+    // Deck superstructure
+    svg.append('rect')
+      .attr('x', bx1 - abutW).attr('y', y(p.bridge.highChord))
+      .attr('width', bWidth + abutW * 2)
       .attr('height', y(p.bridge.lowChordLeft) - y(p.bridge.highChord))
       .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1.5);
+
+    // Pier obstruction band — if piers exist, show a hatched zone between
+    // low chord and bed to indicate flow constriction in the bridge reach
+    if (p.bridge.piers.length > 0) {
+      const pierTop = y(p.bridge.lowChordLeft);
+      const pierBot = y(p.bridge.bedElevation);
+      const pierH = pierBot - pierTop;
+
+      // Create diagonal hatch pattern
+      const defs = svg.append('defs');
+      defs.append('pattern')
+        .attr('id', 'pier-hatch')
+        .attr('patternUnits', 'userSpaceOnUse')
+        .attr('width', 6).attr('height', 6)
+        .append('path')
+        .attr('d', 'M 0 6 L 6 0')
+        .attr('stroke', C.pier).attr('stroke-width', 0.8).attr('stroke-opacity', 0.4);
+
+      // Hatched obstruction zone (full bridge opening width)
+      svg.append('rect')
+        .attr('x', bx1).attr('y', pierTop)
+        .attr('width', bWidth).attr('height', pierH)
+        .attr('fill', 'url(#pier-hatch)')
+        .attr('stroke', C.pier).attr('stroke-width', 0.5).attr('stroke-opacity', 0.3);
+
+      // Label
+      if (!isCompact) {
+        svg.append('text')
+          .attr('x', bMid).attr('y', pierTop + pierH / 2)
+          .attr('dy', '0.35em').attr('text-anchor', 'middle')
+          .attr('fill', C.pier).attr('font-size', 9).attr('fill-opacity', 0.6)
+          .text(`${p.bridge.piers.length} pier${p.bridge.piers.length > 1 ? 's' : ''}`);
+      }
+    }
 
     if (!isCompact) {
       svg.append('text')
@@ -246,23 +298,6 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
         .attr('text-anchor', 'middle').attr('fill', C.bridge).attr('font-size', 10)
         .text(`Low Chord ${toDisplay(p.bridge.lowChordLeft, 'length', us).toFixed(2)} ${lenUnit}`);
     }
-
-    // Piers
-    const span = p.bridge.stationEnd - p.bridge.stationStart;
-    p.bridge.piers.forEach((pier) => {
-      const t = span > 0 ? (pier.station - p.bridge.stationStart) / span : 0.5;
-      const pierCenterX = bx1 + t * bWidth;
-      const pierW = (pier.width / span) * bWidth;
-      const pierTop = y(p.bridge.lowChordLeft);
-      const pierBot = y(p.bridge.bedElevation);
-      svg.append('rect')
-        .attr('x', pierCenterX - pierW / 2)
-        .attr('y', pierTop)
-        .attr('width', Math.max(pierW, 4))
-        .attr('height', pierBot - pierTop)
-        .attr('fill', C.pier).attr('fill-opacity', 0.6)
-        .attr('stroke', C.bridge).attr('stroke-width', 1);
-    });
 
     // --- SECTION LINES ---
     sections.forEach((s) => {

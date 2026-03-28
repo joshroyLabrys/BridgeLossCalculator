@@ -14,6 +14,7 @@ import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-
 import { toDisplay, unitLabel } from '@/lib/units';
 import type { CalculationResults } from '@/engine/types';
 import { Waves, FlaskConical, RotateCcw } from 'lucide-react';
+import { OptimizerCard } from './optimizer-card';
 
 const METHOD_KEYS = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
 
@@ -274,6 +275,11 @@ export function SimulationTab() {
             </Button>
           </CardContent>
         </Card>
+
+        <OptimizerCard
+          selectedMethod={selectedMethod}
+          selectedProfileIdx={selectedProfileIdx}
+        />
       </div>
     </div>
   );

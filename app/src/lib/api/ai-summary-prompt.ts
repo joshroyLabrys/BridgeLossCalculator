@@ -9,6 +9,7 @@ export interface AiSummaryResponse {
     comparison: string[] | null;
     afflux: string[] | null;
     hecras: string[] | null;
+    suitability: string[] | null;
   };
 }
 
@@ -29,13 +30,14 @@ Respond with JSON matching this exact schema:
     "comparison": ["..."] or null,
     "afflux": ["..."] or null,
     "freeboard": ["..."] or null,
-    "hecras": ["..."] or null
+    "hecras": ["..."] or null,
+    "suitability": ["..."] or null
   }
 }
 
 ═══ TIER 1 — EXECUTIVE REVIEW ═══
 
-"overall" (2-4 bullets): Frame findings by CONFIDENCE LEVEL. Use method agreement as a proxy — 4 methods within 5% = high confidence. State what the engineer can trust and what needs investigation.
+"overall" (2-4 bullets): Frame findings by CONFIDENCE LEVEL. Use method agreement as a proxy — 4 methods within 5% = high confidence. State what the engineer can trust and what needs investigation. IMPORTANT: Only count methods with null "error" fields when assessing agreement. Methods with errors (e.g. Yarnell returning 0.00 afflux with "Not Applicable") are not valid estimates — note they were excluded, don't count them as disagreement.
 Examples of good overall bullets:
 - "High confidence in Q100 afflux estimate — all four methods agree within 3% (0.42-0.43 ft)."
 - "Low confidence for PMF: methods diverge 22% and pressure flow detected. Recommend sensitivity analysis."
@@ -73,7 +75,8 @@ Each callout: 1-3 bullets or null. Do NOT manufacture concerns — return null i
 - Note if Yarnell results should be disregarded (only valid for free-surface flow with Fr < 0.8).
 
 "comparison" — Method agreement analysis:
-- Quantify the spread: (max - min) as percentage of mean. Flag if > 10%.
+- CRITICAL: Exclude methods with non-null "error" fields from spread calculations. Yarnell returns 0.00 afflux with error "Not Applicable" for pressure/overtopping flow — this is NOT a valid estimate and must not be included in the spread. Only compare methods that converged without errors.
+- Among valid (non-errored) methods, quantify the spread: (max - min) as percentage of mean. Flag if > 10%.
 - If one method is a consistent outlier across profiles, identify it and suggest why.
 - Note if bridge velocity is unreasonably high (> 2x approach velocity may indicate geometry issues).
 - Comment on TUFLOW FLC values if they diverge significantly from the computed head loss.
@@ -92,6 +95,15 @@ Each callout: 1-3 bullets or null. Do NOT manufacture concerns — return null i
 - ONLY comment if HEC-RAS comparison data was actually provided. If hecRasComparison is null or empty, MUST return null.
 - Do NOT mention the absence of HEC-RAS data.
 - Compare WSEL and head loss differences. Flag discrepancies > 5%.
+
+"suitability" — Method applicability assessment:
+- Assess which of the four methods (Energy, Momentum, Yarnell, WSPRO) are appropriate for this specific bridge geometry and flow conditions.
+- Yarnell is only valid for free-surface flow with moderate pier blockage (< 15%). Flag if used outside this range.
+- Energy method assumes gradual transitions and becomes less reliable at high Froude numbers (> 0.8).
+- Momentum is generally more robust for abrupt contractions but assumes hydrostatic pressure distribution.
+- WSPRO is designed for wide floodplain bridges with moderate constriction; less reliable for severely constricted openings (opening ratio < 0.3).
+- State which methods you would trust most for this analysis and why. 1-3 bullets.
+- If all methods are appropriate, return null.
 
 ═══ RULES ═══
 - Return ONLY valid JSON. No markdown, no code fences, no commentary outside the JSON.

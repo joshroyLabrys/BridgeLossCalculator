@@ -94,6 +94,76 @@ export function AiCallout({ text, loading }: AiCalloutProps) {
 }
 
 /**
+ * Lightweight inline callout — left-border only, no icon, no "AI Insight" header.
+ * Use for section-level callouts where the card version is too heavy.
+ */
+export function AiCalloutInline({ text, loading }: AiCalloutProps) {
+  const hasContent = loading || (text && (!Array.isArray(text) || text.length > 0));
+
+  return (
+    <AnimatedCallout visible={!!hasContent}>
+      {loading ? (
+        <div className="border-l-2 border-primary/20 pl-3 py-1 space-y-1.5">
+          <div className="h-2.5 w-full rounded bg-primary/10 animate-pulse" />
+          <div className="h-2.5 w-2/3 rounded bg-primary/10 animate-pulse" />
+        </div>
+      ) : (
+        <div className="border-l-2 border-primary/20 pl-3 py-1">
+          <ul className="space-y-0.5">
+            {(Array.isArray(text) ? text : [text!]).map((item, i) => (
+              <li key={i} className="text-xs text-foreground/70 leading-relaxed flex items-baseline gap-2">
+                <span className="text-primary/30 shrink-0">•</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </AnimatedCallout>
+  );
+}
+
+/**
+ * Lightweight inline grouped callout — left-border, no icon, section labels in tiny muted caps.
+ * Use when a single inline block needs insights from multiple AI callout categories.
+ */
+export function AiCalloutGroupedInline({ sections, loading }: { sections: AiCalloutSection[]; loading: boolean }) {
+  const activeSections = sections.filter((s) => s.text && (!Array.isArray(s.text) || s.text.length > 0));
+  const hasContent = loading || activeSections.length > 0;
+
+  return (
+    <AnimatedCallout visible={hasContent}>
+      {loading ? (
+        <div className="border-l-2 border-primary/20 pl-3 py-1 space-y-1.5">
+          <div className="h-2.5 w-full rounded bg-primary/10 animate-pulse" />
+          <div className="h-2.5 w-2/3 rounded bg-primary/10 animate-pulse" />
+        </div>
+      ) : (
+        <div className="border-l-2 border-primary/20 pl-3 py-1 space-y-2">
+          {activeSections.map((section, i) => {
+            const items = Array.isArray(section.text) ? section.text : [section.text!];
+            return (
+              <div key={section.label}>
+                {i > 0 && <div className="border-t border-border/20 mb-2" />}
+                <p className="text-[10px] font-medium text-primary/50 mb-0.5">{section.label}</p>
+                <ul className="space-y-0.5">
+                  {items.map((item, j) => (
+                    <li key={j} className="text-xs text-foreground/70 leading-relaxed flex items-baseline gap-2">
+                      <span className="text-primary/30 shrink-0">•</span>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </AnimatedCallout>
+  );
+}
+
+/**
  * Merged callout with multiple labelled sections separated by dividers.
  * Use when a single card needs insights from multiple AI callout categories.
  */

@@ -13,13 +13,19 @@ import { MethodTabs } from '@/components/results/method-tabs';
 import { ComparisonTables } from '@/components/summary/comparison-tables';
 import { RegimeMatrix } from '@/components/summary/regime-matrix';
 import { FreeboardCheck } from '@/components/summary/freeboard-check';
+import { ScenarioComparison } from '@/components/summary/scenario-comparison';
 import { AffluxCharts } from '@/components/summary/afflux-charts';
 import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
-import { AiCallout, AiCalloutGrouped } from '@/components/summary/ai-callout';
+import { AiCallout, AiCalloutGrouped, AiCalloutInline, AiCalloutGroupedInline } from '@/components/summary/ai-callout';
+import { MethodSuitability } from '@/components/summary/method-suitability';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
 import { SimulationTab } from '@/components/simulation/simulation-tab';
-import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap } from 'lucide-react';
+import { DropZone } from '@/components/import/drop-zone';
+import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
+import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save, Sparkles } from 'lucide-react';
+import { ChatPanel } from '@/components/ai-chat/chat-panel';
+import type { WhatIfOverrides } from '@/components/what-if/what-if-controls';
 
 export function MainTabs() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -38,8 +44,35 @@ export function MainTabs() {
   const hecRasComparison = useProjectStore((s) => s.hecRasComparison);
   const aiSummary = useProjectStore((s) => s.aiSummary);
   const aiLoading = useProjectStore((s) => s.aiSummaryLoading);
+  const saveScenario = useProjectStore((s) => s.saveScenario);
+  const scenarios = useProjectStore((s) => s.scenarios);
 
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [hecRasFiles, setHecRasFiles] = useState<File[]>([]);
+  const [hecRasDialogOpen, setHecRasDialogOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOverrides, setChatOverrides] = useState<WhatIfOverrides>({
+    manningsNMultiplier: 1.0,
+    debrisBlockagePct: coefficients.debrisBlockagePct,
+    contractionCoeff: coefficients.contractionCoeff,
+    expansionCoeff: coefficients.expansionCoeff,
+    dischargeMultiplier: 1.0,
+  });
+
+  function handleSaveScenario() {
+    const name = prompt('Scenario name:', `Scenario ${scenarios.length + 1}`);
+    if (name) saveScenario(name);
+  }
+
+  function handleHecRasFiles(files: File[]) {
+    setHecRasFiles(files);
+    setHecRasDialogOpen(true);
+  }
+
+  const HECRAS_EXTENSIONS = [
+    '.g01', '.g02', '.g03', '.g04', '.g05', '.g06', '.g07', '.g08', '.g09',
+    '.f01', '.f02', '.f03', '.f04', '.f05', '.f06', '.f07', '.f08', '.f09',
+  ];
 
   const handleTabChange = useCallback((value: string | number | null) => {
     if (typeof value === 'string') setActiveMainTab(value);
@@ -161,6 +194,12 @@ export function MainTabs() {
               className="h-8 w-8 hidden sm:inline-flex" title="Export Project">
               <FileOutput className="h-4 w-4" />
             </Button>
+            {results && (
+              <Button variant="outline" size="icon" onClick={handleSaveScenario}
+                className="h-8 w-8" title={`Save Scenario (${scenarios.length}/5)`}>
+                <Save className="h-4 w-4" />
+              </Button>
+            )}
             <Button size="icon" onClick={handlePdf} disabled={pdfLoading}
               className="h-8 w-8 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm" title="PDF Report">
               <FileText className="h-4 w-4" />
@@ -197,28 +236,30 @@ export function MainTabs() {
       </header>
 
       <TabsContent value="input" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
-        <Tabs defaultValue="cross-section">
-          <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
-            <TabsList variant="line" className="gap-4 sm:gap-6 pb-0">
-              <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Cross-Section
-              </TabsTrigger>
-              <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Bridge
-              </TabsTrigger>
-              <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Flow Profiles
-              </TabsTrigger>
-              <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                Coefficients
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          <TabsContent value="cross-section"><CrossSectionForm /></TabsContent>
-          <TabsContent value="bridge"><BridgeGeometryForm /></TabsContent>
-          <TabsContent value="profiles"><FlowProfilesForm /></TabsContent>
-          <TabsContent value="coefficients"><CoefficientsForm /></TabsContent>
-        </Tabs>
+        <DropZone onFiles={handleHecRasFiles} accept={HECRAS_EXTENSIONS}>
+          <Tabs defaultValue="cross-section">
+            <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
+              <TabsList variant="line" className="gap-4 sm:gap-6 pb-0">
+                <TabsTrigger value="cross-section" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Cross-Section
+                </TabsTrigger>
+                <TabsTrigger value="bridge" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Bridge
+                </TabsTrigger>
+                <TabsTrigger value="profiles" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Flow Profiles
+                </TabsTrigger>
+                <TabsTrigger value="coefficients" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
+                  Coefficients
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="cross-section"><CrossSectionForm /></TabsContent>
+            <TabsContent value="bridge"><BridgeGeometryForm /></TabsContent>
+            <TabsContent value="profiles"><FlowProfilesForm /></TabsContent>
+            <TabsContent value="coefficients"><CoefficientsForm /></TabsContent>
+          </Tabs>
+        </DropZone>
         <ActionButtons />
       </TabsContent>
 
@@ -235,10 +276,11 @@ export function MainTabs() {
           </p>
         </div>
         <AiSummaryBanner />
-        <AiCallout text={aiSummary?.callouts.geometry ?? null} loading={aiLoading} />
-        <RegimeMatrix callout={<AiCallout text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />} />
+        <MethodSuitability />
+        <AiCalloutInline text={aiSummary?.callouts.geometry ?? null} loading={aiLoading} />
+        <RegimeMatrix callout={<AiCalloutInline text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />} />
         <ComparisonTables callout={
-          <AiCalloutGrouped
+          <AiCalloutGroupedInline
             loading={aiLoading}
             sections={[
               { label: 'Method Agreement', text: aiSummary?.callouts.comparison ?? null },
@@ -247,14 +289,49 @@ export function MainTabs() {
             ]}
           />
         } />
-        <AffluxCharts callout={<AiCallout text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
-        <FreeboardCheck callout={<AiCallout text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
+        <AffluxCharts callout={<AiCalloutInline text={aiSummary?.callouts.afflux ?? null} loading={aiLoading} />} />
+        <FreeboardCheck callout={<AiCalloutInline text={aiSummary?.callouts.freeboard ?? null} loading={aiLoading} />} />
+        {scenarios.length >= 2 && (
+          <>
+            <div className="h-px bg-border/40" />
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold tracking-tight">Scenario Comparison</h2>
+              <p className="text-sm text-muted-foreground max-w-prose text-pretty">
+                Compare saved scenarios side-by-side.
+              </p>
+            </div>
+            <ScenarioComparison />
+          </>
+        )}
       </TabsContent>
 
       <TabsContent value="simulation" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
         <SimulationTab />
       </TabsContent>
 
+      <HecRasImportDialog
+        open={hecRasDialogOpen}
+        onOpenChange={setHecRasDialogOpen}
+        files={hecRasFiles}
+      />
+
+      {/* AI Chat FAB */}
+      {results && (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 flex items-center justify-center transition-transform hover:scale-105"
+          title="AI Assistant"
+        >
+          <Sparkles className="h-5 w-5" />
+        </button>
+      )}
+
+      <ChatPanel
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+        overrides={chatOverrides}
+        onOverridesChange={setChatOverrides}
+      />
     </Tabs>
   );
 }

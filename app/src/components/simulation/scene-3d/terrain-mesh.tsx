@@ -3,18 +3,20 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { CrossSectionPoint } from '@/engine/types';
+import { earthNormalMap } from './procedural-textures';
 
 interface TerrainMeshProps {
   crossSection: CrossSectionPoint[];
   channelLength: number;
 }
 
-/**
- * Extrudes the 2D cross-section profile along the Z axis to create
- * a 3D channel terrain mesh. Uses earthy colors with elevation-based
- * vertex coloring (darker in channel, green on banks).
- */
 export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
+  const normalMap = useMemo(() => {
+    const tex = earthNormalMap(512);
+    tex.repeat.set(3, 3);
+    return tex;
+  }, []);
+
   const geometry = useMemo(() => {
     if (crossSection.length < 2) return null;
 
@@ -26,24 +28,26 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
     const positions: number[] = [];
     const normals: number[] = [];
     const colors: number[] = [];
+    const uvs: number[] = [];
     const indices: number[] = [];
 
-    // Elevation range for color mapping
     const minElev = Math.min(...pts.map(p => p.elevation));
     const maxElev = Math.max(...pts.map(p => p.elevation));
     const elevRange = maxElev - minElev || 1;
 
-    // Color palette: low = dark riverbed brown, mid = earth, high = green/grass
-    const bedColor = new THREE.Color('#3d2b1f');    // dark brown (channel bed)
-    const earthColor = new THREE.Color('#6b4e3d');   // medium earth brown
-    const bankColor = new THREE.Color('#4a6741');     // muted green (bank/grass)
+    const bedColor = new THREE.Color('#2d1f15');
+    const wetColor = new THREE.Color('#4a3928');
+    const earthColor = new THREE.Color('#6b4e3d');
+    const bankColor = new THREE.Color('#4a6741');
 
     function elevToColor(elev: number): THREE.Color {
-      const t = (elev - minElev) / elevRange; // 0 = lowest, 1 = highest
-      if (t < 0.3) {
-        return bedColor.clone().lerp(earthColor, t / 0.3);
+      const t = (elev - minElev) / elevRange;
+      if (t < 0.15) {
+        return bedColor.clone().lerp(wetColor, t / 0.15);
+      } else if (t < 0.35) {
+        return wetColor.clone().lerp(earthColor, (t - 0.15) / 0.2);
       } else {
-        return earthColor.clone().lerp(bankColor, (t - 0.3) / 0.7);
+        return earthColor.clone().lerp(bankColor, (t - 0.35) / 0.65);
       }
     }
 
@@ -55,6 +59,7 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
         normals.push(0, 1, 0);
         const c = elevToColor(pts[pi].elevation);
         colors.push(c.r, c.g, c.b);
+        uvs.push(pts[pi].station / 10, z / 10);
       }
     }
 
@@ -78,6 +83,7 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
         positions.push(pts[pi].station, minE, z);
         normals.push(0, -1, 0);
         colors.push(bedColor.r, bedColor.g, bedColor.b);
+        uvs.push(pts[pi].station / 10, z / 10);
       }
     }
 
@@ -90,7 +96,7 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
       indices.push(i1, i3, i2);
     }
 
-    // Side walls (front and back faces)
+    // Side walls
     for (let zi = 0; zi < zSlices; zi++) {
       const surfOffset = zi * nPts;
       const botOffset = bottomStart + zi * nPts;
@@ -125,6 +131,7 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices);
     geo.computeVertexNormals();
 
@@ -137,9 +144,12 @@ export function TerrainMesh({ crossSection, channelLength }: TerrainMeshProps) {
     <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial
         vertexColors
-        roughness={0.92}
+        normalMap={normalMap}
+        normalScale={new THREE.Vector2(0.8, 0.8)}
+        roughness={0.88}
         metalness={0.02}
         side={THREE.DoubleSide}
+        envMapIntensity={0.6}
       />
     </mesh>
   );

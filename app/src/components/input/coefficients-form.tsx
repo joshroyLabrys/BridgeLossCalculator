@@ -1,8 +1,8 @@
 'use client';
 
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { NumericInput, NullableNumericInput } from '@/components/ui/numeric-input';
 import { useProjectStore } from '@/store/project-store';
 import { toDisplay, toImperial, unitLabel } from '@/lib/units';
 
@@ -63,11 +63,11 @@ export function CoefficientsForm() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Contraction (Cc)</Label>
-              <Input type="number" value={coefficients.contractionCoeff} onChange={(e) => setField('contractionCoeff', parseFloat(e.target.value) || 0)} className="h-8 text-sm font-mono" step="0.1" />
+              <NumericInput value={coefficients.contractionCoeff} onCommit={(v) => setField('contractionCoeff', v)} className="h-8 text-sm font-mono" step="0.1" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Expansion (Ce)</Label>
-              <Input type="number" value={coefficients.expansionCoeff} onChange={(e) => setField('expansionCoeff', parseFloat(e.target.value) || 0)} className="h-8 text-sm font-mono" step="0.1" />
+              <NumericInput value={coefficients.expansionCoeff} onCommit={(v) => setField('expansionCoeff', v)} className="h-8 text-sm font-mono" step="0.1" />
             </div>
           </div>
         </div>
@@ -79,11 +79,19 @@ export function CoefficientsForm() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Yarnell K</Label>
-              <Input type="number" value={coefficients.yarnellK ?? ''} onChange={(e) => update({ ...coefficients, yarnellK: e.target.value ? parseFloat(e.target.value) : null })} className="h-8 text-sm font-mono" step="0.1" placeholder="Auto" />
+              <NullableNumericInput
+                value={coefficients.yarnellK}
+                onCommit={(v) => update({ ...coefficients, yarnellK: v })}
+                className="h-8 text-sm font-mono" step="0.1" placeholder="Auto"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Debris Blockage (%)</Label>
-              <Input type="number" value={coefficients.debrisBlockagePct || ''} onChange={(e) => setField('debrisBlockagePct', Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))} className="h-8 text-sm font-mono" step="5" min="0" max="100" placeholder="0" />
+              <NumericInput
+                value={coefficients.debrisBlockagePct}
+                onCommit={(v) => setField('debrisBlockagePct', Math.min(100, Math.max(0, v)))}
+                className="h-8 text-sm font-mono" step="5" min="0" max="100"
+              />
             </div>
           </div>
         </div>
@@ -96,27 +104,47 @@ export function CoefficientsForm() {
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Max Iter.</Label>
-              <Input type="number" value={coefficients.maxIterations} onChange={(e) => setField('maxIterations', parseInt(e.target.value) || 100)} className="h-8 text-sm font-mono" />
+              <NumericInput value={coefficients.maxIterations} onCommit={(v) => setField('maxIterations', Math.round(v) || 100)} className="h-8 text-sm font-mono" />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Tol. ({lenUnit})</Label>
-              <Input type="number" value={toDisplay(coefficients.tolerance, 'length', us)} onChange={(e) => setField('tolerance', toImperial(parseFloat(e.target.value) || 0.01, 'length', us))} className="h-8 text-sm font-mono" step="0.001" />
+              <NumericInput
+                value={toDisplay(coefficients.tolerance, 'length', us)}
+                onCommit={(v) => setField('tolerance', toImperial(v || 0.01, 'length', us))}
+                className="h-8 text-sm font-mono" step="0.001"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Guess Offset ({lenUnit})</Label>
-              <Input type="number" value={toDisplay(coefficients.initialGuessOffset, 'length', us)} onChange={(e) => setField('initialGuessOffset', toImperial(parseFloat(e.target.value) || 0.5, 'length', us))} className="h-8 text-sm font-mono" step="0.1" />
+              <NumericInput
+                value={toDisplay(coefficients.initialGuessOffset, 'length', us)}
+                onCommit={(v) => setField('initialGuessOffset', toImperial(v || 0.5, 'length', us))}
+                className="h-8 text-sm font-mono" step="0.1"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">n Sensitivity (±%)</Label>
-              <Input type="number" value={coefficients.manningsNSensitivityPct ?? ''} onChange={(e) => update({ ...coefficients, manningsNSensitivityPct: e.target.value ? Math.max(1, parseFloat(e.target.value)) : null })} className="h-8 text-sm font-mono" step="5" min="1" max="100" placeholder="Off" />
+              <NullableNumericInput
+                value={coefficients.manningsNSensitivityPct}
+                onCommit={(v) => update({ ...coefficients, manningsNSensitivityPct: v != null ? Math.max(1, v) : null })}
+                className="h-8 text-sm font-mono" step="5" min="1" max="100" placeholder="Off"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Alpha (α₁)</Label>
-              <Input type="number" value={coefficients.alphaOverride ?? ''} onChange={(e) => update({ ...coefficients, alphaOverride: e.target.value ? Math.max(0.5, parseFloat(e.target.value)) : null })} className="h-8 text-sm font-mono" step="0.1" min="0.5" max="5" placeholder="Auto" />
+              <NullableNumericInput
+                value={coefficients.alphaOverride}
+                onCommit={(v) => update({ ...coefficients, alphaOverride: v != null ? Math.max(0.5, v) : null })}
+                className="h-8 text-sm font-mono" step="0.1" min="0.5" max="5" placeholder="Auto"
+              />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Freeboard Thr. ({lenUnit})</Label>
-              <Input type="number" value={toDisplay(coefficients.freeboardThreshold, 'length', us)} onChange={(e) => setField('freeboardThreshold', toImperial(parseFloat(e.target.value) || 0.3, 'length', us))} className="h-8 text-sm font-mono" step="0.1" />
+              <NumericInput
+                value={toDisplay(coefficients.freeboardThreshold, 'length', us)}
+                onCommit={(v) => setField('freeboardThreshold', toImperial(v || 0.3, 'length', us))}
+                className="h-8 text-sm font-mono" step="0.1"
+              />
             </div>
           </div>
         </div>
