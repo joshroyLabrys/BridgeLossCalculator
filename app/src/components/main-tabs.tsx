@@ -48,6 +48,13 @@ export function MainTabs() {
   async function handlePdf() {
     setPdfLoading(true);
     try {
+      // Capture the 3D scene canvas if it exists (Three.js renders into a plain <canvas>)
+      let sceneCapture: string | null = null;
+      const threeCanvas = document.querySelector('[data-scene-capture] canvas') as HTMLCanvasElement | null;
+      if (threeCanvas) {
+        try { sceneCapture = threeCanvas.toDataURL('image/png'); } catch { /* cross-origin or empty */ }
+      }
+
       const { generatePdf } = await import('@/components/pdf-report');
       await generatePdf({
         projectName,
@@ -58,6 +65,7 @@ export function MainTabs() {
         results,
         hecRasComparison,
         aiSummary,
+        sceneCapture,
       });
     } catch (err) {
       console.error('PDF generation failed:', err);
@@ -227,12 +235,14 @@ export function MainTabs() {
           </p>
         </div>
         <AiSummaryBanner />
+        <AiCallout text={aiSummary?.callouts.geometry ?? null} loading={aiLoading} />
         <RegimeMatrix callout={<AiCallout text={aiSummary?.callouts.regime ?? null} loading={aiLoading} />} />
         <ComparisonTables callout={
           <AiCalloutGrouped
             loading={aiLoading}
             sections={[
               { label: 'Method Agreement', text: aiSummary?.callouts.comparison ?? null },
+              { label: 'Coefficients', text: aiSummary?.callouts.coefficients ?? null },
               { label: 'HEC-RAS Comparison', text: aiSummary?.callouts.hecras ?? null },
             ]}
           />
