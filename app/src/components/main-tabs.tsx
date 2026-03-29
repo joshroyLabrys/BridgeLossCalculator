@@ -201,8 +201,9 @@ export function MainTabs() {
     '.f01', '.f02', '.f03', '.f04', '.f05', '.f06', '.f07', '.f08', '.f09',
   ];
 
+  const MAIN_TAB_VALUES = new Set(['data', 'hydrology', 'analysis', 'assessment', 'simulation', 'report']);
   const handleTabChange = useCallback((value: string | number | null) => {
-    if (typeof value === 'string') setActiveMainTab(value);
+    if (typeof value === 'string' && MAIN_TAB_VALUES.has(value)) setActiveMainTab(value);
   }, [setActiveMainTab]);
 
   async function handlePdf() {
