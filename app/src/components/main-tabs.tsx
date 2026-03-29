@@ -510,6 +510,7 @@ export function MainTabs() {
             <CatchmentCalculator />
           </TabsContent>
         </Tabs>
+        <ActionButtons />
       </TabsContent>
 
       {/* ============================================================ */}

@@ -120,9 +120,9 @@ export function ActionButtons() {
         setSensitivityResults(null);
       }
       setIsProcessing(false);
-      setActiveMainTab('summary');
+      setActiveMainTab('analysis');
       toast.success('Bridge loaded & calculated', {
-        description: `${selectedBridge.name} — viewing summary.`,
+        description: `${selectedBridge.name} — viewing analysis.`,
       });
       useProjectStore.getState().fetchAiSummary();
     }, 50);
@@ -147,9 +147,9 @@ export function ActionButtons() {
         setSensitivityResults(null);
       }
       setIsProcessing(false);
-      setActiveMainTab('summary');
+      setActiveMainTab('analysis');
       toast.success('Processing complete', {
-        description: 'All methods have been calculated. Viewing summary.',
+        description: 'All methods have been calculated. Viewing analysis.',
       });
       fetchAiSummary();
     }, 50);
