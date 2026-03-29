@@ -6,15 +6,8 @@ import { StepCatchment } from './components/step-catchment';
 import { StepArrData } from './components/step-arr-data';
 import { StepLosses } from './components/step-losses';
 import { StepTc } from './components/step-tc';
-
-// Placeholder step components (replaced in subsequent tasks)
-function StepPlaceholder({ name }: { name: string }) {
-  return (
-    <div className="flex items-center justify-center py-20 text-muted-foreground">
-      <p className="text-sm">{name} — coming next</p>
-    </div>
-  );
-}
+import { StepDesignStorms } from './components/step-design-storms';
+import { StepDesignFlows } from './components/step-design-flows';
 
 export default function HydroPage() {
   const currentStep = useHydroStore((s) => s.currentStep);
@@ -40,8 +33,8 @@ export default function HydroPage() {
     <StepArrData key={1} />,
     <StepLosses key={2} />,
     <StepTc key={3} />,
-    <StepPlaceholder key={4} name="Design Storms" />,
-    <StepPlaceholder key={5} name="Design Flows" />,
+    <StepDesignStorms key={4} />,
+    <StepDesignFlows key={5} />,
   ];
 
   return (
