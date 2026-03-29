@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { scaleLinear } from 'd3-scale';
 import { axisBottom, axisLeft } from 'd3-axis';
 import { line as d3line, area as d3area } from 'd3-shape';
@@ -84,6 +84,7 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
   const us = useProjectStore((s) => s.unitSystem);
   const lenUnit = unitLabel('length', us);
   const velUnit = unitLabel('velocity', us);
+  const [isMobile, setIsMobile] = useState(false);
 
   const draw = useCallback(() => {
     const container = containerRef.current;
@@ -91,7 +92,13 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     select(container).select('svg').remove();
 
     const rect = container.getBoundingClientRect();
-    const margin = { top: 18, right: 36, bottom: 90, left: 62 };
+    const mobile = rect.width < 500;
+    setIsMobile(mobile);
+
+    // On mobile: no bottom table (rendered as HTML instead), smaller margins
+    const margin = mobile
+      ? { top: 14, right: 20, bottom: 44, left: 48 }
+      : { top: 18, right: 36, bottom: 90, left: 62 };
     const width = rect.width - margin.left - margin.right;
     const height = rect.height - margin.top - margin.bottom;
     if (width <= 0 || height <= 0) return;
@@ -112,15 +119,14 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     const totalLen = contrLen + bridgeLen + expanLen;
 
     // Thalweg: smooth channel bed using bridge invert + channel slope.
-    // The longitudinal section shows the deepest flow path, not bank elevations.
     const channelSlope = p.approach.depth > 0
-      ? (p.usWsel - p.dsWsel) / totalLen * 0.3  // mild bed slope, fraction of water surface drop
+      ? (p.usWsel - p.dsWsel) / totalLen * 0.3
       : 0;
     const bridgeBed = p.bridge.bedElevation;
-    const bed4 = bridgeBed + channelSlope * contrLen;       // upstream of bridge
-    const bed3 = bridgeBed;                                  // bridge upstream face
-    const bed2 = bridgeBed;                                  // bridge downstream face
-    const bed1 = bridgeBed - channelSlope * expanLen;        // downstream of bridge
+    const bed4 = bridgeBed + channelSlope * contrLen;
+    const bed3 = bridgeBed;
+    const bed2 = bridgeBed;
+    const bed1 = bridgeBed - channelSlope * expanLen;
 
     // Section data
     const approachVH = (p.approach.velocity ** 2) / (2 * G);
@@ -167,21 +173,23 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .call(g => { g.selectAll('line').attr('stroke', C.grid); g.select('.domain').remove(); });
 
     // --- AXES ---
+    const tickCount = mobile ? 4 : 6;
+    const fontSize = mobile ? 10 : 12;
     svg.append('g').attr('transform', `translate(0,${height})`)
-      .call(axisBottom(x).ticks(6))
-      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', 12); g.selectAll('line,path').attr('stroke', C.grid); });
+      .call(axisBottom(x).ticks(tickCount))
+      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', fontSize); g.selectAll('line,path').attr('stroke', C.grid); });
     svg.append('g')
-      .call(axisLeft(y).ticks(6))
-      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', 12); g.selectAll('line,path').attr('stroke', C.grid); });
+      .call(axisLeft(y).ticks(tickCount))
+      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', fontSize); g.selectAll('line,path').attr('stroke', C.grid); });
 
     svg.append('text').attr('transform', 'rotate(-90)')
-      .attr('x', -height / 2).attr('y', -48)
-      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', 12)
-      .text(`Elevation (${lenUnit})`);
+      .attr('x', -height / 2).attr('y', mobile ? -34 : -48)
+      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', mobile ? 10 : 12)
+      .text(mobile ? `Elev (${lenUnit})` : `Elevation (${lenUnit})`);
     svg.append('text')
-      .attr('x', width / 2).attr('y', height + 32)
-      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', 12)
-      .text(`Longitudinal Distance (${lenUnit})`);
+      .attr('x', width / 2).attr('y', height + (mobile ? 28 : 32))
+      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', mobile ? 10 : 12)
+      .text(mobile ? `Distance (${lenUnit})` : `Longitudinal Distance (${lenUnit})`);
 
     // --- GROUND ---
     const gData = sections.map(s => ({ x: s.x, bed: s.bed }));
@@ -218,18 +226,18 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     const bMid = (bx1 + bx2) / 2;
     const bWidth = bx2 - bx1;
 
-    // Deck
     svg.append('rect')
       .attr('x', bx1).attr('y', y(p.bridge.highChord))
       .attr('width', bWidth)
       .attr('height', y(p.bridge.lowChordLeft) - y(p.bridge.highChord))
       .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1.5);
 
-    // Low chord label
-    svg.append('text')
-      .attr('x', bMid).attr('y', y(p.bridge.lowChordLeft) + 14)
-      .attr('text-anchor', 'middle').attr('fill', C.bridge).attr('font-size', 10)
-      .text(`Low Chord ${toDisplay(p.bridge.lowChordLeft, 'length', us).toFixed(2)} ${lenUnit}`);
+    if (!mobile) {
+      svg.append('text')
+        .attr('x', bMid).attr('y', y(p.bridge.lowChordLeft) + 14)
+        .attr('text-anchor', 'middle').attr('fill', C.bridge).attr('font-size', 10)
+        .text(`Low Chord ${toDisplay(p.bridge.lowChordLeft, 'length', us).toFixed(2)} ${lenUnit}`);
+    }
 
     // Piers
     const span = p.bridge.stationEnd - p.bridge.stationStart;
@@ -258,19 +266,21 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
 
       svg.append('text')
         .attr('x', sx).attr('y', -5)
-        .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', 12).attr('font-weight', 700)
+        .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', mobile ? 10 : 12).attr('font-weight', 700)
         .text(s.shortLabel);
     });
 
-    // --- VELOCITY HEAD BARS ---
-    [sections[0], sections[3]].forEach((s, i) => {
-      const sx = x(s.x) + (i === 0 ? -18 : 18);
-      const vh = toDisplay(s.velocityHead, 'length', us);
-      if (vh > 0.001) {
-        drawDimLine(svg, sx, y(s.wsel), sx, y(s.egl),
-          `V²/2g = ${vh.toFixed(3)}`, C.vh, i === 0 ? 'left' : 'right');
-      }
-    });
+    // --- VELOCITY HEAD BARS (skip on mobile — too cramped) ---
+    if (!mobile) {
+      [sections[0], sections[3]].forEach((s, i) => {
+        const sx = x(s.x) + (i === 0 ? -18 : 18);
+        const vh = toDisplay(s.velocityHead, 'length', us);
+        if (vh > 0.001) {
+          drawDimLine(svg, sx, y(s.wsel), sx, y(s.egl),
+            `V²/2g = ${vh.toFixed(3)}`, C.vh, i === 0 ? 'left' : 'right');
+        }
+      });
+    }
 
     // --- TOTAL HEAD LOSS ---
     const hlX = x(totalLen * 0.80);
@@ -279,7 +289,7 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     const hl = toDisplay(egl4 - egl1, 'length', us);
     if (Math.abs(egl4 - egl1) > 0.001) {
       drawDimLine(svg, hlX, y(egl4), hlX, y(egl1),
-        `Δh = ${hl.toFixed(3)}`, C.hl, 'right');
+        mobile ? `Δh=${hl.toFixed(2)}` : `Δh = ${hl.toFixed(3)}`, C.hl, 'right');
     }
 
     // --- FLOW DIRECTION ---
@@ -294,76 +304,104 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .attr('fill', C.flowArrow);
     svg.append('text')
       .attr('x', (arrowX1 + arrowX2) / 2).attr('y', arrowY - 8)
-      .attr('text-anchor', 'middle').attr('fill', C.flowArrow).attr('font-size', 11)
+      .attr('text-anchor', 'middle').attr('fill', C.flowArrow).attr('font-size', mobile ? 9 : 11)
       .text('Flow');
 
-    // --- SECTION DATA TABLE ---
-    const tableY = height + 46;
-    const rowH = 15;
-    const headers = ['WSEL', 'Velocity', 'Froude', 'EGL'];
+    // --- LEGEND (top-left, compact on mobile) ---
+    const legendItems = mobile
+      ? [
+          { label: 'HGL', color: C.hgl, dash: false },
+          { label: 'EGL', color: C.egl, dash: true },
+          { label: 'Δh', color: C.hl, dash: false },
+        ]
+      : [
+          { label: 'HGL (Water Surface)', color: C.hgl, dash: false },
+          { label: 'EGL (Energy Grade)', color: C.egl, dash: true },
+          { label: 'V²/2g (Velocity Head)', color: C.vh, dash: true },
+          { label: 'Δh (Head Loss)', color: C.hl, dash: false },
+        ];
 
-    headers.forEach((h, ri) => {
-      svg.append('text')
-        .attr('x', -6).attr('y', tableY + ri * rowH)
-        .attr('text-anchor', 'end').attr('fill', C.tableHeader).attr('font-size', 11)
-        .text(h);
-    });
+    const legendLineW = mobile ? 12 : 17;
+    const legendGap = mobile ? 4 : 5;
+    const legendFontSize = mobile ? 9 : 11;
+    const legendItemH = mobile ? 14 : 18;
+    const legendTextW = mobile ? 28 : 140;
+    const legendPadX = mobile ? 6 : 10;
+    const legendPadY = mobile ? 4 : 8;
+    const legendBoxW = legendPadX * 2 + legendLineW + legendGap + legendTextW;
+    const legendBoxH = legendPadY * 2 + legendItems.length * legendItemH - (legendItemH - legendFontSize);
 
-    sections.forEach((s) => {
-      const sx = x(s.x);
+    const lg = svg.append('g').attr('transform', `translate(${legendPadX}, ${legendPadY})`);
 
-      // Section header
-      svg.append('text')
-        .attr('x', sx).attr('y', tableY - rowH)
-        .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', 11).attr('font-weight', 700)
-        .text(s.label);
-
-      const vals = [
-        { text: `${toDisplay(s.wsel, 'length', us).toFixed(2)} ${lenUnit}`, color: C.hgl },
-        { text: `${toDisplay(s.velocity, 'velocity', us).toFixed(2)} ${velUnit}`, color: C.axisLight },
-        { text: isFinite(s.froude) ? s.froude.toFixed(3) : '—', color: C.axisLight },
-        { text: `${toDisplay(s.egl, 'length', us).toFixed(2)} ${lenUnit}`, color: C.egl },
-      ];
-
-      vals.forEach((v, ri) => {
-        svg.append('text')
-          .attr('x', sx).attr('y', tableY + ri * rowH)
-          .attr('text-anchor', 'middle')
-          .attr('fill', v.color).attr('font-size', 11).attr('font-family', 'monospace')
-          .text(v.text);
-      });
-    });
-
-    // --- LEGEND ---
-    const legendItems = [
-      { label: 'HGL (Water Surface)', color: C.hgl, dash: false },
-      { label: 'EGL (Energy Grade)', color: C.egl, dash: true },
-      { label: 'V²/2g (Velocity Head)', color: C.vh, dash: true },
-      { label: 'Δh (Head Loss)', color: C.hl, dash: false },
-    ];
-    const lg = svg.append('g').attr('transform', `translate(${width - 10}, 8)`);
-
-    // Background
     lg.append('rect')
-      .attr('x', -155).attr('y', -8)
-      .attr('width', 165).attr('height', legendItems.length * 18 + 8)
+      .attr('x', -legendPadX).attr('y', -legendPadY)
+      .attr('width', legendBoxW).attr('height', legendBoxH)
       .attr('fill', 'oklch(0.16 0.01 230)').attr('fill-opacity', 0.9)
       .attr('rx', 4).attr('stroke', C.grid);
 
     legendItems.forEach((item, i) => {
-      const gy = i * 18;
+      const gy = i * legendItemH;
       if (item.dash) {
-        lg.append('line').attr('x1', -145).attr('y1', gy).attr('x2', -128).attr('y2', gy)
+        lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', legendLineW).attr('y2', gy)
           .attr('stroke', item.color).attr('stroke-width', 2.5).attr('stroke-dasharray', '4 3');
       } else {
-        lg.append('line').attr('x1', -145).attr('y1', gy).attr('x2', -128).attr('y2', gy)
+        lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', legendLineW).attr('y2', gy)
           .attr('stroke', item.color).attr('stroke-width', 2.5);
       }
-      lg.append('text').attr('x', -123).attr('y', gy).attr('dy', '0.35em')
-        .attr('fill', C.axisLight).attr('font-size', 11).text(item.label);
+      lg.append('text').attr('x', legendLineW + legendGap).attr('y', gy).attr('dy', '0.35em')
+        .attr('fill', C.axisLight).attr('font-size', legendFontSize).text(item.label);
     });
 
+    // --- SECTION DATA TABLE (desktop only — rendered in SVG) ---
+    if (!mobile) {
+      const tableY = height + 46;
+      const rowH = 15;
+      const headers = ['WSEL', 'Velocity', 'Froude', 'EGL'];
+
+      headers.forEach((h, ri) => {
+        svg.append('text')
+          .attr('x', -6).attr('y', tableY + ri * rowH)
+          .attr('text-anchor', 'end').attr('fill', C.tableHeader).attr('font-size', 11)
+          .text(h);
+      });
+
+      sections.forEach((s) => {
+        const sx = x(s.x);
+
+        svg.append('text')
+          .attr('x', sx).attr('y', tableY - rowH)
+          .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', 11).attr('font-weight', 700)
+          .text(s.label);
+
+        const vals = [
+          { text: `${toDisplay(s.wsel, 'length', us).toFixed(2)} ${lenUnit}`, color: C.hgl },
+          { text: `${toDisplay(s.velocity, 'velocity', us).toFixed(2)} ${velUnit}`, color: C.axisLight },
+          { text: isFinite(s.froude) ? s.froude.toFixed(3) : '—', color: C.axisLight },
+          { text: `${toDisplay(s.egl, 'length', us).toFixed(2)} ${lenUnit}`, color: C.egl },
+        ];
+
+        vals.forEach((v, ri) => {
+          svg.append('text')
+            .attr('x', sx).attr('y', tableY + ri * rowH)
+            .attr('text-anchor', 'middle')
+            .attr('fill', v.color).attr('font-size', 11).attr('font-family', 'monospace')
+            .text(v.text);
+        });
+      });
+    }
+
   }, [profile, us, lenUnit, velUnit]);
+
+  // Build section data for HTML table (used on mobile)
+  const p = profile;
+  const approachVH = (p.approach.velocity ** 2) / (2 * G);
+  const exitVH = (p.exit.velocity ** 2) / (2 * G);
+  const htmlSections = [
+    { label: 'Sec 4', wsel: p.usWsel, velocity: p.approach.velocity, froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)), egl: p.usWsel + approachVH },
+    { label: 'Sec 3', wsel: p.usWsel, velocity: p.approach.velocity, froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)), egl: p.usWsel + approachVH },
+    { label: 'Sec 2', wsel: p.dsWsel, velocity: p.exit.velocity, froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)), egl: p.dsWsel + exitVH },
+    { label: 'Sec 1', wsel: p.dsWsel, velocity: p.exit.velocity, froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)), egl: p.dsWsel + exitVH },
+  ];
 
   useEffect(() => {
     draw();
@@ -374,5 +412,37 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     return () => observer.disconnect();
   }, [draw]);
 
-  return <div ref={containerRef} className="w-full" style={{ height: 420 }} />;
+  return (
+    <div className="space-y-3">
+      {/* SVG chart — shorter on mobile since table is outside */}
+      <div ref={containerRef} className="w-full h-[280px] sm:h-[420px]" />
+
+      {/* HTML section data table — mobile only, stacked vertically */}
+      {isMobile && (
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          {htmlSections.map((s) => (
+            <div key={s.label} className="rounded-md border border-border/30 bg-muted/20 p-2 space-y-1">
+              <div className="font-semibold text-foreground/80 text-xs">{s.label}</div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">WSEL</span>
+                <span className="font-mono" style={{ color: C.hgl }}>{toDisplay(s.wsel, 'length', us).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Vel</span>
+                <span className="font-mono">{toDisplay(s.velocity, 'velocity', us).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Fr</span>
+                <span className="font-mono">{isFinite(s.froude) ? s.froude.toFixed(3) : '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">EGL</span>
+                <span className="font-mono" style={{ color: C.egl }}>{toDisplay(s.egl, 'length', us).toFixed(2)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
