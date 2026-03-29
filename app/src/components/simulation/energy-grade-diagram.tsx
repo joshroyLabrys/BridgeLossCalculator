@@ -307,50 +307,36 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .attr('text-anchor', 'middle').attr('fill', C.flowArrow).attr('font-size', mobile ? 9 : 11)
       .text('Flow');
 
-    // --- LEGEND (top-left, compact on mobile) ---
-    const legendItems = mobile
-      ? [
-          { label: 'HGL', color: C.hgl, dash: false },
-          { label: 'EGL', color: C.egl, dash: true },
-          { label: 'Δh', color: C.hl, dash: false },
-        ]
-      : [
-          { label: 'HGL (Water Surface)', color: C.hgl, dash: false },
-          { label: 'EGL (Energy Grade)', color: C.egl, dash: true },
-          { label: 'V²/2g (Velocity Head)', color: C.vh, dash: true },
-          { label: 'Δh (Head Loss)', color: C.hl, dash: false },
-        ];
+    // --- LEGEND (SVG, desktop only — mobile legend rendered as HTML below) ---
+    if (!mobile) {
+      const legendItems = [
+        { label: 'HGL (Water Surface)', color: C.hgl, dash: false },
+        { label: 'EGL (Energy Grade)', color: C.egl, dash: true },
+        { label: 'V²/2g (Velocity Head)', color: C.vh, dash: true },
+        { label: 'Δh (Head Loss)', color: C.hl, dash: false },
+      ];
 
-    const legendLineW = mobile ? 12 : 17;
-    const legendGap = mobile ? 4 : 5;
-    const legendFontSize = mobile ? 9 : 11;
-    const legendItemH = mobile ? 14 : 18;
-    const legendTextW = mobile ? 28 : 140;
-    const legendPadX = mobile ? 6 : 10;
-    const legendPadY = mobile ? 4 : 8;
-    const legendBoxW = legendPadX * 2 + legendLineW + legendGap + legendTextW;
-    const legendBoxH = legendPadY * 2 + legendItems.length * legendItemH - (legendItemH - legendFontSize);
+      const lg = svg.append('g').attr('transform', `translate(10, 8)`);
 
-    const lg = svg.append('g').attr('transform', `translate(${legendPadX}, ${legendPadY})`);
+      lg.append('rect')
+        .attr('x', -10).attr('y', -8)
+        .attr('width', 185).attr('height', legendItems.length * 18 + 8)
+        .attr('fill', 'oklch(0.16 0.01 230)').attr('fill-opacity', 0.9)
+        .attr('rx', 4).attr('stroke', C.grid);
 
-    lg.append('rect')
-      .attr('x', -legendPadX).attr('y', -legendPadY)
-      .attr('width', legendBoxW).attr('height', legendBoxH)
-      .attr('fill', 'oklch(0.16 0.01 230)').attr('fill-opacity', 0.9)
-      .attr('rx', 4).attr('stroke', C.grid);
-
-    legendItems.forEach((item, i) => {
-      const gy = i * legendItemH;
-      if (item.dash) {
-        lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', legendLineW).attr('y2', gy)
-          .attr('stroke', item.color).attr('stroke-width', 2.5).attr('stroke-dasharray', '4 3');
-      } else {
-        lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', legendLineW).attr('y2', gy)
-          .attr('stroke', item.color).attr('stroke-width', 2.5);
-      }
-      lg.append('text').attr('x', legendLineW + legendGap).attr('y', gy).attr('dy', '0.35em')
-        .attr('fill', C.axisLight).attr('font-size', legendFontSize).text(item.label);
-    });
+      legendItems.forEach((item, i) => {
+        const gy = i * 18;
+        if (item.dash) {
+          lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', 17).attr('y2', gy)
+            .attr('stroke', item.color).attr('stroke-width', 2.5).attr('stroke-dasharray', '4 3');
+        } else {
+          lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', 17).attr('y2', gy)
+            .attr('stroke', item.color).attr('stroke-width', 2.5);
+        }
+        lg.append('text').attr('x', 22).attr('y', gy).attr('dy', '0.35em')
+          .attr('fill', C.axisLight).attr('font-size', 11).text(item.label);
+      });
+    }
 
     // --- SECTION DATA TABLE (desktop only — rendered in SVG) ---
     if (!mobile) {
@@ -414,33 +400,57 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
 
   return (
     <div className="space-y-3">
-      {/* SVG chart — shorter on mobile since table is outside */}
-      <div ref={containerRef} className="w-full h-[280px] sm:h-[420px]" />
+      {/* SVG chart */}
+      <div ref={containerRef} className="w-full h-[320px] sm:h-[420px]" />
 
-      {/* HTML section data table — mobile only, stacked vertically */}
+      {/* Mobile: legend + section data as HTML cards below the chart */}
       {isMobile && (
-        <div className="grid grid-cols-2 gap-2 text-[11px]">
-          {htmlSections.map((s) => (
-            <div key={s.label} className="rounded-md border border-border/30 bg-muted/20 p-2 space-y-1">
-              <div className="font-semibold text-foreground/80 text-xs">{s.label}</div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">WSEL</span>
-                <span className="font-mono" style={{ color: C.hgl }}>{toDisplay(s.wsel, 'length', us).toFixed(2)}</span>
+        <div className="space-y-3">
+          {/* Legend badges */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'HGL', color: C.hgl, dash: false },
+              { label: 'EGL', color: C.egl, dash: true },
+              { label: 'V²/2g', color: C.vh, dash: true },
+              { label: 'Δh', color: C.hl, dash: false },
+            ].map((item) => (
+              <span key={item.label} className="inline-flex items-center gap-1.5 rounded-md border border-border/30 bg-muted/30 px-2 py-1 text-[10px]">
+                <span
+                  className="inline-block w-3 h-0.5 rounded-full"
+                  style={{
+                    backgroundColor: item.color,
+                    ...(item.dash ? { backgroundImage: `repeating-linear-gradient(90deg, ${item.color} 0 3px, transparent 3px 5px)`, backgroundColor: 'transparent' } : {}),
+                  }}
+                />
+                <span style={{ color: item.color }} className="font-medium">{item.label}</span>
+              </span>
+            ))}
+          </div>
+
+          {/* Section data cards — 2×2 grid */}
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            {htmlSections.map((s) => (
+              <div key={s.label} className="rounded-md border border-border/30 bg-muted/20 p-2 space-y-1">
+                <div className="font-semibold text-foreground/80 text-xs">{s.label}</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">WSEL</span>
+                  <span className="font-mono" style={{ color: C.hgl }}>{toDisplay(s.wsel, 'length', us).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Vel</span>
+                  <span className="font-mono">{toDisplay(s.velocity, 'velocity', us).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fr</span>
+                  <span className="font-mono">{isFinite(s.froude) ? s.froude.toFixed(3) : '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">EGL</span>
+                  <span className="font-mono" style={{ color: C.egl }}>{toDisplay(s.egl, 'length', us).toFixed(2)}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Vel</span>
-                <span className="font-mono">{toDisplay(s.velocity, 'velocity', us).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Fr</span>
-                <span className="font-mono">{isFinite(s.froude) ? s.froude.toFixed(3) : '—'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">EGL</span>
-                <span className="font-mono" style={{ color: C.egl }}>{toDisplay(s.egl, 'length', us).toFixed(2)}</span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
