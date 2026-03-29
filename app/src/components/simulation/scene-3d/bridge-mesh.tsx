@@ -2,13 +2,12 @@
 
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { useTexture } from '@react-three/drei';
 import type { BridgeGeometry, CrossSectionPoint } from '@/engine/types';
 import {
   concreteNormalMap,
   concreteRoughnessMap,
-  concreteAlbedoMap,
   asphaltNormalMap,
-  asphaltAlbedoMap,
 } from './procedural-textures';
 
 interface BridgeMeshProps {
@@ -34,56 +33,58 @@ const MARKING = { color: '#e8e8e8', roughness: 0.5, metalness: 0.0, emissive: '#
 /* ── Textured PBR materials ── */
 interface MatSet {
   concrete: THREE.Material;
-  concreteDark: THREE.Material; // deck girder (long span — needs tiled texture)
+  concreteDark: THREE.Material; // deck girder
+  concreteWeathered: THREE.Material; // piers (stained/weathered)
   asphalt: THREE.Material;
   earth: THREE.Material;
 }
 
 function useTexturedMaterials(span: number, deckDepth: number): MatSet {
+  // Load photo textures — stretched across each surface (no tiling)
+  const [concreteMap, weatheredMap, asphaltMap] = useTexture([
+    '/textures/concrete.jpg',
+    '/textures/concreteweathered.jpg',
+    '/textures/asphalt.jpg',
+  ]);
+
   return useMemo(() => {
-    // Textures for small/medium surfaces (piers, abutments, wingwalls)
-    // repeat(1,1) — one full texture per face, looks good on compact shapes
+    // Procedural normal/roughness maps (subtle enough that tiling isn't visible)
     const cNorm = concreteNormalMap(1024);
     const cRough = concreteRoughnessMap(1024);
-    const cAlbedo = concreteAlbedoMap(1024);
     const aNorm = asphaltNormalMap(1024);
-    const aAlbedo = asphaltAlbedoMap(1024);
 
-    // Separate textures for the deck girder — tiled to match world scale
-    // One tile ≈ 8 world units, so a 60ft span gets ~8 tiles (no tiny squares)
-    const tileSize = 8;
-    const deckRepeatX = Math.max(1, Math.round(span / tileSize));
-    const deckRepeatZ = Math.max(1, Math.round(deckDepth / tileSize));
-
-    const dNorm = concreteNormalMap(1024);
-    const dRough = concreteRoughnessMap(1024);
-    const dAlbedo = concreteAlbedoMap(1024);
-    [dNorm, dRough, dAlbedo].forEach(t => {
-      t.repeat.set(deckRepeatX, deckRepeatZ);
-    });
-
-    // Road surface — tile along the span
-    const roadRepeatX = Math.max(1, Math.round(span / 12));
-    const aAlbedoTiled = asphaltAlbedoMap(1024);
-    const aNormTiled = asphaltNormalMap(1024);
-    [aAlbedoTiled, aNormTiled].forEach(t => {
-      t.repeat.set(roadRepeatX, Math.max(1, Math.round(deckDepth / 12)));
+    // Configure all photo textures: stretch across surfaces, no tiling
+    [concreteMap, weatheredMap, asphaltMap].forEach(tex => {
+      tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.repeat.set(1, 1);
     });
 
     return {
       concrete: new THREE.MeshPhysicalMaterial({
-        map: cAlbedo, normalMap: cNorm, roughnessMap: cRough,
+        map: concreteMap, normalMap: cNorm, roughnessMap: cRough,
         roughness: 1.0, metalness: 0.02, envMapIntensity: 0.8,
         clearcoat: 0.5, clearcoatRoughness: 0.35,
       }),
       concreteDark: new THREE.MeshPhysicalMaterial({
-        map: dAlbedo, normalMap: dNorm, roughnessMap: dRough,
+        map: (() => {
+          const t = concreteMap.clone();
+          t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+          t.colorSpace = THREE.SRGBColorSpace;
+          return t;
+        })(),
+        normalMap: cNorm, roughnessMap: cRough,
         color: '#b0aaa4',
         roughness: 1.0, metalness: 0.02, envMapIntensity: 0.7,
         clearcoat: 0.4, clearcoatRoughness: 0.4,
       }),
+      concreteWeathered: new THREE.MeshPhysicalMaterial({
+        map: weatheredMap, normalMap: cNorm, roughnessMap: cRough,
+        roughness: 1.0, metalness: 0.02, envMapIntensity: 0.6,
+        clearcoat: 0.3, clearcoatRoughness: 0.5,
+      }),
       asphalt: new THREE.MeshStandardMaterial({
-        map: aAlbedoTiled, normalMap: aNormTiled,
+        map: asphaltMap, normalMap: aNorm,
         roughness: 0.98, metalness: 0.0, envMapIntensity: 0.1,
       }),
       earth: new THREE.MeshStandardMaterial({
@@ -91,7 +92,25 @@ function useTexturedMaterials(span: number, deckDepth: number): MatSet {
         side: THREE.DoubleSide,
       }),
     };
-  }, [span, deckDepth]);
+  }, [span, deckDepth, concreteMap, weatheredMap, asphaltMap]);
+}
+
+/* ── Normalize UVs to 0–1 range so photo textures map correctly ── */
+function normalizeUVs(geo: THREE.BufferGeometry) {
+  const uv = geo.getAttribute('uv');
+  if (!uv) return;
+  let minU = Infinity, maxU = -Infinity, minV = Infinity, maxV = -Infinity;
+  for (let i = 0; i < uv.count; i++) {
+    const u = uv.getX(i), v = uv.getY(i);
+    if (u < minU) minU = u; if (u > maxU) maxU = u;
+    if (v < minV) minV = v; if (v > maxV) maxV = v;
+  }
+  const rangeU = maxU - minU || 1;
+  const rangeV = maxV - minV || 1;
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (uv.getX(i) - minU) / rangeU, (uv.getY(i) - minV) / rangeV);
+  }
+  uv.needsUpdate = true;
 }
 
 /* ── Extruded deck with beveled edges and slight crown ── */
@@ -112,11 +131,13 @@ function DeckGeometry({ span, thickness, depth }: { span: number; thickness: num
     shape.lineTo(-hw, -thickness + bevel);
     shape.quadraticCurveTo(-hw, -thickness, -hw + bevel, -thickness);
 
-    return new THREE.ExtrudeGeometry(shape, {
+    const g = new THREE.ExtrudeGeometry(shape, {
       steps: 1,
       depth,
       bevelEnabled: false,
     });
+    normalizeUVs(g);
+    return g;
   }, [span, thickness, depth]);
 
   return <primitive object={geo} attach="geometry" />;
@@ -146,6 +167,7 @@ function ApproachEmbankment({ startX, topY, bottomY, depth, bridgeZ, side, deckT
       depth: depth,
       bevelEnabled: false,
     });
+    normalizeUVs(g);
     g.translate(startX, topY, bridgeZ - depth / 2);
     g.computeVertexNormals();
     return g;
@@ -345,37 +367,34 @@ export function BridgeMesh({ bridge, crossSection, channelLength }: BridgeMeshPr
 
         return (
           <group key={i}>
-            <mesh position={[pier.station, lowChordAtPier - capH / 2, bridgeZ]} castShadow material={mats.concreteDark}>
+            <mesh position={[pier.station, lowChordAtPier - capH / 2, bridgeZ]} castShadow material={mats.concreteWeathered}>
               <boxGeometry args={[pier.width * 1.3, capH, pierDepth]} />
             </mesh>
 
             {pier.shape === 'cylindrical' ? (
-              <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concrete}>
+              <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concreteWeathered}>
                 <cylinderGeometry args={[colRadius, colRadius, pierHeight, 24]} />
               </mesh>
             ) : pier.shape === 'square' ? (
-              <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concrete}>
+              <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concreteWeathered}>
                 <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
               </mesh>
             ) : pier.shape === 'sharp' ? (
               <>
-                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concrete}>
+                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concreteWeathered}>
                   <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
                 </mesh>
-                <mesh position={[pier.station, pierGround + pierHeight * 0.5, bridgeZ - pierDepth / 2 - pier.width * 0.25]} rotation={[0, Math.PI / 4, 0]} castShadow material={mats.concrete}>
+                <mesh position={[pier.station, pierGround + pierHeight * 0.5, bridgeZ - pierDepth / 2 - pier.width * 0.25]} rotation={[0, Math.PI / 4, 0]} castShadow material={mats.concreteWeathered}>
                   <boxGeometry args={[pier.width * 0.4, pierHeight, pier.width * 0.4]} />
                 </mesh>
-                <mesh position={[pier.station, pierGround + pierHeight * 0.5, bridgeZ + pierDepth / 2 + pier.width * 0.25]} rotation={[0, Math.PI / 4, 0]} castShadow material={mats.concrete}>
+                <mesh position={[pier.station, pierGround + pierHeight * 0.5, bridgeZ + pierDepth / 2 + pier.width * 0.25]} rotation={[0, Math.PI / 4, 0]} castShadow material={mats.concreteWeathered}>
                   <boxGeometry args={[pier.width * 0.4, pierHeight, pier.width * 0.4]} />
                 </mesh>
               </>
             ) : (
-              /* Round-nose: rectangular body + semicircular caps on upstream/downstream ends.
-                 CylinderGeometry is Y-up. Half-cylinder (thetaLength=PI) with thetaStart
-                 rotated so the rounded bulge faces ±Z. We rotate the mesh so the flat
-                 face merges flush with the box. */
+              /* Round-nose: rectangular body + semicircular caps on upstream/downstream ends. */
               <>
-                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concrete}>
+                <mesh position={[pier.station, pierGround + pierHeight / 2, bridgeZ]} castShadow material={mats.concreteWeathered}>
                   <boxGeometry args={[pier.width, pierHeight, pierDepth]} />
                 </mesh>
                 {/* Upstream nose — rounded face points toward -Z */}
@@ -383,7 +402,7 @@ export function BridgeMesh({ bridge, crossSection, channelLength }: BridgeMeshPr
                   position={[pier.station, pierGround + pierHeight / 2, bridgeZ - pierDepth / 2]}
                   rotation={[0, -Math.PI / 2, 0]}
                   castShadow
-                  material={mats.concrete}
+                  material={mats.concreteWeathered}
                 >
                   <cylinderGeometry args={[pier.width / 2, pier.width / 2, pierHeight, 16, 1, false, 0, Math.PI]} />
                 </mesh>
@@ -392,7 +411,7 @@ export function BridgeMesh({ bridge, crossSection, channelLength }: BridgeMeshPr
                   position={[pier.station, pierGround + pierHeight / 2, bridgeZ + pierDepth / 2]}
                   rotation={[0, Math.PI / 2, 0]}
                   castShadow
-                  material={mats.concrete}
+                  material={mats.concreteWeathered}
                 >
                   <cylinderGeometry args={[pier.width / 2, pier.width / 2, pierHeight, 16, 1, false, 0, Math.PI]} />
                 </mesh>

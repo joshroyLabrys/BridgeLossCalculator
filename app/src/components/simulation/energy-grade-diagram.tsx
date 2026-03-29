@@ -54,7 +54,6 @@ function drawDimLine(
   svg: Selection<SVGGElement, unknown, null, undefined>,
   x1: number, y1: number, x2: number, y2: number,
   label: string, color: string, side: 'left' | 'right' = 'right',
-  fontSize = 11,
 ) {
   const mx = (x1 + x2) / 2;
   const my = (y1 + y2) / 2;
@@ -76,45 +75,8 @@ function drawDimLine(
   svg.append('text')
     .attr('x', mx + offset).attr('y', my).attr('dy', '0.35em')
     .attr('text-anchor', anchor)
-    .attr('fill', color).attr('font-size', fontSize).attr('font-weight', 600).attr('font-family', 'monospace')
+    .attr('fill', color).attr('font-size', 11).attr('font-weight', 600).attr('font-family', 'monospace')
     .text(label);
-}
-
-function buildSections(profile: HydraulicProfile): Section[] {
-  const p = profile;
-  const contrLen = p.approach.stationEnd - p.approach.stationStart || 50;
-  const bridgeLen = p.bridge.stationEnd - p.bridge.stationStart || 20;
-  const expanLen = p.exit.stationEnd - p.exit.stationStart || 50;
-  const totalLen = contrLen + bridgeLen + expanLen;
-  const channelSlope = p.approach.depth > 0
-    ? (p.usWsel - p.dsWsel) / totalLen * 0.3
-    : 0;
-  const bridgeBed = p.bridge.bedElevation;
-  const bed4 = bridgeBed + channelSlope * contrLen;
-  const bed3 = bridgeBed;
-  const bed2 = bridgeBed;
-  const bed1 = bridgeBed - channelSlope * expanLen;
-  const approachVH = (p.approach.velocity ** 2) / (2 * G);
-  const exitVH = (p.exit.velocity ** 2) / (2 * G);
-
-  return [
-    { label: 'Section 4', shortLabel: '4', x: 0,
-      bed: bed4, wsel: p.usWsel, velocity: p.approach.velocity,
-      velocityHead: approachVH, egl: p.usWsel + approachVH,
-      froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)) },
-    { label: 'Section 3 (BU)', shortLabel: '3', x: contrLen,
-      bed: bed3, wsel: p.usWsel, velocity: p.approach.velocity,
-      velocityHead: approachVH, egl: p.usWsel + approachVH,
-      froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)) },
-    { label: 'Section 2 (BD)', shortLabel: '2', x: contrLen + bridgeLen,
-      bed: bed2, wsel: p.dsWsel, velocity: p.exit.velocity,
-      velocityHead: exitVH, egl: p.dsWsel + exitVH,
-      froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)) },
-    { label: 'Section 1', shortLabel: '1', x: totalLen,
-      bed: bed1, wsel: p.dsWsel, velocity: p.exit.velocity,
-      velocityHead: exitVH, egl: p.dsWsel + exitVH,
-      froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)) },
-  ];
 }
 
 export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
@@ -122,7 +84,7 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
   const us = useProjectStore((s) => s.unitSystem);
   const lenUnit = unitLabel('length', us);
   const velUnit = unitLabel('velocity', us);
-  const [compact, setCompact] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const draw = useCallback(() => {
     const container = containerRef.current;
@@ -130,14 +92,12 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     select(container).select('svg').remove();
 
     const rect = container.getBoundingClientRect();
-    const isCompact = rect.width < 580;
-    setCompact(isCompact);
+    const mobile = rect.width < 500;
+    setIsMobile(mobile);
 
-    // Compact: no inline table → smaller bottom margin
-    const fs = isCompact ? 10 : 12;
-    const fsMono = isCompact ? 9 : 11;
-    const margin = isCompact
-      ? { top: 14, right: 20, bottom: 38, left: 48 }
+    // On mobile: no bottom table (rendered as HTML instead), smaller margins
+    const margin = mobile
+      ? { top: 14, right: 20, bottom: 44, left: 48 }
       : { top: 18, right: 36, bottom: 90, left: 62 };
     const width = rect.width - margin.left - margin.right;
     const height = rect.height - margin.top - margin.bottom;
@@ -151,10 +111,45 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .attr('transform', `translate(${margin.left},${margin.top})`);
 
     const p = profile;
-    const sections = buildSections(p);
-    const totalLen = sections[3].x;
-    const contrLen = sections[1].x;
-    const bridgeLen = sections[2].x - sections[1].x;
+
+    // Real longitudinal distances
+    const contrLen = p.approach.stationEnd - p.approach.stationStart || 50;
+    const bridgeLen = p.bridge.stationEnd - p.bridge.stationStart || 20;
+    const expanLen = p.exit.stationEnd - p.exit.stationStart || 50;
+    const totalLen = contrLen + bridgeLen + expanLen;
+
+    // Thalweg: smooth channel bed using bridge invert + channel slope.
+    const channelSlope = p.approach.depth > 0
+      ? (p.usWsel - p.dsWsel) / totalLen * 0.3
+      : 0;
+    const bridgeBed = p.bridge.bedElevation;
+    const bed4 = bridgeBed + channelSlope * contrLen;
+    const bed3 = bridgeBed;
+    const bed2 = bridgeBed;
+    const bed1 = bridgeBed - channelSlope * expanLen;
+
+    // Section data
+    const approachVH = (p.approach.velocity ** 2) / (2 * G);
+    const exitVH = (p.exit.velocity ** 2) / (2 * G);
+
+    const sections: Section[] = [
+      { label: 'Section 4', shortLabel: '4', x: 0,
+        bed: bed4, wsel: p.usWsel, velocity: p.approach.velocity,
+        velocityHead: approachVH, egl: p.usWsel + approachVH,
+        froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)) },
+      { label: 'Section 3 (BU)', shortLabel: '3', x: contrLen,
+        bed: bed3, wsel: p.usWsel, velocity: p.approach.velocity,
+        velocityHead: approachVH, egl: p.usWsel + approachVH,
+        froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)) },
+      { label: 'Section 2 (BD)', shortLabel: '2', x: contrLen + bridgeLen,
+        bed: bed2, wsel: p.dsWsel, velocity: p.exit.velocity,
+        velocityHead: exitVH, egl: p.dsWsel + exitVH,
+        froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)) },
+      { label: 'Section 1', shortLabel: '1', x: totalLen,
+        bed: bed1, wsel: p.dsWsel, velocity: p.exit.velocity,
+        velocityHead: exitVH, egl: p.dsWsel + exitVH,
+        froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)) },
+    ];
 
     // Scales
     const xPad = totalLen * 0.08;
@@ -169,8 +164,6 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .domain([Math.min(...allElev) - yPad, Math.max(...allElev) + yPad])
       .range([height, 0]);
 
-    const tickCount = isCompact ? 4 : 6;
-
     // --- GRID ---
     svg.append('g').attr('transform', `translate(0,${height})`)
       .call(axisBottom(x).tickSize(-height).tickFormat(() => ''))
@@ -180,24 +173,23 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .call(g => { g.selectAll('line').attr('stroke', C.grid); g.select('.domain').remove(); });
 
     // --- AXES ---
+    const tickCount = mobile ? 4 : 6;
+    const fontSize = mobile ? 10 : 12;
     svg.append('g').attr('transform', `translate(0,${height})`)
       .call(axisBottom(x).ticks(tickCount))
-      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', fs); g.selectAll('line,path').attr('stroke', C.grid); });
+      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', fontSize); g.selectAll('line,path').attr('stroke', C.grid); });
     svg.append('g')
       .call(axisLeft(y).ticks(tickCount))
-      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', fs); g.selectAll('line,path').attr('stroke', C.grid); });
+      .call(g => { g.selectAll('text').attr('fill', C.axis).attr('font-size', fontSize); g.selectAll('line,path').attr('stroke', C.grid); });
 
     svg.append('text').attr('transform', 'rotate(-90)')
-      .attr('x', -height / 2).attr('y', isCompact ? -34 : -48)
-      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', fs)
-      .text(`Elevation (${lenUnit})`);
-
-    if (!isCompact) {
-      svg.append('text')
-        .attr('x', width / 2).attr('y', height + 32)
-        .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', fs)
-        .text(`Longitudinal Distance (${lenUnit})`);
-    }
+      .attr('x', -height / 2).attr('y', mobile ? -34 : -48)
+      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', mobile ? 10 : 12)
+      .text(mobile ? `Elev (${lenUnit})` : `Elevation (${lenUnit})`);
+    svg.append('text')
+      .attr('x', width / 2).attr('y', height + (mobile ? 28 : 32))
+      .attr('text-anchor', 'middle').attr('fill', C.axis).attr('font-size', mobile ? 10 : 12)
+      .text(mobile ? `Distance (${lenUnit})` : `Longitudinal Distance (${lenUnit})`);
 
     // --- GROUND ---
     const gData = sections.map(s => ({ x: s.x, bed: s.bed }));
@@ -216,7 +208,7 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     // --- HGL ---
     svg.append('path').datum(sections)
       .attr('d', d3line<Section>().x(d => x(d.x)).y(d => y(d.wsel)))
-      .attr('fill', 'none').attr('stroke', C.hgl).attr('stroke-width', isCompact ? 2 : 2.5);
+      .attr('fill', 'none').attr('stroke', C.hgl).attr('stroke-width', 2.5);
 
     // --- EGL ---
     svg.append('path').datum(sections)
@@ -228,76 +220,42 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .attr('d', d3area<Section>().x(d => x(d.x)).y0(d => y(d.wsel)).y1(d => y(d.egl)))
       .attr('fill', C.eglFill);
 
-    // --- BRIDGE (longitudinal profile) ---
-    // X-axis = distance along flow. Pier stations are perpendicular to flow,
-    // so individual piers don't appear at specific X positions. Instead we show:
-    // 1. Deck superstructure (low chord to high chord)
-    // 2. Abutment walls at each end (sections 3 & 2)
-    // 3. Pier obstruction band — hatched zone showing flow constriction
+    // --- BRIDGE with piers ---
     const bx1 = x(contrLen);
     const bx2 = x(contrLen + bridgeLen);
     const bMid = (bx1 + bx2) / 2;
     const bWidth = bx2 - bx1;
 
-    // Abutment walls
-    const abutW = Math.max(bWidth * 0.05, 3);
-    const abutBot = y(p.bridge.bedElevation);
     svg.append('rect')
-      .attr('x', bx1 - abutW).attr('y', y(p.bridge.highChord))
-      .attr('width', abutW).attr('height', abutBot - y(p.bridge.highChord))
-      .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1);
-    svg.append('rect')
-      .attr('x', bx2).attr('y', y(p.bridge.highChord))
-      .attr('width', abutW).attr('height', abutBot - y(p.bridge.highChord))
-      .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1);
-
-    // Deck superstructure
-    svg.append('rect')
-      .attr('x', bx1 - abutW).attr('y', y(p.bridge.highChord))
-      .attr('width', bWidth + abutW * 2)
+      .attr('x', bx1).attr('y', y(p.bridge.highChord))
+      .attr('width', bWidth)
       .attr('height', y(p.bridge.lowChordLeft) - y(p.bridge.highChord))
       .attr('fill', C.bridgeFill).attr('stroke', C.bridge).attr('stroke-width', 1.5);
 
-    // Pier obstruction band — if piers exist, show a hatched zone between
-    // low chord and bed to indicate flow constriction in the bridge reach
-    if (p.bridge.piers.length > 0) {
-      const pierTop = y(p.bridge.lowChordLeft);
-      const pierBot = y(p.bridge.bedElevation);
-      const pierH = pierBot - pierTop;
-
-      // Create diagonal hatch pattern
-      const defs = svg.append('defs');
-      defs.append('pattern')
-        .attr('id', 'pier-hatch')
-        .attr('patternUnits', 'userSpaceOnUse')
-        .attr('width', 6).attr('height', 6)
-        .append('path')
-        .attr('d', 'M 0 6 L 6 0')
-        .attr('stroke', C.pier).attr('stroke-width', 0.8).attr('stroke-opacity', 0.4);
-
-      // Hatched obstruction zone (full bridge opening width)
-      svg.append('rect')
-        .attr('x', bx1).attr('y', pierTop)
-        .attr('width', bWidth).attr('height', pierH)
-        .attr('fill', 'url(#pier-hatch)')
-        .attr('stroke', C.pier).attr('stroke-width', 0.5).attr('stroke-opacity', 0.3);
-
-      // Label
-      if (!isCompact) {
-        svg.append('text')
-          .attr('x', bMid).attr('y', pierTop + pierH / 2)
-          .attr('dy', '0.35em').attr('text-anchor', 'middle')
-          .attr('fill', C.pier).attr('font-size', 9).attr('fill-opacity', 0.6)
-          .text(`${p.bridge.piers.length} pier${p.bridge.piers.length > 1 ? 's' : ''}`);
-      }
-    }
-
-    if (!isCompact) {
+    if (!mobile) {
       svg.append('text')
         .attr('x', bMid).attr('y', y(p.bridge.lowChordLeft) + 14)
         .attr('text-anchor', 'middle').attr('fill', C.bridge).attr('font-size', 10)
         .text(`Low Chord ${toDisplay(p.bridge.lowChordLeft, 'length', us).toFixed(2)} ${lenUnit}`);
     }
+
+    // Piers
+    const span = p.bridge.stationEnd - p.bridge.stationStart;
+    p.bridge.piers.forEach((pier) => {
+      const t = span > 0 ? (pier.station - p.bridge.stationStart) / span : 0.5;
+      const pierCenterX = bx1 + t * bWidth;
+      const pierW = (pier.width / span) * bWidth;
+      const pierTop = y(p.bridge.lowChordLeft);
+      const pierBot = y(p.bridge.bedElevation);
+
+      svg.append('rect')
+        .attr('x', pierCenterX - pierW / 2)
+        .attr('y', pierTop)
+        .attr('width', Math.max(pierW, 4))
+        .attr('height', pierBot - pierTop)
+        .attr('fill', C.pier).attr('fill-opacity', 0.6)
+        .attr('stroke', C.bridge).attr('stroke-width', 1);
+    });
 
     // --- SECTION LINES ---
     sections.forEach((s) => {
@@ -305,14 +263,15 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       svg.append('line')
         .attr('x1', sx).attr('y1', 0).attr('x2', sx).attr('y2', height)
         .attr('stroke', C.sectionLine).attr('stroke-width', 1).attr('stroke-dasharray', '5 4');
+
       svg.append('text')
         .attr('x', sx).attr('y', -5)
-        .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', fs).attr('font-weight', 700)
+        .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', mobile ? 10 : 12).attr('font-weight', 700)
         .text(s.shortLabel);
     });
 
-    // --- VELOCITY HEAD BARS (desktop only — too cluttered on mobile) ---
-    if (!isCompact) {
+    // --- VELOCITY HEAD BARS (skip on mobile — too cramped) ---
+    if (!mobile) {
       [sections[0], sections[3]].forEach((s, i) => {
         const sx = x(s.x) + (i === 0 ? -18 : 18);
         const vh = toDisplay(s.velocityHead, 'length', us);
@@ -330,7 +289,7 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     const hl = toDisplay(egl4 - egl1, 'length', us);
     if (Math.abs(egl4 - egl1) > 0.001) {
       drawDimLine(svg, hlX, y(egl4), hlX, y(egl1),
-        `Δh = ${hl.toFixed(3)}`, C.hl, 'right', fsMono);
+        mobile ? `Δh=${hl.toFixed(2)}` : `Δh = ${hl.toFixed(3)}`, C.hl, 'right');
     }
 
     // --- FLOW DIRECTION ---
@@ -345,11 +304,42 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       .attr('fill', C.flowArrow);
     svg.append('text')
       .attr('x', (arrowX1 + arrowX2) / 2).attr('y', arrowY - 8)
-      .attr('text-anchor', 'middle').attr('fill', C.flowArrow).attr('font-size', fsMono)
+      .attr('text-anchor', 'middle').attr('fill', C.flowArrow).attr('font-size', mobile ? 9 : 11)
       .text('Flow');
 
-    // --- SECTION DATA TABLE (desktop only) ---
-    if (!isCompact) {
+    // --- LEGEND (SVG, desktop only — mobile legend rendered as HTML below) ---
+    if (!mobile) {
+      const legendItems = [
+        { label: 'HGL (Water Surface)', color: C.hgl, dash: false },
+        { label: 'EGL (Energy Grade)', color: C.egl, dash: true },
+        { label: 'V²/2g (Velocity Head)', color: C.vh, dash: true },
+        { label: 'Δh (Head Loss)', color: C.hl, dash: false },
+      ];
+
+      const lg = svg.append('g').attr('transform', `translate(10, 8)`);
+
+      lg.append('rect')
+        .attr('x', -10).attr('y', -8)
+        .attr('width', 185).attr('height', legendItems.length * 18 + 8)
+        .attr('fill', 'oklch(0.16 0.01 230)').attr('fill-opacity', 0.9)
+        .attr('rx', 4).attr('stroke', C.grid);
+
+      legendItems.forEach((item, i) => {
+        const gy = i * 18;
+        if (item.dash) {
+          lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', 17).attr('y2', gy)
+            .attr('stroke', item.color).attr('stroke-width', 2.5).attr('stroke-dasharray', '4 3');
+        } else {
+          lg.append('line').attr('x1', 0).attr('y1', gy).attr('x2', 17).attr('y2', gy)
+            .attr('stroke', item.color).attr('stroke-width', 2.5);
+        }
+        lg.append('text').attr('x', 22).attr('y', gy).attr('dy', '0.35em')
+          .attr('fill', C.axisLight).attr('font-size', 11).text(item.label);
+      });
+    }
+
+    // --- SECTION DATA TABLE (desktop only — rendered in SVG) ---
+    if (!mobile) {
       const tableY = height + 46;
       const rowH = 15;
       const headers = ['WSEL', 'Velocity', 'Froude', 'EGL'];
@@ -363,6 +353,7 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
 
       sections.forEach((s) => {
         const sx = x(s.x);
+
         svg.append('text')
           .attr('x', sx).attr('y', tableY - rowH)
           .attr('text-anchor', 'middle').attr('fill', C.label).attr('font-size', 11).attr('font-weight', 700)
@@ -385,42 +376,18 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
       });
     }
 
-    // --- LEGEND ---
-    const legendItems = isCompact
-      ? [
-          { label: 'HGL', color: C.hgl, dash: false },
-          { label: 'EGL', color: C.egl, dash: true },
-        ]
-      : [
-          { label: 'HGL (Water Surface)', color: C.hgl, dash: false },
-          { label: 'EGL (Energy Grade)', color: C.egl, dash: true },
-          { label: 'V²/2g (Velocity Head)', color: C.vh, dash: true },
-          { label: 'Δh (Head Loss)', color: C.hl, dash: false },
-        ];
-
-    const lgW = isCompact ? 80 : 165;
-    const lg = svg.append('g').attr('transform', `translate(${width - 10}, 8)`);
-    lg.append('rect')
-      .attr('x', -lgW + 10).attr('y', -8)
-      .attr('width', lgW).attr('height', legendItems.length * (isCompact ? 16 : 18) + 8)
-      .attr('fill', 'oklch(0.16 0.01 230)').attr('fill-opacity', 0.9)
-      .attr('rx', 4).attr('stroke', C.grid);
-
-    legendItems.forEach((item, i) => {
-      const gy = i * (isCompact ? 16 : 18);
-      const lx = -lgW + 20;
-      if (item.dash) {
-        lg.append('line').attr('x1', lx).attr('y1', gy).attr('x2', lx + 14).attr('y2', gy)
-          .attr('stroke', item.color).attr('stroke-width', 2.5).attr('stroke-dasharray', '4 3');
-      } else {
-        lg.append('line').attr('x1', lx).attr('y1', gy).attr('x2', lx + 14).attr('y2', gy)
-          .attr('stroke', item.color).attr('stroke-width', 2.5);
-      }
-      lg.append('text').attr('x', lx + 18).attr('y', gy).attr('dy', '0.35em')
-        .attr('fill', C.axisLight).attr('font-size', isCompact ? 9 : 11).text(item.label);
-    });
-
   }, [profile, us, lenUnit, velUnit]);
+
+  // Build section data for HTML table (used on mobile)
+  const p = profile;
+  const approachVH = (p.approach.velocity ** 2) / (2 * G);
+  const exitVH = (p.exit.velocity ** 2) / (2 * G);
+  const htmlSections = [
+    { label: 'Sec 4', wsel: p.usWsel, velocity: p.approach.velocity, froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)), egl: p.usWsel + approachVH },
+    { label: 'Sec 3', wsel: p.usWsel, velocity: p.approach.velocity, froude: p.approach.velocity / Math.sqrt(G * Math.max(p.approach.depth, 0.01)), egl: p.usWsel + approachVH },
+    { label: 'Sec 2', wsel: p.dsWsel, velocity: p.exit.velocity, froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)), egl: p.dsWsel + exitVH },
+    { label: 'Sec 1', wsel: p.dsWsel, velocity: p.exit.velocity, froude: p.exit.velocity / Math.sqrt(G * Math.max(p.exit.depth, 0.01)), egl: p.dsWsel + exitVH },
+  ];
 
   useEffect(() => {
     draw();
@@ -431,59 +398,59 @@ export function EnergyGradeDiagram({ profile }: EnergyGradeDiagramProps) {
     return () => observer.disconnect();
   }, [draw]);
 
-  // Build sections for the HTML table (mobile)
-  const sections = buildSections(profile);
-
   return (
-    <div className="space-y-2">
-      <div ref={containerRef} className="w-full h-[300px] sm:h-[360px] lg:h-[420px]" />
-      {/* Compact HTML table shown when SVG table is hidden */}
-      {compact && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[11px] font-mono tabular-nums border-collapse min-w-[320px]">
-            <thead>
-              <tr className="text-muted-foreground text-left">
-                <th className="pr-3 py-1 font-medium"></th>
-                {sections.map(s => (
-                  <th key={s.shortLabel} className="px-2 py-1 font-semibold text-center">{s.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="text-foreground">
-              <tr>
-                <td className="pr-3 py-0.5 text-[#93c5fd] font-medium">WSEL</td>
-                {sections.map(s => (
-                  <td key={s.shortLabel} className="px-2 py-0.5 text-center text-[#93c5fd]">
-                    {toDisplay(s.wsel, 'length', us).toFixed(2)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="pr-3 py-0.5 text-muted-foreground font-medium">Velocity</td>
-                {sections.map(s => (
-                  <td key={s.shortLabel} className="px-2 py-0.5 text-center">
-                    {toDisplay(s.velocity, 'velocity', us).toFixed(2)}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="pr-3 py-0.5 text-muted-foreground font-medium">Froude</td>
-                {sections.map(s => (
-                  <td key={s.shortLabel} className="px-2 py-0.5 text-center">
-                    {isFinite(s.froude) ? s.froude.toFixed(3) : '—'}
-                  </td>
-                ))}
-              </tr>
-              <tr>
-                <td className="pr-3 py-0.5 text-[#fdba74] font-medium">EGL</td>
-                {sections.map(s => (
-                  <td key={s.shortLabel} className="px-2 py-0.5 text-center text-[#fdba74]">
-                    {toDisplay(s.egl, 'length', us).toFixed(2)}
-                  </td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+    <div className="space-y-3">
+      {/* SVG chart */}
+      <div ref={containerRef} className="w-full h-[320px] sm:h-[420px]" />
+
+      {/* Mobile: legend + section data as HTML cards below the chart */}
+      {isMobile && (
+        <div className="space-y-3">
+          {/* Legend badges */}
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'HGL', color: C.hgl, dash: false },
+              { label: 'EGL', color: C.egl, dash: true },
+              { label: 'V²/2g', color: C.vh, dash: true },
+              { label: 'Δh', color: C.hl, dash: false },
+            ].map((item) => (
+              <span key={item.label} className="inline-flex items-center gap-1.5 rounded-md border border-border/30 bg-muted/30 px-2 py-1 text-[10px]">
+                <span
+                  className="inline-block w-3 h-0.5 rounded-full"
+                  style={{
+                    backgroundColor: item.color,
+                    ...(item.dash ? { backgroundImage: `repeating-linear-gradient(90deg, ${item.color} 0 3px, transparent 3px 5px)`, backgroundColor: 'transparent' } : {}),
+                  }}
+                />
+                <span style={{ color: item.color }} className="font-medium">{item.label}</span>
+              </span>
+            ))}
+          </div>
+
+          {/* Section data cards — 2×2 grid */}
+          <div className="grid grid-cols-2 gap-2 text-[11px]">
+            {htmlSections.map((s) => (
+              <div key={s.label} className="rounded-md border border-border/30 bg-muted/20 p-2 space-y-1">
+                <div className="font-semibold text-foreground/80 text-xs">{s.label}</div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">WSEL</span>
+                  <span className="font-mono" style={{ color: C.hgl }}>{toDisplay(s.wsel, 'length', us).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Vel</span>
+                  <span className="font-mono">{toDisplay(s.velocity, 'velocity', us).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Fr</span>
+                  <span className="font-mono">{isFinite(s.froude) ? s.froude.toFixed(3) : '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">EGL</span>
+                  <span className="font-mono" style={{ color: C.egl }}>{toDisplay(s.egl, 'length', us).toFixed(2)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>

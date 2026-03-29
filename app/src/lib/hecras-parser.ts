@@ -302,6 +302,96 @@ function parseBridgeBlock(
   };
 }
 
+// ─── Results file parser (.r01) ───────────────────────────────────────────
+
+export interface HecRasResultsProfile {
+  profileName: string;
+  upstreamWsel: number | null;
+  headLoss: number | null;
+  velocity: number | null;
+  froude: number | null;
+}
+
+export function parseHecRasResults(text: string): HecRasResultsProfile[] {
+  try {
+    const lines = text.split(/\r?\n/);
+    const profiles: HecRasResultsProfile[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Look for "Begin Profile Output" blocks
+      if (/Begin\s+Profile\s+Output/i.test(line)) {
+        const profile: HecRasResultsProfile = {
+          profileName: '',
+          upstreamWsel: null,
+          headLoss: null,
+          velocity: null,
+          froude: null,
+        };
+
+        i++;
+        // Scan the block until we hit "End Profile Output" or another section
+        while (i < lines.length) {
+          const bline = lines[i];
+
+          if (/End\s+Profile\s+Output/i.test(bline)) {
+            i++;
+            break;
+          }
+
+          // Profile name
+          const nameMatch = bline.match(/Profile\s*[:=]\s*(.+)/i);
+          if (nameMatch && !profile.profileName) {
+            profile.profileName = nameMatch[1].trim();
+          }
+
+          // W.S. Elev
+          const wselMatch = bline.match(/W\.?S\.?\s*Elev\s*[:=]\s*([\d.+-]+)/i);
+          if (wselMatch) {
+            profile.upstreamWsel = parseFloat(wselMatch[1]);
+          }
+
+          // E.G. Elev (can derive head loss from W.S. and E.G. difference)
+          const eglMatch = bline.match(/E\.?G\.?\s*Elev\s*[:=]\s*([\d.+-]+)/i);
+          if (eglMatch && profile.upstreamWsel !== null) {
+            const egl = parseFloat(eglMatch[1]);
+            if (!isNaN(egl)) {
+              profile.headLoss = Math.abs(egl - profile.upstreamWsel);
+            }
+          }
+
+          // Velocity
+          const velMatch = bline.match(/Vel\s*(?:Chnl|Total)?\s*[:=]\s*([\d.+-]+)/i);
+          if (velMatch) {
+            profile.velocity = parseFloat(velMatch[1]);
+          }
+
+          // Froude
+          const frMatch = bline.match(/Froude\s*(?:#|Num)?\s*(?:Chl)?\s*[:=]\s*([\d.+-]+)/i);
+          if (frMatch) {
+            profile.froude = parseFloat(frMatch[1]);
+          }
+
+          i++;
+        }
+
+        if (profile.profileName) {
+          profiles.push(profile);
+        }
+        continue;
+      }
+
+      i++;
+    }
+
+    return profiles;
+  } catch {
+    return [];
+  }
+}
+
 // ─── Flow file parser ─────────────────────────────────────────────────────────
 
 export function parseHecRasFlow(text: string): HecRasFlowResult {

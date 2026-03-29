@@ -21,6 +21,7 @@ import { BridgeMesh } from './bridge-mesh';
 import { GrassMesh } from './grass-mesh';
 import { SprayParticles } from './spray-particles';
 import { BridgeDetails } from './bridge-details';
+import { DebrisMat } from '../debris-mat';
 
 /* ── Feature flags ── */
 export interface RenderFeatures {
@@ -45,14 +46,17 @@ const DEFAULT_FEATURES: RenderFeatures = {
 
 interface SimulationSceneProps {
   profile: HydraulicProfile;
+  /** Debris blockage percentage 0-100 (from What-If overrides) */
+  debrisPct?: number;
 }
 
 interface SceneContentProps {
   profile: HydraulicProfile;
   features: RenderFeatures;
+  debrisPct: number;
 }
 
-function SceneContent({ profile, features }: SceneContentProps) {
+function SceneContent({ profile, features, debrisPct }: SceneContentProps) {
   const cs = profile.crossSection;
   const bridge = profile.bridge;
   const sunRef = useRef<THREE.Mesh>(null);
@@ -191,6 +195,19 @@ function SceneContent({ profile, features }: SceneContentProps) {
         bridgeZ={centerZ}
       />
 
+      {/* Debris mat at upstream face */}
+      {debrisPct > 0 && (
+        <DebrisMat
+          blockagePct={debrisPct}
+          openingWidth={bridge.stationEnd - bridge.stationStart}
+          leftStation={bridge.stationStart}
+          wsel={profile.usWsel}
+          lowChord={Math.min(bridge.lowChordLeft, bridge.lowChordRight)}
+          bridgeZ={centerZ}
+          deckDepth={bridgeDeckWidth}
+        />
+      )}
+
       {/* Grass on terrain above waterline */}
       <GrassMesh
         crossSection={cs}
@@ -261,7 +278,7 @@ const FEATURE_META: { key: keyof RenderFeatures; label: string }[] = [
   { key: 'vignette', label: 'Vignette' },
 ];
 
-export function SimulationScene({ profile }: SimulationSceneProps) {
+export function SimulationScene({ profile, debrisPct = 0 }: SimulationSceneProps) {
   const cs = profile.crossSection;
   const span = cs[cs.length - 1].station - cs[0].station;
   const minElev = Math.min(...cs.map(p => p.elevation));
@@ -311,7 +328,7 @@ export function SimulationScene({ profile }: SimulationSceneProps) {
         style={{ background: 'oklch(0.14 0.01 230)' }}
       >
         <Suspense fallback={null}>
-          <SceneContent profile={profile} features={features} />
+          <SceneContent profile={profile} features={features} debrisPct={debrisPct} />
         </Suspense>
       </Canvas>
 

@@ -17,6 +17,12 @@ import type {
   Coefficients,
   CalculationResults,
   HecRasComparison,
+  ScourResults,
+  ScourInputs,
+  AdequacyResults,
+  ChecklistItem,
+  Jurisdiction,
+  NarrativeSection,
 } from '@/engine/types';
 import type { AiSummaryResponse } from '@/lib/api/ai-summary-prompt';
 import {
@@ -176,11 +182,50 @@ function KV({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+/**
+ * Parse simple markdown (bold, italic) into react-pdf <Text> spans.
+ * Handles **bold**, __bold__, *italic*, _italic_, and ***bold+italic***.
+ */
+function parseMarkdown(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Match ***bold+italic***, **bold**, __bold__, *italic*, _italic_
+  const re = /(\*{3}(.+?)\*{3}|\*{2}(.+?)\*{2}|_{2}(.+?)_{2}|\*(.+?)\*|_(.+?)_)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    if (match[2]) {
+      // ***bold+italic***
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-BoldOblique' }}>{match[2]}</Text>);
+    } else if (match[3]) {
+      // **bold**
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Bold' }}>{match[3]}</Text>);
+    } else if (match[4]) {
+      // __bold__
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Bold' }}>{match[4]}</Text>);
+    } else if (match[5]) {
+      // *italic*
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Oblique' }}>{match[5]}</Text>);
+    } else if (match[6]) {
+      // _italic_
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Oblique' }}>{match[6]}</Text>);
+    }
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+  return parts;
+}
+
 function Bullet({ text, color }: { text: string; color?: string }) {
   return (
     <View style={s.bulletItem} wrap={false}>
       <Text style={s.bulletDot}>•</Text>
-      <Text style={[s.bulletText, color ? { color } : {}]}>{text}</Text>
+      <Text style={[s.bulletText, color ? { color } : {}]}>{parseMarkdown(text)}</Text>
     </View>
   );
 }
@@ -224,6 +269,18 @@ function DataTable({ columns, data }: { columns: Col[]; data: Record<string, unk
 
 /* ─── Report data ─── */
 
+export interface PdfSections {
+  cover?: boolean;
+  inputs?: boolean;
+  hydraulicAnalysis?: boolean;
+  overview?: boolean;
+  scour?: boolean;
+  adequacy?: boolean;
+  regulatory?: boolean;
+  narrative?: boolean;
+  appendices?: boolean;
+}
+
 export interface PdfReportData {
   projectName: string;
   crossSection: CrossSectionPoint[];
@@ -234,12 +291,51 @@ export interface PdfReportData {
   hecRasComparison: HecRasComparison[];
   aiSummary: AiSummaryResponse | null;
   sceneCapture?: string | null;
+  scourResults?: ScourResults[] | null;
+  scourInputs?: ScourInputs;
+  adequacyResults?: AdequacyResults | null;
+  regulatoryChecklist?: ChecklistItem[];
+  regulatoryJurisdiction?: Jurisdiction;
+  narrativeSections?: NarrativeSection[];
+  sections?: PdfSections;
 }
 
 /* ─── Document ─── */
 
+const JURISDICTION_LABELS: Record<string, string> = {
+  tmr: 'TMR (Queensland)',
+  vicroads: 'VicRoads (Victoria)',
+  dpie: 'DPIE (NSW)',
+  arr: 'ARR (National)',
+};
+
+const BED_MATERIAL_LABELS: Record<string, string> = {
+  sand: 'Sand',
+  gravel: 'Gravel',
+  cobble: 'Cobble',
+  clay: 'Clay',
+  rock: 'Rock',
+};
+
 function ReportDocument({ data }: { data: PdfReportData }) {
-  const { projectName, crossSection, bridge, profiles, coefficients, results, hecRasComparison, aiSummary, sceneCapture } = data;
+  const {
+    projectName, crossSection, bridge, profiles, coefficients, results,
+    hecRasComparison, aiSummary, sceneCapture,
+    scourResults, scourInputs, adequacyResults,
+    regulatoryChecklist, regulatoryJurisdiction, narrativeSections,
+    sections: sec = {},
+  } = data;
+  const show = {
+    cover: sec.cover !== false,
+    inputs: sec.inputs !== false,
+    hydraulicAnalysis: sec.hydraulicAnalysis !== false,
+    overview: sec.overview !== false,
+    scour: sec.scour !== false,
+    adequacy: sec.adequacy !== false,
+    regulatory: sec.regulatory !== false,
+    narrative: sec.narrative !== false,
+    appendices: sec.appendices !== false,
+  };
   const date = new Date().toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
   const title = projectName || 'Bridge Hydraulic Loss Assessment';
   const freeboard = results ? computeFreeboard(results, bridge, profiles, coefficients.freeboardThreshold) : null;
@@ -254,15 +350,17 @@ function ReportDocument({ data }: { data: PdfReportData }) {
     <Document title={`${title} - Report`} author="Bridge Loss Calculator">
 
       {/* ═══ COVER ═══ */}
-      <Page size="A4" style={[s.page, { paddingTop: 0, paddingBottom: 0 }]}>
-        <View style={s.coverCenter}>
-          <View style={s.coverRule} />
-          <Text style={s.coverTitle}>Bridge Hydraulic Loss Assessment</Text>
-          {projectName ? <Text style={s.coverSub}>{projectName}</Text> : null}
-          <View style={s.coverRuleB} />
-          <Text style={s.coverDate}>{date}</Text>
-        </View>
-      </Page>
+      {show.cover ? (
+        <Page size="A4" style={[s.page, { paddingTop: 0, paddingBottom: 0 }]}>
+          <View style={s.coverCenter}>
+            <View style={s.coverRule} />
+            <Text style={s.coverTitle}>Bridge Hydraulic Loss Assessment</Text>
+            {projectName ? <Text style={s.coverSub}>{projectName}</Text> : null}
+            <View style={s.coverRuleB} />
+            <Text style={s.coverDate}>{date}</Text>
+          </View>
+        </Page>
+      ) : null}
 
       {/* ═══ BODY — single flowing page ═══ */}
       <Page size="A4" style={s.page} wrap>
@@ -270,7 +368,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         <PageFooter date={date} />
 
         {/* ── 1. Input Summary ── */}
-        <Sec num={next()} title="Input Summary" desc="Summary of bridge geometry, coefficients, and flow profiles used as inputs.">
+        {show.inputs ? <Sec num={next()} title="Input Summary" desc="Summary of bridge geometry, coefficients, and flow profiles used as inputs.">
           <Text style={s.subTitle}>Bridge Geometry</Text>
           <View style={s.kvGrid}>
             <KV label="Low Chord Left" value={bridge.lowChordLeft} />
@@ -306,10 +404,10 @@ function ReportDocument({ data }: { data: PdfReportData }) {
             ]}
             data={profiles as unknown as Record<string, unknown>[]}
           />
-        </Sec>
+        </Sec> : null}
 
         {/* ── Cross-Section Chart ── */}
-        {crossSection.length >= 2 ? (
+        {show.inputs && crossSection.length >= 2 ? (
           <View wrap={false}>
             <Divider />
             <View style={s.chartWrap}>
@@ -329,10 +427,10 @@ function ReportDocument({ data }: { data: PdfReportData }) {
           </View>
         ) : null}
 
-        <Divider />
+        {show.inputs ? <Divider /> : null}
 
         {/* ── 2. Cross-Section Data ── */}
-        <Sec num={next()} title="Cross-Section Data" desc={`Surveyed channel geometry (${crossSection.length} points).`}>
+        {show.inputs ? <Sec num={next()} title="Cross-Section Data" desc={`Surveyed channel geometry (${crossSection.length} points).`}>
           <DataTable
             columns={[
               { header: 'Station', width: '25%', align: 'right', render: (r) => (r.station as number).toFixed(1) },
@@ -342,10 +440,10 @@ function ReportDocument({ data }: { data: PdfReportData }) {
             ]}
             data={crossSection as unknown as Record<string, unknown>[]}
           />
-        </Sec>
+        </Sec> : null}
 
         {/* ── 3. Freeboard Check ── */}
-        {results && freeboard ? (
+        {show.overview && results && freeboard ? (
           <>
             <Divider />
             <Sec num={next()} title="Freeboard Check" desc="Clearance between computed upstream WSEL (worst across methods) and bridge low chord. Positive = clearance. Negative = pressure/overtopping.">
@@ -378,7 +476,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         ) : null}
 
         {/* ── 4. Flow Regime ── */}
-        {results ? (
+        {show.overview && results ? (
           <>
             <Divider />
             <Sec num={next()} title="Flow Regime" desc="F = Free Surface, P = Pressure, O = Overtopping. Yarnell is valid for free-surface only — flagged (!) otherwise.">
@@ -412,7 +510,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         ) : null}
 
         {/* ── 5. Method Comparison ── */}
-        {results ? (
+        {show.hydraulicAnalysis && results ? (
           <>
             <Divider />
             <Sec num={next()} title="Method Comparison" desc="Four independent methods compared. Consistent results increase confidence; divergence >10% warrants investigation.">
@@ -452,7 +550,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         ) : null}
 
         {/* ── 6. HEC-RAS Comparison ── */}
-        {hasHecRas ? (
+        {show.hydraulicAnalysis && hasHecRas ? (
           <>
             <Divider />
             <Sec num={next()} title="HEC-RAS Comparison" desc="Validation against HEC-RAS model results. Differences may indicate geometry or coefficient discrepancies.">
@@ -482,7 +580,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         ) : null}
 
         {/* ── 7. Charts ── */}
-        {results ? (
+        {show.overview && results ? (
           <>
             <Divider />
             <Sec num={next()} title="Charts" desc="Visual outputs including 3D simulation, afflux rating curve, and energy grade line diagram.">
@@ -555,7 +653,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         ) : null}
 
         {/* ── 8. AI Analysis ── */}
-        {aiSummary ? (
+        {show.hydraulicAnalysis && aiSummary ? (
           <>
             <Divider />
             <Sec num={next()} title="AI Analysis" desc="Automated peer review of inputs and results. Supplementary only — engineering judgement takes precedence.">
@@ -625,6 +723,171 @@ function ReportDocument({ data }: { data: PdfReportData }) {
           </>
         ) : null}
 
+        {/* ── 9. Scour Assessment ── */}
+        {show.scour && scourResults && scourResults.length > 0 && scourInputs ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="Scour Assessment" desc="Pier and contraction scour estimates per HEC-18 methodology.">
+              <Text style={s.subTitle}>Scour Inputs</Text>
+              <View style={s.kvGrid}>
+                <KV label="Bed Material" value={BED_MATERIAL_LABELS[scourInputs.bedMaterial] || scourInputs.bedMaterial} />
+                <KV label="D50" value={`${scourInputs.d50} mm`} />
+                <KV label="D95" value={`${scourInputs.d95} mm`} />
+                <KV label="Countermeasure" value={scourInputs.countermeasure === 'none' ? 'None' : scourInputs.countermeasure} />
+              </View>
+
+              {scourResults.map((sr) => (
+                <View key={sr.profileName} style={{ marginTop: 6 }}>
+                  <Text style={s.subTitle}>{sr.profileName}</Text>
+
+                  {sr.pierScour.length > 0 ? (
+                    <>
+                      <Text style={s.subDesc}>Pier Scour</Text>
+                      <DataTable
+                        columns={[
+                          { header: 'Pier #', width: '12%', align: 'right', render: (r) => String((r.pierIndex as number) + 1) },
+                          { header: 'Width', width: '12%', align: 'right', render: (r) => (r.width as number).toFixed(2) },
+                          { header: 'K1', width: '12%', align: 'right', render: (r) => (r.k1 as number).toFixed(3) },
+                          { header: 'K2', width: '12%', align: 'right', render: (r) => (r.k2 as number).toFixed(3) },
+                          { header: 'K3', width: '12%', align: 'right', render: (r) => (r.k3 as number).toFixed(3) },
+                          { header: 'Scour Depth', width: '18%', align: 'right', render: (r) => (r.scourDepth as number).toFixed(2) },
+                          { header: 'Crit. Bed El.', width: '22%', align: 'right', render: (r) => (r.criticalBedElevation as number).toFixed(2) },
+                        ]}
+                        data={sr.pierScour as unknown as Record<string, unknown>[]}
+                      />
+                    </>
+                  ) : null}
+
+                  <Text style={[s.subDesc, { marginTop: 3 }]}>Contraction Scour</Text>
+                  <View style={s.kvGrid}>
+                    <KV label="Type" value={sr.contractionScour.type === 'live-bed' ? 'Live-Bed' : 'Clear-Water'} />
+                    <KV label="Critical V" value={sr.contractionScour.criticalVelocity.toFixed(2)} />
+                    <KV label="Approach V" value={sr.contractionScour.approachVelocity.toFixed(2)} />
+                    <KV label="Scour Depth" value={sr.contractionScour.scourDepth.toFixed(2)} />
+                  </View>
+
+                  <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#374151', marginTop: 2 }}>
+                    Total Worst-Case Scour: {sr.totalWorstCase.toFixed(2)} m
+                  </Text>
+                </View>
+              ))}
+            </Sec>
+          </>
+        ) : null}
+
+        {/* ── 10. Bridge Adequacy Assessment ── */}
+        {show.adequacy && adequacyResults ? (
+          <>
+            <Divider />
+            <Sec num={next()} title="Bridge Adequacy Assessment" desc="Combined assessment of hydraulic adequacy including freeboard, pressure, and overtopping thresholds.">
+              <View style={{
+                backgroundColor: adequacyResults.verdictSeverity === 'pass' ? '#dcfce7' : adequacyResults.verdictSeverity === 'warning' ? '#fef9c3' : '#fee2e2',
+                padding: 6,
+                borderRadius: 2,
+                marginBottom: 6,
+              }}>
+                <Text style={{
+                  fontSize: 9,
+                  fontFamily: 'Helvetica-Bold',
+                  color: adequacyResults.verdictSeverity === 'pass' ? C.green : adequacyResults.verdictSeverity === 'warning' ? C.amber : C.red,
+                }}>
+                  {adequacyResults.verdict}
+                </Text>
+              </View>
+
+              <Text style={s.subTitle}>Critical Thresholds</Text>
+              <View style={s.kvGrid}>
+                <KV label="Pressure Onset Q" value={adequacyResults.pressureOnsetQ != null ? adequacyResults.pressureOnsetQ.toFixed(0) : 'N/A'} />
+                <KV label="Overtopping Onset Q" value={adequacyResults.overtoppingOnsetQ != null ? adequacyResults.overtoppingOnsetQ.toFixed(0) : 'N/A'} />
+                <KV label="Zero Freeboard Q" value={adequacyResults.zeroFreeboardQ != null ? adequacyResults.zeroFreeboardQ.toFixed(0) : 'N/A'} />
+              </View>
+
+              <Text style={s.subTitle}>Freeboard per AEP</Text>
+              <DataTable
+                columns={[
+                  { header: 'Profile', width: '18%', render: (r) => r.profileName as string },
+                  { header: 'ARI', width: '12%', render: (r) => (r.ari as string) || '—' },
+                  { header: 'Q', width: '12%', align: 'right', render: (r) => (r.discharge as number).toFixed(0) },
+                  { header: 'WSEL', width: '14%', align: 'right', render: (r) => (r.worstCaseWsel as number).toFixed(2) },
+                  { header: 'Freeboard', width: '14%', align: 'right', render: (r) => (r.freeboard as number).toFixed(2) },
+                  { header: 'Regime', width: '14%', render: (r) => (r.regime as string) },
+                  {
+                    header: 'Status', width: '16%', align: 'center',
+                    render: (r) => (r.status as string).toUpperCase(),
+                    cellStyle: (r) => ({
+                      fontFamily: 'Helvetica-Bold',
+                      color: (r.status as string) === 'clear' ? C.green : (r.status as string) === 'low' ? C.amber : C.red,
+                    }),
+                  },
+                ]}
+                data={adequacyResults.profiles as unknown as Record<string, unknown>[]}
+              />
+            </Sec>
+          </>
+        ) : null}
+
+        {/* ── 11. Regulatory Compliance ── */}
+        {show.regulatory && regulatoryChecklist && regulatoryChecklist.length > 0 ? (
+          <>
+            <Divider />
+            <Sec num={next()} title={`Regulatory Compliance — ${JURISDICTION_LABELS[regulatoryJurisdiction || 'tmr'] || regulatoryJurisdiction}`} desc="Checklist of regulatory requirements and their assessment status.">
+              {(() => {
+                const passed = regulatoryChecklist.filter((c) => c.status === 'pass' || c.status === 'manual-pass').length;
+                const failed = regulatoryChecklist.filter((c) => c.status === 'fail' || c.status === 'manual-fail').length;
+                const notAssessed = regulatoryChecklist.filter((c) => c.status === 'not-assessed').length;
+                return (
+                  <View style={[s.kvGrid, { marginBottom: 6 }]}>
+                    <KV label="Passed" value={passed} />
+                    <KV label="Failed" value={failed} />
+                    <KV label="Not Assessed" value={notAssessed} />
+                  </View>
+                );
+              })()}
+              <DataTable
+                columns={[
+                  { header: 'Requirement', width: '65%', render: (r) => r.requirement as string },
+                  { header: 'Auto', width: '10%', align: 'center', render: (r) => (r.autoCheck as boolean) ? 'Yes' : 'No' },
+                  {
+                    header: 'Status', width: '25%', align: 'center',
+                    render: (r) => {
+                      const st = r.status as string;
+                      return st === 'pass' ? 'PASS' : st === 'manual-pass' ? 'PASS (M)' : st === 'fail' ? 'FAIL' : st === 'manual-fail' ? 'FAIL (M)' : 'N/A';
+                    },
+                    cellStyle: (r) => {
+                      const st = r.status as string;
+                      const isPassing = st === 'pass' || st === 'manual-pass';
+                      const isFailing = st === 'fail' || st === 'manual-fail';
+                      return {
+                        fontFamily: 'Helvetica-Bold',
+                        color: isPassing ? C.green : isFailing ? C.red : C.textMuted,
+                      };
+                    },
+                  },
+                ]}
+                data={regulatoryChecklist as unknown as Record<string, unknown>[]}
+              />
+            </Sec>
+          </>
+        ) : null}
+
+        {/* ── 12. AI Narrative Sections ── */}
+        {show.narrative && narrativeSections && narrativeSections.filter((ns) => ns.content).length > 0 ? (
+          <>
+            {narrativeSections.filter((ns) => ns.content).map((ns) => (
+              <View key={ns.id}>
+                <Divider />
+                <Sec num={next()} title={ns.title} desc={ns.description || undefined}>
+                  {ns.content.split('\n\n').map((para, pi) => (
+                    <Text key={pi} style={{ fontSize: 8, color: C.textLight, marginBottom: 4, lineHeight: 1.5 }}>
+                      {parseMarkdown(para)}
+                    </Text>
+                  ))}
+                </Sec>
+              </View>
+            ))}
+          </>
+        ) : null}
+
       </Page>
     </Document>
   );
@@ -643,4 +906,56 @@ export async function generatePdf(data: PdfReportData): Promise<void> {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ─── CSV Export Helpers ─── */
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+export function exportCrossSectionCsv(crossSection: CrossSectionPoint[], projectName?: string): void {
+  const header = 'Station,Elevation,Manning_N,Bank_Station';
+  const rows = crossSection.map((p) =>
+    `${p.station},${p.elevation},${p.manningsN},${p.bankStation || ''}`
+  );
+  const csv = [header, ...rows].join('\n');
+  const safeName = (projectName || 'cross-section').replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-');
+  downloadCsv(csv, `${safeName}-cross-section.csv`);
+}
+
+const CSV_METHODS = ['energy', 'momentum', 'yarnell', 'wspro'] as const;
+const CSV_METHOD_LABELS: Record<string, string> = { energy: 'Energy', momentum: 'Momentum', yarnell: 'Yarnell', wspro: 'WSPRO' };
+
+export function exportResultsCsv(results: CalculationResults, profiles: FlowProfile[], projectName?: string): void {
+  const header = 'Profile,Method,US_WSEL,Head_Loss,Approach_V,Bridge_V,Froude_Approach,Froude_Bridge,Regime,Converged,Error';
+  const rows: string[] = [];
+  for (const method of CSV_METHODS) {
+    for (const r of results[method]) {
+      rows.push([
+        r.profileName,
+        CSV_METHOD_LABELS[method],
+        r.error ? '' : r.upstreamWsel.toFixed(3),
+        r.error ? '' : r.totalHeadLoss.toFixed(4),
+        r.error ? '' : r.approachVelocity.toFixed(3),
+        r.error ? '' : r.bridgeVelocity.toFixed(3),
+        r.error ? '' : r.froudeApproach.toFixed(4),
+        r.error ? '' : r.froudeBridge.toFixed(4),
+        r.flowRegime,
+        r.converged ? 'Y' : 'N',
+        r.error || '',
+      ].join(','));
+    }
+  }
+  const csv = [header, ...rows].join('\n');
+  const safeName = (projectName || 'results').replace(/[^a-zA-Z0-9-_ ]/g, '').replace(/\s+/g, '-');
+  downloadCsv(csv, `${safeName}-results.csv`);
 }

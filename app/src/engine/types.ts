@@ -145,3 +145,146 @@ export interface SensitivityResults {
   low: CalculationResults;
   high: CalculationResults;
 }
+
+// ── Scour types ──
+export type BedMaterial = 'sand' | 'gravel' | 'cobble' | 'clay' | 'rock';
+
+export interface ScourInputs {
+  bedMaterial: BedMaterial;
+  d50: number;
+  d95: number;
+  upstreamBedElevation: number;
+  countermeasure: 'none' | 'riprap' | 'sheet-pile' | 'gabions' | 'other';
+}
+
+export interface PierScourResult {
+  pierIndex: number;
+  station: number;
+  width: number;
+  k1: number;
+  k2: number;
+  k3: number;
+  scourDepth: number;
+  criticalBedElevation: number;
+}
+
+export interface ContractionScourResult {
+  type: 'live-bed' | 'clear-water';
+  criticalVelocity: number;
+  approachVelocity: number;
+  contractedDepth: number;
+  existingDepth: number;
+  scourDepth: number;
+  criticalBedElevation: number;
+}
+
+export interface ScourResults {
+  profileName: string;
+  pierScour: PierScourResult[];
+  contractionScour: ContractionScourResult;
+  totalWorstCase: number;
+}
+
+// ── Hydrology types ──
+export interface IFDTable {
+  durations: number[];
+  aeps: string[];
+  intensities: number[][];
+}
+
+export interface HydrologyState {
+  location: { lat: number; lng: number } | null;
+  catchmentArea: number;
+  streamLength: number;
+  equalAreaSlope: number;
+  ifdData: IFDTable | null;
+  tcMethod: 'bransby-williams' | 'friends' | 'manual';
+  tcManual: number;
+  runoffCoefficient: number;
+  calculatedDischarges: { aep: string; q: number }[];
+}
+
+// ── Adequacy types ──
+export interface AdequacyResult {
+  profileName: string;
+  ari: string;
+  discharge: number;
+  worstCaseWsel: number;
+  regime: FlowRegime;
+  freeboard: number;
+  status: 'clear' | 'low' | 'pressure' | 'overtopping';
+}
+
+export interface AdequacyResults {
+  profiles: AdequacyResult[];
+  pressureOnsetQ: number | null;
+  overtoppingOnsetQ: number | null;
+  zeroFreeboardQ: number | null;
+  verdict: string;
+  verdictSeverity: 'pass' | 'warning' | 'fail';
+}
+
+// ── Regulatory types ──
+export type Jurisdiction = 'tmr' | 'vicroads' | 'dpie' | 'arr';
+
+export interface ChecklistItem {
+  id: string;
+  requirement: string;
+  jurisdiction: Jurisdiction;
+  autoCheck: boolean;
+  status: 'pass' | 'fail' | 'manual-pass' | 'manual-fail' | 'not-assessed';
+}
+
+// ── Narrative types ──
+export interface NarrativeSection {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  status: 'empty' | 'generated' | 'edited';
+}
+
+// ── Snapshot types ──
+export interface ProjectSnapshot {
+  id: string;
+  name: string;
+  note: string;
+  timestamp: number;
+  summaryLine: string;
+  state: SerializedProjectState;
+}
+
+export interface SerializedProjectState {
+  crossSection: CrossSectionPoint[];
+  bridgeGeometry: BridgeGeometry;
+  flowProfiles: FlowProfile[];
+  coefficients: Coefficients;
+  results: CalculationResults | null;
+  hecRasComparison: HecRasComparison[];
+  scourInputs: ScourInputs;
+  scourResults: ScourResults[] | null;
+  adequacyResults: AdequacyResults | null;
+  regulatoryJurisdiction: Jurisdiction;
+  regulatoryChecklist: ChecklistItem[];
+  narrativeSections: NarrativeSection[];
+  narrativeTone: 'technical' | 'summary';
+  hydrology: HydrologyState;
+}
+
+// ── Multi-bridge types ──
+export interface BridgeProject {
+  id: string;
+  name: string;
+  chainage: number;
+  crossSection: CrossSectionPoint[];
+  bridgeGeometry: BridgeGeometry;
+  coefficients: Coefficients;
+  results: CalculationResults | null;
+  scourInputs: ScourInputs;
+  scourResults: ScourResults[] | null;
+}
+
+export interface ReachResults {
+  bridgeResults: { bridgeId: string; results: CalculationResults }[];
+  tailwaterCascade: { bridgeId: string; dsWsel: number; usWsel: number }[];
+}
