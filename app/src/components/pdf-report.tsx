@@ -182,11 +182,50 @@ function KV({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+/**
+ * Parse simple markdown (bold, italic) into react-pdf <Text> spans.
+ * Handles **bold**, __bold__, *italic*, _italic_, and ***bold+italic***.
+ */
+function parseMarkdown(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Match ***bold+italic***, **bold**, __bold__, *italic*, _italic_
+  const re = /(\*{3}(.+?)\*{3}|\*{2}(.+?)\*{2}|_{2}(.+?)_{2}|\*(.+?)\*|_(.+?)_)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+    if (match[2]) {
+      // ***bold+italic***
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-BoldOblique' }}>{match[2]}</Text>);
+    } else if (match[3]) {
+      // **bold**
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Bold' }}>{match[3]}</Text>);
+    } else if (match[4]) {
+      // __bold__
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Bold' }}>{match[4]}</Text>);
+    } else if (match[5]) {
+      // *italic*
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Oblique' }}>{match[5]}</Text>);
+    } else if (match[6]) {
+      // _italic_
+      parts.push(<Text key={key++} style={{ fontFamily: 'Helvetica-Oblique' }}>{match[6]}</Text>);
+    }
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+  return parts;
+}
+
 function Bullet({ text, color }: { text: string; color?: string }) {
   return (
     <View style={s.bulletItem} wrap={false}>
       <Text style={s.bulletDot}>•</Text>
-      <Text style={[s.bulletText, color ? { color } : {}]}>{text}</Text>
+      <Text style={[s.bulletText, color ? { color } : {}]}>{parseMarkdown(text)}</Text>
     </View>
   );
 }
@@ -840,7 +879,7 @@ function ReportDocument({ data }: { data: PdfReportData }) {
                 <Sec num={next()} title={ns.title} desc={ns.description || undefined}>
                   {ns.content.split('\n\n').map((para, pi) => (
                     <Text key={pi} style={{ fontSize: 8, color: C.textLight, marginBottom: 4, lineHeight: 1.5 }}>
-                      {para}
+                      {parseMarkdown(para)}
                     </Text>
                   ))}
                 </Sec>
