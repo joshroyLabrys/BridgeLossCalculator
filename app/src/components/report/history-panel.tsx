@@ -617,8 +617,8 @@ export function HistoryPanel() {
                   Input Changes
                 </p>
               </CardHeader>
-              <CardContent className="px-0 pb-0">
-                <table className="w-full text-sm">
+              <CardContent className="px-0 pb-0 overflow-x-auto">
+                <table className="w-full text-sm min-w-[480px]">
                   <thead>
                     <tr className="border-b text-left text-xs text-muted-foreground">
                       <th className="px-4 py-1.5 font-medium">Parameter</th>
@@ -662,8 +662,8 @@ export function HistoryPanel() {
                   Result Deltas
                 </p>
               </CardHeader>
-              <CardContent className="px-0 pb-0">
-                <table className="w-full text-sm">
+              <CardContent className="px-0 pb-0 overflow-x-auto">
+                <table className="w-full text-sm min-w-[480px]">
                   <thead>
                     <tr className="border-b text-left text-xs text-muted-foreground">
                       <th className="px-4 py-1.5 font-medium">Profile</th>

@@ -178,7 +178,7 @@ export function ReachManager() {
                     }`}
                     onClick={() => setActiveBridgeIndex(idx)}
                   >
-                    <div className="flex-1 min-w-0 grid grid-cols-[1fr_80px_80px] gap-2 items-center">
+                    <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-[1fr_80px_80px] gap-2 items-center">
                       <Input
                         value={bridge.name}
                         onChange={(e) => handleNameChange(bridge.id, e.target.value)}

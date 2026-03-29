@@ -42,6 +42,9 @@ import { ArrLookup } from '@/components/hydrology/arr-lookup';
 import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
 import { ImportPanel } from '@/components/data/import-panel';
 import { ExportPanel } from '@/components/report/export-panel';
+import { NarrativeEditor } from '@/components/report/narrative-editor';
+import { HistoryPanel } from '@/components/report/history-panel';
+import { QaqcPanel } from '@/components/analysis/qaqc-panel';
 import { ReachManager } from '@/components/data/reach-manager';
 
 /* ------------------------------------------------------------------ */
@@ -335,7 +338,10 @@ export function MainTabs() {
         <div className="flex items-center justify-between px-4 sm:px-6 pt-2.5 pb-1.5 gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <Waves className="h-5 w-5 text-primary shrink-0" />
-            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">Bridge Loss Calculator</h1>
+            <h1 className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate">
+              <span className="sm:hidden">BLC</span>
+              <span className="hidden sm:inline">Bridge Loss Calculator</span>
+            </h1>
           </div>
 
           <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
@@ -568,7 +574,7 @@ export function MainTabs() {
             <ScourPanel />
           </TabsContent>
           <TabsContent value="qaqc">
-            <ComingSoon title="QA/QC checks coming soon" description="Automated validation and cross-check reporting." />
+            <QaqcPanel />
           </TabsContent>
         </Tabs>
       </TabsContent>
@@ -621,7 +627,7 @@ export function MainTabs() {
       </TabsContent>
 
       {/* ============================================================ */}
-      {/*  SIMULATION TAB                                               */}
+      {/*  SIMULATION TAB — single screen: 3D + What-If side by side    */}
       {/* ============================================================ */}
       <TabsContent value="simulation" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
         {results ? (
@@ -633,170 +639,148 @@ export function MainTabs() {
               </p>
             </div>
 
-            {/* Profile / method selectors shared across simulation sub-tabs */}
-            {simSelectors}
+            <div className="flex flex-col lg:flex-row gap-4 items-start">
+              {/* Main content: 3D + status + EGL */}
+              <div className="flex-1 min-w-0 w-full space-y-3">
+                {/* Profile / method selectors */}
+                {simSelectors}
 
-            <Tabs value={currentSubTab('simulation')} onValueChange={handleSubTabChange('simulation')}>
-              <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
-                <TabsList variant="line" className="gap-4 sm:gap-6 pb-0">
-                  <TabsTrigger value="3d-model" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                    3D Model
-                  </TabsTrigger>
-                  <TabsTrigger value="energy-grade" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                    Energy Grade
-                  </TabsTrigger>
-                  <TabsTrigger value="what-if" className="rounded-none border-none px-0.5 py-2 text-xs sm:text-sm whitespace-nowrap">
-                    What-If
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {/* 3D Model sub-tab */}
-              <TabsContent value="3d-model">
-                <div className="space-y-3">
-                  {hydraulicProfile ? (
-                    <SimulationScene profile={hydraulicProfile} debrisPct={simOverrides.debrisBlockagePct} />
-                  ) : (
-                    <Card>
-                      <CardContent>
-                        <div className="flex items-center justify-center h-[300px] sm:h-[400px] lg:h-[500px] text-muted-foreground text-sm">
-                          Select a profile and method with results to view the simulation
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-                  {/* Status bar */}
-                  {hydraulicProfile && (
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
-                      <span className={`px-2 py-0.5 rounded font-medium text-[11px] ${
-                        hydraulicProfile.flowRegime === 'free-surface'
-                          ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
-                          : hydraulicProfile.flowRegime === 'pressure'
-                          ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
-                          : 'bg-red-500/15 text-red-400 border border-red-500/30'
-                      }`}>
-                        {hydraulicProfile.flowRegime.toUpperCase().replace('-', ' ')}
-                      </span>
-                      <span className="text-muted-foreground">
-                        WSEL <span className="font-mono text-foreground">{toDisplay(hydraulicProfile.usWsel, 'length', us).toFixed(2)}</span> {len}
-                      </span>
-                      <span className="text-muted-foreground">
-                        Δh <span className="font-mono text-foreground">{toDisplay(hydraulicProfile.totalHeadLoss, 'length', us).toFixed(3)}</span> {len}
-                      </span>
-                      {simHasChanges && baselineResult && activeResult && (
-                        <span className="ml-auto">
-                          <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-
-              {/* Energy Grade sub-tab */}
-              <TabsContent value="energy-grade">
+                {/* 3D Scene */}
                 {hydraulicProfile ? (
+                  <SimulationScene profile={hydraulicProfile} debrisPct={simOverrides.debrisBlockagePct} />
+                ) : (
+                  <Card>
+                    <CardContent>
+                      <div className="flex items-center justify-center h-[300px] sm:h-[400px] lg:h-[500px] text-muted-foreground text-sm">
+                        Select a profile and method with results to view the simulation
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Status bar */}
+                {hydraulicProfile && (
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+                    <span className={`px-2 py-0.5 rounded font-medium text-[11px] ${
+                      hydraulicProfile.flowRegime === 'free-surface'
+                        ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30'
+                        : hydraulicProfile.flowRegime === 'pressure'
+                        ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30'
+                        : 'bg-red-500/15 text-red-400 border border-red-500/30'
+                    }`}>
+                      {hydraulicProfile.flowRegime.toUpperCase().replace('-', ' ')}
+                    </span>
+                    <span className="text-muted-foreground">
+                      WSEL <span className="font-mono text-foreground">{toDisplay(hydraulicProfile.usWsel, 'length', us).toFixed(2)}</span> {len}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Δh <span className="font-mono text-foreground">{toDisplay(hydraulicProfile.totalHeadLoss, 'length', us).toFixed(3)}</span> {len}
+                    </span>
+                    {simHasChanges && baselineResult && activeResult && (
+                      <span className="ml-auto">
+                        <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Energy Grade Diagram */}
+                {hydraulicProfile && (
                   <Card>
                     <CardContent className="pt-4">
                       <EnergyGradeDiagram profile={hydraulicProfile} />
                     </CardContent>
                   </Card>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                    <p className="text-sm">Select a profile and method with results to view the energy grade diagram</p>
-                  </div>
                 )}
-              </TabsContent>
+              </div>
 
-              {/* What-If sub-tab */}
-              <TabsContent value="what-if">
-                <div className="max-w-2xl space-y-4">
-                  <Card>
-                    <CardHeader className="pb-2 pt-3 px-4">
-                      <div className="flex items-center gap-2">
-                        <FlaskConical className="h-3.5 w-3.5 text-primary" />
-                        <span className="text-xs font-semibold uppercase tracking-wide">What If?</span>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="px-4 pb-3 space-y-4">
-                      <WhatIfControls overrides={simOverrides} defaults={simDefaults} onChange={setSimOverrides} />
+              {/* What-If sidebar — full-width on mobile, narrow sidebar on desktop */}
+              <Card className="w-full lg:w-64 shrink-0">
+                <CardHeader className="pb-2 pt-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs font-semibold uppercase tracking-wide">What If?</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-4 pb-3 space-y-4">
+                  <WhatIfControls overrides={simOverrides} defaults={simDefaults} onChange={setSimOverrides} />
 
-                      {/* Impact deltas */}
-                      {simHasChanges && baselineResult && activeResult && (
-                        <>
-                          <div className="h-px bg-border/40" />
-                          <div className="space-y-1.5">
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Impact</div>
-                            <div className="space-y-1 text-xs">
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground">US WSEL</span>
-                                <div className="text-right">
-                                  <span className="font-mono text-foreground">{toDisplay(activeResult.upstreamWsel, 'length', us).toFixed(3)}</span>
-                                  <span className="text-muted-foreground"> {len} </span>
-                                  <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
-                                </div>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground">Head Loss</span>
-                                <div className="text-right">
-                                  <span className="font-mono text-foreground">{toDisplay(activeResult.totalHeadLoss, 'length', us).toFixed(3)}</span>
-                                  <span className="text-muted-foreground"> {len} </span>
-                                  <Delta baseline={baselineResult.totalHeadLoss} modified={activeResult.totalHeadLoss} unit={len} />
-                                </div>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground">Velocity</span>
-                                <div className="text-right">
-                                  <span className="font-mono text-foreground">{toDisplay(activeResult.approachVelocity, 'velocity', us).toFixed(2)}</span>
-                                  <span className="text-muted-foreground"> {vel} </span>
-                                  <Delta baseline={baselineResult.approachVelocity} modified={activeResult.approachVelocity} unit={vel} />
-                                </div>
-                              </div>
-                              <div className="flex justify-between items-baseline">
-                                <span className="text-muted-foreground">Froude</span>
-                                <div className="text-right">
-                                  <span className="font-mono text-foreground">{activeResult.froudeApproach.toFixed(3)}</span>
-                                  {' '}
-                                  <Delta baseline={baselineResult.froudeApproach} modified={activeResult.froudeApproach} unit="" />
-                                </div>
-                              </div>
+                  {/* Impact deltas */}
+                  {simHasChanges && baselineResult && activeResult && (
+                    <>
+                      <div className="h-px bg-border/40" />
+                      <div className="space-y-1.5">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Impact</div>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground">US WSEL</span>
+                            <div className="text-right">
+                              <span className="font-mono text-foreground">{toDisplay(activeResult.upstreamWsel, 'length', us).toFixed(3)}</span>
+                              <span className="text-muted-foreground"> {len} </span>
+                              <Delta baseline={baselineResult.upstreamWsel} modified={activeResult.upstreamWsel} unit={len} />
                             </div>
-
-                            {activeResult.flowRegime !== baselineResult.flowRegime && (
-                              <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 text-[11px] text-amber-400 mt-2">
-                                {baselineResult.flowRegime} → <span className="font-semibold">{activeResult.flowRegime}</span>
-                              </div>
-                            )}
                           </div>
-                        </>
-                      )}
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground">Head Loss</span>
+                            <div className="text-right">
+                              <span className="font-mono text-foreground">{toDisplay(activeResult.totalHeadLoss, 'length', us).toFixed(3)}</span>
+                              <span className="text-muted-foreground"> {len} </span>
+                              <Delta baseline={baselineResult.totalHeadLoss} modified={activeResult.totalHeadLoss} unit={len} />
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground">Velocity</span>
+                            <div className="text-right">
+                              <span className="font-mono text-foreground">{toDisplay(activeResult.approachVelocity, 'velocity', us).toFixed(2)}</span>
+                              <span className="text-muted-foreground"> {vel} </span>
+                              <Delta baseline={baselineResult.approachVelocity} modified={activeResult.approachVelocity} unit={vel} />
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-muted-foreground">Froude</span>
+                            <div className="text-right">
+                              <span className="font-mono text-foreground">{activeResult.froudeApproach.toFixed(3)}</span>
+                              {' '}
+                              <Delta baseline={baselineResult.froudeApproach} modified={activeResult.froudeApproach} unit="" />
+                            </div>
+                          </div>
+                        </div>
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs h-7"
-                        disabled={!simHasChanges}
-                        onClick={() => setSimOverrides(simDefaults)}
-                      >
-                        <RotateCcw className="h-3 w-3 mr-1.5" />
-                        Reset to Baseline
-                      </Button>
-                    </CardContent>
-                  </Card>
+                        {activeResult.flowRegime !== baselineResult.flowRegime && (
+                          <div className="rounded-md bg-amber-500/10 border border-amber-500/30 px-2 py-1.5 text-[11px] text-amber-400 mt-2">
+                            {baselineResult.flowRegime} → <span className="font-semibold">{activeResult.flowRegime}</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
 
-                  <OptimizerCard
-                    selectedMethod={selectedMethod}
-                    selectedProfileIdx={selectedProfileIdx}
-                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-xs h-7"
+                    disabled={!simHasChanges}
+                    onClick={() => setSimOverrides(simDefaults)}
+                  >
+                    <RotateCcw className="h-3 w-3 mr-1.5" />
+                    Reset to Baseline
+                  </Button>
+
+                  <div className="h-px bg-border/40" />
 
                   <DebrisGuidance
                     bridgeSpan={bridgeGeometry.rightAbutmentStation - bridgeGeometry.leftAbutmentStation}
                     currentDebrisPct={simOverrides.debrisBlockagePct}
                     onSetDebris={(pct) => setSimOverrides({ ...simOverrides, debrisBlockagePct: pct })}
                   />
-                </div>
-              </TabsContent>
-            </Tabs>
+                </CardContent>
+              </Card>
+
+              <OptimizerCard
+                selectedMethod={selectedMethod}
+                selectedProfileIdx={selectedProfileIdx}
+              />
+            </div>
           </div>
         ) : noResultsPlaceholder}
       </TabsContent>
@@ -820,13 +804,13 @@ export function MainTabs() {
             </TabsList>
           </div>
           <TabsContent value="narrative">
-            <ComingSoon title="Report narrative coming soon" description="AI-assisted report narrative generation and editing." />
+            <NarrativeEditor />
           </TabsContent>
           <TabsContent value="export">
             <ExportPanel />
           </TabsContent>
           <TabsContent value="history">
-            <ComingSoon title="Project history coming soon" description="Snapshot timeline and version comparison." />
+            <HistoryPanel />
           </TabsContent>
         </Tabs>
       </TabsContent>
