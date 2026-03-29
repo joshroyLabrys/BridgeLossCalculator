@@ -16,6 +16,7 @@ export function ActionButtons() {
   const [selectedBridge, setSelectedBridge] = useState<TestBridge | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [unavailableVideos, setUnavailableVideos] = useState<Record<string, boolean>>({});
   const videoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const crossSection = useProjectStore((s) => s.crossSection);
   const bridgeGeometry = useProjectStore((s) => s.bridgeGeometry);
@@ -209,6 +210,7 @@ export function ActionButtons() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {TEST_BRIDGES.map((bridge) => {
                 const isSelected = selectedBridge?.id === bridge.id;
+                const hasVideo = !unavailableVideos[bridge.id];
                 return (
                   <button
                     key={bridge.id}
@@ -222,19 +224,34 @@ export function ActionButtons() {
                     }`}
                   >
                     <div className="relative h-44 sm:h-48 bg-muted/50 overflow-hidden">
-                      <video
-                        ref={(el) => { videoRefs.current[bridge.id] = el; }}
-                        src={`/bridges/${bridge.id}.mp4`}
-                        muted
-                        loop
-                        playsInline
-                        preload="metadata"
-                        className={`w-full h-full object-cover transition-all duration-500 ${
-                          isSelected
-                            ? 'grayscale-0 scale-105'
-                            : 'grayscale group-hover:grayscale-[30%] group-hover:scale-[1.02]'
-                        }`}
-                      />
+                      {hasVideo ? (
+                        <video
+                          ref={(el) => { videoRefs.current[bridge.id] = el; }}
+                          src={`/Bridges/${bridge.id}.mp4`}
+                          muted
+                          loop
+                          playsInline
+                          preload="metadata"
+                          onError={() => {
+                            videoRefs.current[bridge.id] = null;
+                            setUnavailableVideos((current) => current[bridge.id]
+                              ? current
+                              : { ...current, [bridge.id]: true });
+                          }}
+                          className={`w-full h-full object-cover transition-all duration-500 ${
+                            isSelected
+                              ? 'grayscale-0 scale-105'
+                              : 'grayscale group-hover:grayscale-[30%] group-hover:scale-[1.02]'
+                          }`}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 px-6 text-center">
+                          <div>
+                            <div className="text-sm font-semibold text-white">{bridge.name}</div>
+                            <div className="mt-2 text-xs uppercase tracking-[0.2em] text-white/60">Preview unavailable</div>
+                          </div>
+                        </div>
+                      )}
                       {isSelected && (
                         <div className="absolute top-2.5 right-2.5 rounded-full bg-primary px-2.5 py-1 text-[10px] font-bold text-primary-foreground uppercase tracking-widest shadow-sm">
                           Selected
