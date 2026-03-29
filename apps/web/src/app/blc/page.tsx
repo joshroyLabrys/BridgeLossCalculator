@@ -1,3 +1,5 @@
+'use client';
+
 import dynamic from 'next/dynamic';
 
 const MainTabs = dynamic(() => import('@/components/main-tabs').then((mod) => mod.MainTabs), {
