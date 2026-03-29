@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useCallback, useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Toaster } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@flowsuite/ui';
 import { Button } from '@flowsuite/ui';
@@ -11,53 +12,53 @@ import { BridgeGeometryForm } from '@/components/input/bridge-geometry-form';
 import { FlowProfilesForm } from '@/components/input/flow-profiles-form';
 import { CoefficientsForm } from '@/components/input/coefficients-form';
 import { ActionButtons } from '@/components/input/action-buttons';
-import { MethodTabs } from '@/components/results/method-tabs';
-import { ComparisonTables } from '@/components/summary/comparison-tables';
-import { RegimeMatrix } from '@/components/summary/regime-matrix';
-import { FreeboardCheck } from '@/components/summary/freeboard-check';
-import { ScenarioComparison } from '@/components/summary/scenario-comparison';
-import { AffluxCharts } from '@/components/summary/afflux-charts';
-import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
-import { AiCallout, AiCalloutGrouped, AiCalloutInline, AiCalloutGroupedInline } from '@/components/summary/ai-callout';
-import { MethodSuitability } from '@/components/summary/method-suitability';
-import { AdequacyPanel } from '@/components/assessment/adequacy-panel';
-import { RegulatoryChecklist } from '@/components/assessment/regulatory-checklist';
 import { useProjectStore } from '@/store/project-store';
-import type { PdfReportData } from '@/components/pdf-report';
-import { SimulationScene } from '@/components/simulation/scene-3d/simulation-scene';
-import { EnergyGradeDiagram } from '@/components/simulation/energy-grade-diagram';
-import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-if-controls';
-import { OptimizerCard } from '@/components/simulation/optimizer-card';
-import { DebrisGuidance } from '@/components/simulation/debris-guidance';
+import type { WhatIfOverrides } from '@/components/what-if/what-if-controls';
 import { buildHydraulicProfile } from '@flowsuite/engine/simulation-profile';
 import { runAllMethods } from '@flowsuite/engine';
 import type { CalculationResults } from '@flowsuite/engine/types';
 import { toDisplay, unitLabel } from '@flowsuite/data';
 import { DropZone } from '@/components/import/drop-zone';
-import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
-import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save, Sparkles, Database, Droplets, ShieldCheck, RotateCcw } from 'lucide-react';
-import { ChatPanel } from '@/components/ai-chat/chat-panel';
-import { ScourPanel } from '@/components/analysis/scour-panel';
-import { ArrLookup } from '@/components/hydrology/arr-lookup';
-import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
-import { ImportPanel } from '@/components/data/import-panel';
-import { ExportPanel } from '@/components/report/export-panel';
-import { NarrativeEditor } from '@/components/report/narrative-editor';
-import { HistoryPanel } from '@/components/report/history-panel';
-import { QaqcPanel } from '@/components/analysis/qaqc-panel';
-import { ReachManager } from '@/components/data/reach-manager';
+import { Waves, Ruler, FlaskConical, FileInput, FileOutput, FileText, Save, Sparkles, Database, Droplets, ShieldCheck, Zap, RotateCcw } from 'lucide-react';
 
-/* ------------------------------------------------------------------ */
-/*  Reusable placeholder for unimplemented sub-tabs                    */
-/* ------------------------------------------------------------------ */
-function ComingSoon({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-      <p className="text-sm font-medium">{title}</p>
-      <p className="text-xs mt-1">{description}</p>
-    </div>
-  );
-}
+const MethodTabs = dynamic(() => import('@/components/results/method-tabs').then((mod) => mod.MethodTabs));
+const ComparisonTables = dynamic(() => import('@/components/summary/comparison-tables').then((mod) => mod.ComparisonTables));
+const RegimeMatrix = dynamic(() => import('@/components/summary/regime-matrix').then((mod) => mod.RegimeMatrix));
+const ScenarioComparison = dynamic(() => import('@/components/summary/scenario-comparison').then((mod) => mod.ScenarioComparison));
+const AffluxCharts = dynamic(() => import('@/components/summary/afflux-charts').then((mod) => mod.AffluxCharts));
+const AiCalloutInline = dynamic(() => import('@/components/summary/ai-callout').then((mod) => mod.AiCalloutInline));
+const AiCalloutGroupedInline = dynamic(() => import('@/components/summary/ai-callout').then((mod) => mod.AiCalloutGroupedInline));
+const MethodSuitability = dynamic(() => import('@/components/summary/method-suitability').then((mod) => mod.MethodSuitability));
+const AdequacyPanel = dynamic(() => import('@/components/assessment/adequacy-panel').then((mod) => mod.AdequacyPanel));
+const RegulatoryChecklist = dynamic(() => import('@/components/assessment/regulatory-checklist').then((mod) => mod.RegulatoryChecklist));
+const SimulationScene = dynamic(() => import('@/components/simulation/scene-3d/simulation-scene').then((mod) => mod.SimulationScene), {
+  ssr: false,
+});
+const EnergyGradeDiagram = dynamic(() => import('@/components/simulation/energy-grade-diagram').then((mod) => mod.EnergyGradeDiagram));
+const WhatIfControls = dynamic(() => import('@/components/what-if/what-if-controls').then((mod) => mod.WhatIfControls));
+const OptimizerCard = dynamic(() => import('@/components/simulation/optimizer-card').then((mod) => mod.OptimizerCard));
+const DebrisGuidance = dynamic(() => import('@/components/simulation/debris-guidance').then((mod) => mod.DebrisGuidance));
+const HecRasImportDialog = dynamic(() => import('@/components/import/hecras-import-dialog').then((mod) => mod.HecRasImportDialog), {
+  ssr: false,
+});
+const ChatPanel = dynamic(() => import('@/components/ai-chat/chat-panel').then((mod) => mod.ChatPanel), {
+  ssr: false,
+});
+const ScourPanel = dynamic(() => import('@/components/analysis/scour-panel').then((mod) => mod.ScourPanel));
+const ArrLookup = dynamic(() => import('@/components/hydrology/arr-lookup').then((mod) => mod.ArrLookup), {
+  ssr: false,
+});
+const CatchmentCalculator = dynamic(() => import('@/components/hydrology/catchment-calculator').then((mod) => mod.CatchmentCalculator), {
+  ssr: false,
+});
+const ImportPanel = dynamic(() => import('@/components/data/import-panel').then((mod) => mod.ImportPanel));
+const ExportPanel = dynamic(() => import('@/components/report/export-panel').then((mod) => mod.ExportPanel));
+const NarrativeEditor = dynamic(() => import('@/components/report/narrative-editor').then((mod) => mod.NarrativeEditor));
+const HistoryPanel = dynamic(() => import('@/components/report/history-panel').then((mod) => mod.HistoryPanel), {
+  ssr: false,
+});
+const QaqcPanel = dynamic(() => import('@/components/analysis/qaqc-panel').then((mod) => mod.QaqcPanel));
+const ReachManager = dynamic(() => import('@/components/data/reach-manager').then((mod) => mod.ReachManager));
 
 /* ------------------------------------------------------------------ */
 /*  Sub-tab defaults                                                   */
@@ -70,6 +71,8 @@ const SUB_TAB_DEFAULTS: Record<string, string> = {
   simulation: '3d-model',
   report: 'narrative',
 };
+
+const MAIN_TAB_VALUES = new Set(['data', 'hydrology', 'analysis', 'assessment', 'simulation', 'report']);
 
 /* ------------------------------------------------------------------ */
 /*  Simulation helpers (lifted from old SimulationTab)                 */
@@ -204,7 +207,6 @@ export function MainTabs() {
     '.f01', '.f02', '.f03', '.f04', '.f05', '.f06', '.f07', '.f08', '.f09',
   ];
 
-  const MAIN_TAB_VALUES = new Set(['data', 'hydrology', 'analysis', 'assessment', 'simulation', 'report']);
   const handleTabChange = useCallback((value: string | number | null) => {
     if (typeof value === 'string' && MAIN_TAB_VALUES.has(value)) setActiveMainTab(value);
   }, [setActiveMainTab]);

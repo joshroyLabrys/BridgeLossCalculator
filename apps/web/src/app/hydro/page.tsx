@@ -2,6 +2,7 @@
 
 import { useHydroStore } from './store';
 import { WizardNav } from './components/wizard-nav';
+import { StepCatchment } from './components/step-catchment';
 
 // Placeholder step components (replaced in subsequent tasks)
 function StepPlaceholder({ name }: { name: string }) {
@@ -32,7 +33,7 @@ export default function HydroPage() {
   })();
 
   const steps = [
-    <StepPlaceholder key={0} name="Catchment" />,
+    <StepCatchment key={0} />,
     <StepPlaceholder key={1} name="ARR Data" />,
     <StepPlaceholder key={2} name="Losses" />,
     <StepPlaceholder key={3} name="Time of Concentration" />,

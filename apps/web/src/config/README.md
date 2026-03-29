@@ -1,58 +1,33 @@
 # Configuration
 
-This directory contains application configuration that is data-driven rather than code-driven. Currently it houses the regulatory checklist definitions.
+This directory contains application configuration that is data-driven rather than code-driven. The main configuration here is the jurisdiction checklist model used by the Assessment tab.
 
 ## Files
 
-### regulatory-checklists.ts
+### `regulatory-checklists.ts`
 
-Defines compliance checklist requirements for four Australian jurisdictions. Each jurisdiction has a list of `ChecklistDefinition` objects that the `RegulatoryChecklist` component evaluates against the current project state.
+Defines compliance checklist requirements for four Australian jurisdiction packs:
 
-## Jurisdictions
+- `tmr`
+- `vicroads`
+- `dpie`
+- `arr`
 
-### TMR (Queensland) -- `TMR_CHECKLIST`
+Each checklist item now carries two important dimensions:
 
-9 items, 7 auto-checked:
-- Freeboard >= 300mm at 1% AEP.
-- No pressure flow at design AEP.
-- Velocity x depth product <= 1.2 m2/s.
-- Manning's n sensitivity +/-20% assessed.
-- Debris blockage considered (ARR guidelines).
-- Scour assessment completed.
-- Independent QA/QC check completed.
-- Survey data verified (manual).
-- Tailwater conditions confirmed (manual).
+- `verificationType`
+  - `auto`: the app can evaluate it from current state
+  - `manual`: the engineer confirms it inside the app
+  - `external`: it must be confirmed from external project evidence
+- `affectsAdequacyVerdict`
+  - `true`: this aligns with the automatic hydraulic verdict
+  - `false`: this is supporting compliance workflow only
 
-### VicRoads (Victoria) -- `VICROADS_CHECKLIST`
+That split is intentional. The app should be explicit about which criteria it can truly verify and which ones still depend on engineering judgement or external records.
 
-6 items, 4 auto-checked:
-- Adequate freeboard at design AEP (freeboard > 0).
-- Manning's n sensitivity assessed.
-- Debris blockage assessed.
-- Scour assessment completed.
-- Survey data verified (manual).
-- Model calibration verified (manual).
+## Project State for Evaluators
 
-### DPIE (NSW) -- `DPIE_CHECKLIST`
-
-5 items, 3 auto-checked:
-- Freeboard meets floodplain management requirements (>= 500mm).
-- Sensitivity analysis completed.
-- Debris assessment per ARR.
-- Afflux impact on adjacent properties assessed (manual).
-- Current survey data used (manual).
-
-### ARR General -- `ARR_CHECKLIST`
-
-4 items, 3 auto-checked:
-- Parameter sensitivity assessed (ARR Book 7).
-- Debris blockage per ARR guidelines.
-- Adequate freeboard provided (all profiles > 0).
-- Input data quality documented (manual).
-
-## How Evaluator Functions Work
-
-Each auto-checked item has an `evaluate` function that receives a `ProjectStateForChecklist` object:
+Auto checks receive a small snapshot of project state:
 
 ```typescript
 interface ProjectStateForChecklist {
@@ -62,22 +37,37 @@ interface ProjectStateForChecklist {
   scourResultsExist: boolean;
   qaqcComparisonExists: boolean;
   regimeClassifications: string[];
-  velocityDepthProducts: number[];
   freeboardThreshold: number;
 }
 ```
 
-The evaluator returns `'pass'`, `'fail'`, or `'not-assessed'`. The `RegulatoryChecklist` component builds this object from the current store state (results, coefficients, scour, HEC-RAS comparison) and passes it to each evaluator.
+Evaluator functions should return only:
 
-Manual items have no evaluator. They show a checkbox that the engineer toggles, and the status persists in the store as `'manual-pass'` or `'not-assessed'`.
+- `'pass'`
+- `'fail'`
+- `'not-assessed'`
+
+Manual and external items do not use evaluators.
+
+## Current Design Rules
+
+- Only criteria the app can defend computationally should be `auto`.
+- Only criteria that directly align with the hydraulic adequacy verdict should set `affectsAdequacyVerdict: true`.
+- Criteria that depend on survey packages, adopted flood studies, model acceptance, calibration, or approval records should be `external`.
+- Criteria that depend on an engineer completing a review step inside the app should be `manual`.
+- Weak or misleading "pretend-auto" checks should be removed rather than automated badly.
 
 ## How to Add a New Jurisdiction
 
-1. Define a new `Jurisdiction` union member in `@/engine/types.ts`.
-2. Create a new checklist array in this file (e.g., `export const MY_JURISDICTION_CHECKLIST: ChecklistDefinition[] = [...]`).
-3. Add a case to the `getChecklistForJurisdiction()` switch statement.
-4. Add a label entry in the `JURISDICTION_LABELS` record in `regulatory-checklist.tsx`.
-5. For auto-checked items, write an `evaluate` function that inspects `ProjectStateForChecklist` and returns the appropriate status.
-6. For manual items, set `autoCheck: false` and omit the `evaluate` function.
+1. Add the new `Jurisdiction` member in `@flowsuite/engine/types.ts`.
+2. Create a new checklist array in `regulatory-checklists.ts`.
+3. Classify every item with `verificationType` and `affectsAdequacyVerdict`.
+4. Add evaluator functions only for genuinely app-verifiable checks.
+5. Add the jurisdiction label in `components/assessment/regulatory-checklist.tsx`.
 
-The UI will automatically pick up the new jurisdiction in the dropdown and render its items with the appropriate auto/manual behavior.
+The UI will automatically group the items into:
+
+- automatic verdict inputs
+- supporting app checks
+- engineer confirmation
+- external evidence

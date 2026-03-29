@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useCallback, useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { Toaster } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,24 +12,9 @@ import { BridgeGeometryForm } from '@/components/input/bridge-geometry-form';
 import { FlowProfilesForm } from '@/components/input/flow-profiles-form';
 import { CoefficientsForm } from '@/components/input/coefficients-form';
 import { ActionButtons } from '@/components/input/action-buttons';
-import { MethodTabs } from '@/components/results/method-tabs';
-import { ComparisonTables } from '@/components/summary/comparison-tables';
-import { RegimeMatrix } from '@/components/summary/regime-matrix';
-import { FreeboardCheck } from '@/components/summary/freeboard-check';
-import { ScenarioComparison } from '@/components/summary/scenario-comparison';
-import { AffluxCharts } from '@/components/summary/afflux-charts';
-import { AiSummaryBanner } from '@/components/summary/ai-summary-banner';
-import { AiCallout, AiCalloutGrouped, AiCalloutInline, AiCalloutGroupedInline } from '@/components/summary/ai-callout';
-import { MethodSuitability } from '@/components/summary/method-suitability';
-import { AdequacyPanel } from '@/components/assessment/adequacy-panel';
-import { RegulatoryChecklist } from '@/components/assessment/regulatory-checklist';
 import { useProjectStore } from '@/store/project-store';
 import type { PdfReportData } from '@/components/pdf-report';
-import { SimulationScene } from '@/components/simulation/scene-3d/simulation-scene';
-import { EnergyGradeDiagram } from '@/components/simulation/energy-grade-diagram';
 import { WhatIfControls, type WhatIfOverrides } from '@/components/what-if/what-if-controls';
-import { OptimizerCard } from '@/components/simulation/optimizer-card';
-import { DebrisGuidance } from '@/components/simulation/debris-guidance';
 import { buildHydraulicProfile } from '@/engine/simulation-profile';
 import { runAllMethods } from '@/engine';
 import type { CalculationResults } from '@/engine/types';
@@ -36,16 +22,36 @@ import { toDisplay, unitLabel } from '@/lib/units';
 import { DropZone } from '@/components/import/drop-zone';
 import { HecRasImportDialog } from '@/components/import/hecras-import-dialog';
 import { Waves, Ruler, Settings2, FlaskConical, BarChart3, FileInput, FileOutput, FileText, Layers, Landmark, Activity, SlidersHorizontal, Zap, Save, Sparkles, Database, Droplets, ShieldCheck, RotateCcw } from 'lucide-react';
-import { ChatPanel } from '@/components/ai-chat/chat-panel';
-import { ScourPanel } from '@/components/analysis/scour-panel';
-import { ArrLookup } from '@/components/hydrology/arr-lookup';
-import { CatchmentCalculator } from '@/components/hydrology/catchment-calculator';
 import { ImportPanel } from '@/components/data/import-panel';
-import { ExportPanel } from '@/components/report/export-panel';
-import { NarrativeEditor } from '@/components/report/narrative-editor';
-import { HistoryPanel } from '@/components/report/history-panel';
-import { QaqcPanel } from '@/components/analysis/qaqc-panel';
 import { ReachManager } from '@/components/data/reach-manager';
+
+/* ── Lazy-loaded heavy components (behind inactive tabs) ── */
+const MethodTabs = dynamic(() => import('@/components/results/method-tabs').then(m => m.MethodTabs));
+const ComparisonTables = dynamic(() => import('@/components/summary/comparison-tables').then(m => m.ComparisonTables));
+const RegimeMatrix = dynamic(() => import('@/components/summary/regime-matrix').then(m => m.RegimeMatrix));
+const FreeboardCheck = dynamic(() => import('@/components/summary/freeboard-check').then(m => m.FreeboardCheck));
+const ScenarioComparison = dynamic(() => import('@/components/summary/scenario-comparison').then(m => m.ScenarioComparison));
+const AffluxCharts = dynamic(() => import('@/components/summary/afflux-charts').then(m => m.AffluxCharts));
+const AiSummaryBanner = dynamic(() => import('@/components/summary/ai-summary-banner').then(m => m.AiSummaryBanner));
+const AiCalloutInline = dynamic(() => import('@/components/summary/ai-callout').then(m => m.AiCalloutInline));
+const AiCalloutGroupedInline = dynamic(() => import('@/components/summary/ai-callout').then(m => m.AiCalloutGroupedInline));
+const MethodSuitability = dynamic(() => import('@/components/summary/method-suitability').then(m => m.MethodSuitability));
+const AdequacyPanel = dynamic(() => import('@/components/assessment/adequacy-panel').then(m => m.AdequacyPanel));
+const RegulatoryChecklist = dynamic(() => import('@/components/assessment/regulatory-checklist').then(m => m.RegulatoryChecklist));
+const ChatPanel = dynamic(() => import('@/components/ai-chat/chat-panel').then(m => m.ChatPanel));
+const ScourPanel = dynamic(() => import('@/components/analysis/scour-panel').then(m => m.ScourPanel));
+const ArrLookup = dynamic(() => import('@/components/hydrology/arr-lookup').then(m => m.ArrLookup));
+const CatchmentCalculator = dynamic(() => import('@/components/hydrology/catchment-calculator').then(m => m.CatchmentCalculator));
+const ExportPanel = dynamic(() => import('@/components/report/export-panel').then(m => m.ExportPanel));
+const NarrativeEditor = dynamic(() => import('@/components/report/narrative-editor').then(m => m.NarrativeEditor));
+const HistoryPanel = dynamic(() => import('@/components/report/history-panel').then(m => m.HistoryPanel));
+const QaqcPanel = dynamic(() => import('@/components/analysis/qaqc-panel').then(m => m.QaqcPanel));
+
+/* Three.js / simulation — heaviest deps, client-only */
+const SimulationScene = dynamic(() => import('@/components/simulation/scene-3d/simulation-scene').then(m => m.SimulationScene), { ssr: false });
+const EnergyGradeDiagram = dynamic(() => import('@/components/simulation/energy-grade-diagram').then(m => m.EnergyGradeDiagram), { ssr: false });
+const OptimizerCard = dynamic(() => import('@/components/simulation/optimizer-card').then(m => m.OptimizerCard));
+const DebrisGuidance = dynamic(() => import('@/components/simulation/debris-guidance').then(m => m.DebrisGuidance));
 
 /* ------------------------------------------------------------------ */
 /*  Reusable placeholder for unimplemented sub-tabs                    */

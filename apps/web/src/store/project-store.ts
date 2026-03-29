@@ -90,6 +90,7 @@ interface ProjectStore {
   setScourResults: (results: ScourResults[] | null) => void;
   setAdequacyResults: (results: AdequacyResults | null) => void;
   setJurisdiction: (j: Jurisdiction) => void;
+  setRegulatoryChecklist: (items: ChecklistItem[]) => void;
   updateChecklistItem: (id: string, status: ChecklistItem['status']) => void;
   updateNarrativeSection: (id: string, updates: Partial<NarrativeSection>) => void;
   setNarrativeTone: (tone: 'technical' | 'summary') => void;
@@ -425,6 +426,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   setAdequacyResults: (results) => set({ adequacyResults: results }),
 
   setJurisdiction: (j) => set({ regulatoryJurisdiction: j }),
+
+  setRegulatoryChecklist: (items) => set({ regulatoryChecklist: items }),
 
   updateChecklistItem: (id, status) =>
     set((prev) => ({

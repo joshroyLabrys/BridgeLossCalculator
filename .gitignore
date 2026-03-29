@@ -1,7 +1,12 @@
 .superpowers/
 .claude/
+.worktrees/
 __pycache__/
 *.pyc
 BridgeLossCalculator.xlsm
 node_modules/
 .turbo/
+app/.next/
+apps/web/.next/
+coverage/
+dist/

@@ -5,7 +5,15 @@
     "dev": "turbo dev",
     "build": "turbo build",
     "test": "turbo test",
-    "lint": "turbo lint"
+    "lint": "turbo lint",
+    "dev:web": "pnpm --filter web dev",
+    "lint:web": "pnpm --filter web lint",
+    "test:web": "pnpm --filter web test",
+    "test:engine": "pnpm --filter @flowsuite/engine test",
+    "dev:legacy": "pnpm --dir app dev",
+    "test:legacy": "pnpm --dir app test",
+    "plan:new": "node scripts/ai/new-superpower-doc.mjs plan",
+    "spec:new": "node scripts/ai/new-superpower-doc.mjs spec"
   },
   "devDependencies": {
     "turbo": "^2.5.0"

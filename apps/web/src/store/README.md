@@ -34,7 +34,7 @@ A single Zustand store (`useProjectStore`) that holds all application state. The
 | `scourResults` | `ScourResults[] \| null` | Per-profile pier and contraction scour results. |
 | `adequacyResults` | `AdequacyResults \| null` | Bridge adequacy verdict, per-profile status, critical Q thresholds. |
 | `regulatoryJurisdiction` | `Jurisdiction` | Selected regulatory jurisdiction (tmr, vicroads, dpie, arr). |
-| `regulatoryChecklist` | `ChecklistItem[]` | Current state of all checklist items (pass/fail/manual-pass/not-assessed). |
+| `regulatoryChecklist` | `ChecklistItem[]` | Current state of all checklist items, including verification type (`auto`, `manual`, `external`) and whether the item aligns with the automatic hydraulic verdict. |
 | `narrativeSections` | `NarrativeSection[]` | AI-generated narrative report sections with content and edit status. |
 | `narrativeTone` | `'technical' \| 'summary'` | Selected narrative tone for AI generation. |
 | `snapshots` | `ProjectSnapshot[]` | Saved project snapshots for history comparison. |
@@ -80,8 +80,9 @@ A single Zustand store (`useProjectStore`) that holds all application state. The
 
 **Assessment:**
 - `setAdequacyResults(results)` -- stores adequacy results (usually set automatically by `AdequacyPanel` via `useEffect`).
-- `setJurisdiction(j)` -- changes the regulatory jurisdiction and resets checklist.
-- `updateChecklistItem(id, status)` -- updates a single checklist item's pass/fail status.
+- `setJurisdiction(j)` -- changes the regulatory jurisdiction.
+- `setRegulatoryChecklist(items)` -- replaces the evaluated checklist state so report export and snapshots stay aligned with the UI.
+- `updateChecklistItem(id, status)` -- updates a single manual or external checklist item's status.
 
 **Narrative:**
 - `updateNarrativeSection(id, updates)` -- updates a narrative section's content and status.

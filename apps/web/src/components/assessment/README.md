@@ -44,23 +44,27 @@ A table with one row per flow profile showing: profile name, ARI, discharge, wor
 
 **File:** `regulatory-checklist.tsx`
 
-A jurisdiction-specific compliance checklist that combines automatic evaluation with manual engineer verification.
+A jurisdiction-specific compliance checklist that is explicit about what the app can verify and what it cannot.
 
 **Jurisdiction Selector:**
-Dropdown with four Australian jurisdictions:
+Dropdown with four Australian jurisdiction packs:
 - TMR (Queensland)
 - VicRoads (Victoria)
 - DPIE (NSW)
 - ARR General
 
-Changing the jurisdiction loads a different set of checklist items from `@/config/regulatory-checklists.ts`.
+Changing the jurisdiction loads a different checklist definition set from `@/config/regulatory-checklists.ts`.
 
-**Checklist Items:**
-Each item is either:
-- **Auto-check** -- evaluated programmatically from project state. Shows a pass/fail icon and an "auto" label. The evaluator function receives a `ProjectStateForChecklist` snapshot containing freeboard results, sensitivity run status, debris percentage, scour existence, QA/QC comparison existence, regime classifications, and velocity-depth products.
-- **Manual** -- requires the engineer to check a checkbox. Shows "not-assessed" until toggled.
+**Checklist Groups:**
+The UI separates items into four groups:
 
-**Progress Tracking:**
-A progress bar at the top shows "X of Y requirements met" with percentage. Color transitions from red (<50%) through amber to green (100%).
+- **Automatic Verdict Inputs** -- app-verifiable hydraulic checks that align with the automatic adequacy verdict.
+- **Supporting App Checks** -- app-verifiable workflow checks that support compliance but do not change the hydraulic verdict.
+- **Engineer Confirmation** -- checks confirmed inside the app after review.
+- **External Evidence** -- checks confirmed from survey, adopted flood models, approvals, or other project records.
 
-The checklist items are stored in the Zustand store and persist with project snapshots.
+**Why this split exists:**
+The adequacy verdict should only rely on criteria the app can actually defend computationally. Manual and external-evidence items stay visible in the compliance workflow, but they are not presented as if the app had verified them automatically.
+
+**Persistence:**
+The evaluated checklist state is synchronized back into the Zustand store so exports, snapshots, and report generation use the same checklist state the user sees in the UI.

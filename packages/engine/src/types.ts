@@ -226,13 +226,16 @@ export interface AdequacyResults {
 
 // ── Regulatory types ──
 export type Jurisdiction = 'tmr' | 'vicroads' | 'dpie' | 'arr';
+export type ChecklistStatus = 'pass' | 'fail' | 'manual-pass' | 'manual-fail' | 'not-assessed';
+export type ChecklistVerificationType = 'auto' | 'manual' | 'external';
 
 export interface ChecklistItem {
   id: string;
   requirement: string;
   jurisdiction: Jurisdiction;
-  autoCheck: boolean;
-  status: 'pass' | 'fail' | 'manual-pass' | 'manual-fail' | 'not-assessed';
+  verificationType: ChecklistVerificationType;
+  affectsAdequacyVerdict: boolean;
+  status: ChecklistStatus;
 }
 
 // ── Narrative types ──

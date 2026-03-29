@@ -305,7 +305,7 @@ export interface PdfReportData {
 const JURISDICTION_LABELS: Record<string, string> = {
   tmr: 'TMR (Queensland)',
   vicroads: 'VicRoads (Victoria)',
-  dpie: 'DPIE (NSW)',
+  dpie: 'NSW Government (legacy DPIE key)',
   arr: 'ARR (National)',
 };
 
@@ -830,25 +830,46 @@ function ReportDocument({ data }: { data: PdfReportData }) {
         {show.regulatory && regulatoryChecklist && regulatoryChecklist.length > 0 ? (
           <>
             <Divider />
-            <Sec num={next()} title={`Regulatory Compliance — ${JURISDICTION_LABELS[regulatoryJurisdiction || 'tmr'] || regulatoryJurisdiction}`} desc="Checklist of regulatory requirements and their assessment status.">
+            <Sec num={next()} title={`Regulatory Compliance — ${JURISDICTION_LABELS[regulatoryJurisdiction || 'tmr'] || regulatoryJurisdiction}`} desc="Checklist of jurisdiction requirements grouped by what the app can verify automatically versus what still requires engineer confirmation or external project evidence.">
               {(() => {
-                const passed = regulatoryChecklist.filter((c) => c.status === 'pass' || c.status === 'manual-pass').length;
-                const failed = regulatoryChecklist.filter((c) => c.status === 'fail' || c.status === 'manual-fail').length;
-                const notAssessed = regulatoryChecklist.filter((c) => c.status === 'not-assessed').length;
+                const autoVerdict = regulatoryChecklist.filter((c) => c.verificationType === 'auto' && c.affectsAdequacyVerdict);
+                const autoSupporting = regulatoryChecklist.filter((c) => c.verificationType === 'auto' && !c.affectsAdequacyVerdict);
+                const manual = regulatoryChecklist.filter((c) => c.verificationType === 'manual');
+                const external = regulatoryChecklist.filter((c) => c.verificationType === 'external');
+                const countPassing = (items: typeof regulatoryChecklist) => items.filter((c) => c.status === 'pass' || c.status === 'manual-pass').length;
                 return (
                   <View style={[s.kvGrid, { marginBottom: 6 }]}>
-                    <KV label="Passed" value={passed} />
-                    <KV label="Failed" value={failed} />
-                    <KV label="Not Assessed" value={notAssessed} />
+                    <KV label="Verdict Inputs" value={`${countPassing(autoVerdict)}/${autoVerdict.length}`} />
+                    <KV label="Supporting App Checks" value={`${countPassing(autoSupporting)}/${autoSupporting.length}`} />
+                    <KV label="Manual Confirmed" value={`${countPassing(manual)}/${manual.length}`} />
+                    <KV label="External Evidence" value={`${countPassing(external)}/${external.length}`} />
                   </View>
                 );
               })()}
               <DataTable
                 columns={[
-                  { header: 'Requirement', width: '65%', render: (r) => r.requirement as string },
-                  { header: 'Auto', width: '10%', align: 'center', render: (r) => (r.autoCheck as boolean) ? 'Yes' : 'No' },
+                  { header: 'Requirement', width: '50%', render: (r) => r.requirement as string },
                   {
-                    header: 'Status', width: '25%', align: 'center',
+                    header: 'Verification', width: '18%', align: 'center',
+                    render: (r) => {
+                      const verificationType = r.verificationType as string;
+                      return verificationType === 'auto'
+                        ? 'APP'
+                        : verificationType === 'manual'
+                          ? 'MANUAL'
+                          : 'EXTERNAL';
+                    },
+                  },
+                  {
+                    header: 'Role', width: '14%', align: 'center',
+                    render: (r) => (r.affectsAdequacyVerdict as boolean) ? 'VERDICT' : 'SUPPORTING',
+                    cellStyle: (r) => ({
+                      fontFamily: 'Helvetica-Bold',
+                      color: (r.affectsAdequacyVerdict as boolean) ? C.primary : C.textMuted,
+                    }),
+                  },
+                  {
+                    header: 'Status', width: '18%', align: 'center',
                     render: (r) => {
                       const st = r.status as string;
                       return st === 'pass' ? 'PASS' : st === 'manual-pass' ? 'PASS (M)' : st === 'fail' ? 'FAIL' : st === 'manual-fail' ? 'FAIL (M)' : 'N/A';

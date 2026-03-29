@@ -528,10 +528,177 @@ const vChannelBenchmark: TestBridge = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// 6. Victoria Bridge — Brisbane River, QLD, Australia
+//
+// Inner-city crossing of the Brisbane River connecting the CBD (north bank)
+// to South Brisbane. The current bridge (opened 14 April 1969) is a precast,
+// post-tensioned, segmental concrete box girder with haunched profile.
+// Designed by Albert Contessa, built by Hornibrook. Total length 313 m in
+// 3 spans: two ~83.3 m side spans and a 146.3 m (480 ft) main span.
+// 2 reinforced-concrete portal-frame piers with sloping column legs.
+// Converted to dedicated busway (2014), refurbished for Brisbane Metro (2022-25).
+//
+// Navigation clearance 11.4–12.7 m above HAT (same as Captain Cook Bridge
+// and Goodwill Bridge). HAT at Brisbane City ≈ 2.7 m AHD, giving soffit
+// elevations of approximately 14.1–15.4 m AHD (varies with haunch depth).
+//
+// Cross-section approximated from BRCFS (2017) bathymetry context and
+// navigation data. City reach thalweg estimated at −6 to −8 m AHD
+// (undredged since late 1990s; historically dredged to 6 m depth).
+//
+// Flood data sourced from:
+//   - BRCFS 2017 (BMT WBM): 1% AEP level ≈ 4.54 m AHD at City Gauge
+//     (0.08 m above observed 2011 peak)
+//   - BOM observed: Jan 2011 peak 4.46 m AHD, est. ~7,300 m³/s at City Gauge
+//   - BOM observed: Jan 1974 peak 5.45 m AHD, ~9,500 m³/s
+//   - BOM flood classifications: Minor 1.70 m, Moderate 2.60 m, Major 3.50 m
+//   - BCC adopted DFL (Q100): 3.7 m AHD at 6,800 m³/s (1978, reconfirmed 2003)
+//
+// All values in metres and m³/s (native metric).
+//
+// References:
+//   Brisbane River Catchment Flood Study, BMT WBM (2017) — QRA
+//   BOM Flood Warning System — Brisbane River at City Gauge (540198)
+//   Structurae — Victoria Bridge (1969)
+//   Wikipedia — Victoria Bridge, Brisbane; Bridges over the Brisbane River
+//   Goodwill Bridge / Captain Cook Bridge navigation clearance data
+//   Original drawings held at Fryer Library, UQ (collection UQFL454)
+// ---------------------------------------------------------------------------
+const victoriaBridge: TestBridge = {
+  id: 'victoria-bridge',
+  name: 'Victoria Bridge',
+  location: 'Brisbane River, Brisbane, QLD, Australia',
+  description:
+    '313 m haunched box girder (1969), 3 spans, 2 portal-frame piers. Nav clearance 11.4–12.7 m. Flood data from BRCFS 2017 & BOM observed (2011, 1974). Full simulation with debris, sensitivity, and all methods.',
+  imageUrl: '',
+  crossSection: [
+    // Left (north) bank — CBD side, steep engineered riverwall / North Quay
+    { station: 0, elevation: 8.5, manningsN: 0.025, bankStation: null },
+    { station: 20, elevation: 6.0, manningsN: 0.025, bankStation: null },
+    { station: 40, elevation: 4.0, manningsN: 0.028, bankStation: null },
+    { station: 60, elevation: 2.5, manningsN: 0.03, bankStation: null },
+    // Left bank — top of engineered wall
+    { station: 75, elevation: 1.0, manningsN: 0.03, bankStation: 'left' },
+    // Main channel — deep tidal Brisbane River (undredged city reach)
+    { station: 95, elevation: -2.0, manningsN: 0.028, bankStation: null },
+    { station: 120, elevation: -4.5, manningsN: 0.025, bankStation: null },
+    { station: 145, elevation: -6.5, manningsN: 0.022, bankStation: null },
+    { station: 170, elevation: -7.5, manningsN: 0.022, bankStation: null },
+    { station: 195, elevation: -7.0, manningsN: 0.022, bankStation: null },
+    { station: 220, elevation: -5.5, manningsN: 0.025, bankStation: null },
+    { station: 245, elevation: -3.0, manningsN: 0.025, bankStation: null },
+    { station: 265, elevation: -0.5, manningsN: 0.028, bankStation: null },
+    // Right bank — South Brisbane / South Bank parkland edge
+    { station: 280, elevation: 1.5, manningsN: 0.03, bankStation: 'right' },
+    // Right (south) bank — South Brisbane, moderate slope to parkland
+    { station: 300, elevation: 3.5, manningsN: 0.035, bankStation: null },
+    { station: 320, elevation: 5.0, manningsN: 0.04, bankStation: null },
+    { station: 340, elevation: 6.5, manningsN: 0.04, bankStation: null },
+    { station: 365, elevation: 8.5, manningsN: 0.045, bankStation: null },
+  ],
+  bridgeGeometry: {
+    // Soffit (low chord) derived from navigation clearance 11.4–12.7 m above
+    // HAT (2.7 m AHD). Haunched girder: deepest at piers (~14.1 m AHD),
+    // shallowest at midspan (~15.4 m AHD).
+    lowChordLeft: 14.5,
+    lowChordRight: 14.5,
+    highChord: 17.0,
+    // 313 m total: left abutment → 83.3 m → Pier 1 → 146.3 m → Pier 2 → 83.3 m → right abutment
+    leftAbutmentStation: 20,
+    rightAbutmentStation: 333,
+    contractionLength: 200,
+    expansionLength: 280,
+    orificeCd: 0.8,
+    weirCw: 1.5,
+    deckWidth: 23.0,
+    skewAngle: 8,
+    piers: [
+      // 2 portal-frame piers with sloping column legs — modelled as round-nose
+      // for hydraulic purposes (concrete with flow-shaped leading edges).
+      // Pier width estimated at 3.0 m (not publicly available; typical for
+      // a major navigable river crossing of this span).
+      { station: 103, width: 3.0, shape: 'round-nose' },
+      { station: 249, width: 3.0, shape: 'round-nose' },
+    ],
+    // Haunched box girder: soffit lowest at piers, highest at midspan
+    lowChordProfile: [
+      { station: 20, elevation: 14.5 },   // Left abutment
+      { station: 103, elevation: 14.1 },  // Pier 1 (deepest haunch)
+      { station: 145, elevation: 15.0 },  // Midspan of left side span
+      { station: 176, elevation: 15.4 },  // Midspan of main span
+      { station: 210, elevation: 15.0 },  // Approaching Pier 2
+      { station: 249, elevation: 14.1 },  // Pier 2 (deepest haunch)
+      { station: 291, elevation: 15.0 },  // Midspan of right side span
+      { station: 333, elevation: 14.5 },  // Right abutment
+    ],
+  },
+  flowProfiles: [
+    {
+      // BOM minor flood classification at City Gauge: 1.70 m AHD
+      name: '20% AEP (5-yr ARI)',
+      ari: '20% AEP',
+      discharge: 2500,
+      dsWsel: 1.7,
+      channelSlope: 0.00008,
+    },
+    {
+      // Interpolated between BOM moderate (2.60 m) and major (3.50 m) thresholds
+      name: '5% AEP (20-yr ARI)',
+      ari: '5% AEP',
+      discharge: 5000,
+      dsWsel: 3.0,
+      channelSlope: 0.0001,
+    },
+    {
+      // BRCFS 2017: 1% AEP level at City Gauge ≈ 4.54 m AHD
+      // (0.08 m above observed 2011 peak). Discharge ~7,300 m³/s.
+      name: '1% AEP (100-yr ARI)',
+      ari: '1% AEP',
+      discharge: 7300,
+      dsWsel: 4.54,
+      channelSlope: 0.00012,
+    },
+    {
+      // BOM observed: 13 January 2011, 3:00 am. Peak 4.46 m AHD.
+      // Estimated ~7,300 m³/s at City Gauge (with Wivenhoe mitigation).
+      // BRCFS classifies this as approximately the 1% AEP event.
+      name: 'Jan 2011 Flood',
+      ari: 'Historic (~1% AEP)',
+      discharge: 7300,
+      dsWsel: 4.46,
+      channelSlope: 0.00012,
+    },
+    {
+      // BOM observed: 25 January 1974. Peak 5.45 m AHD.
+      // ~9,500 m³/s (Somerset Dam only, no Wivenhoe).
+      name: 'Jan 1974 Flood',
+      ari: 'Historic',
+      discharge: 9500,
+      dsWsel: 5.45,
+      channelSlope: 0.00015,
+    },
+  ],
+  coefficients: {
+    contractionCoeff: 0.3,
+    expansionCoeff: 0.5,
+    yarnellK: 0.9,
+    maxIterations: 100,
+    tolerance: 0.01,
+    initialGuessOffset: 0.5,
+    debrisBlockagePct: 10,
+    manningsNSensitivityPct: 20,
+    alphaOverride: null,
+    freeboardThreshold: 0.3,
+    methodsToRun: { energy: true, momentum: true, yarnell: true, wspro: true },
+  },
+};
+
 export const TEST_BRIDGES: TestBridge[] = [
   vChannelBenchmark,
   beaverCreekBridge,
   bogueChittoBridge,
   windsorBridge,
   breakfastCreekBridge,
+  victoriaBridge,
 ];
