@@ -16,7 +16,7 @@ const modules = [
     description: 'Catchment analysis, ARR2019, design floods',
     href: '/hydro',
     icon: Droplets,
-    available: false,
+    available: true,
   },
   {
     name: 'Report Builder',

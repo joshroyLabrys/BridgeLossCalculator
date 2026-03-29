@@ -59,6 +59,7 @@ const HistoryPanel = dynamic(() => import('@/components/report/history-panel').t
 });
 const QaqcPanel = dynamic(() => import('@/components/analysis/qaqc-panel').then((mod) => mod.QaqcPanel));
 const ReachManager = dynamic(() => import('@/components/data/reach-manager').then((mod) => mod.ReachManager));
+const HydroImportBanner = dynamic(() => import('@/components/data/hydro-import-banner').then((mod) => mod.HydroImportBanner));
 
 /* ------------------------------------------------------------------ */
 /*  Sub-tab defaults                                                   */
@@ -453,6 +454,7 @@ export function MainTabs() {
       {/*  DATA TAB                                                     */}
       {/* ============================================================ */}
       <TabsContent value="data" className="flex-1 px-4 sm:px-6 py-4 sm:py-5">
+        <HydroImportBanner />
         <DropZone onFiles={handleHecRasFiles} accept={HECRAS_EXTENSIONS}>
           <Tabs value={currentSubTab('data')} onValueChange={handleSubTabChange('data')}>
             <div className="mb-4 sm:mb-5 border-b border-border/30 scroll-snap-x">
